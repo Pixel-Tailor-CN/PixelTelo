@@ -94,6 +94,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
+    implementation(libs.material.icons.core)
+    implementation(libs.material.icons.extended)
 }
 
 apply(from = rootProject.file("signing.gradle"))
