@@ -1,6 +1,7 @@
 package vip.mystery0.pixel.telo.data.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
@@ -13,4 +14,7 @@ interface BlockedCallDao {
 
     @Insert
     suspend fun insert(blockedCall: BlockedCall)
+
+    @Delete
+    suspend fun delete(blockedCall: BlockedCall)
 }

@@ -15,4 +15,8 @@ class BlockedCallRepository(private val blockedCallDao: BlockedCallDao) {
         )
         blockedCallDao.insert(blockedCall)
     }
+
+    suspend fun delete(blockedCall: BlockedCall) {
+        blockedCallDao.delete(blockedCall)
+    }
 }

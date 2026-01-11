@@ -32,4 +32,10 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             )
         }
     }
+
+    fun delete(blockedCall: BlockedCall) {
+        viewModelScope.launch {
+            repository.delete(blockedCall)
+        }
+    }
 }
