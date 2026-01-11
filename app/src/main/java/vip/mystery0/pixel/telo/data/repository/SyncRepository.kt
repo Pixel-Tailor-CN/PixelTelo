@@ -22,27 +22,52 @@ class SyncRepository(
 ) {
     companion object {
         private const val TAG = "SyncRepository"
+        private const val DB_FILE_NAME = "mast.db"
     }
 
-    private val mastDbFile = context.getDatabasePath("mast.db")
+    private var database: MastDatabase? = null
 
-    // Check for updates
+    fun getDb(): MastDatabase? {
+        val dbFile = context.getDatabasePath(DB_FILE_NAME)
+        if (!dbFile.exists()) {
+            Log.i(TAG, "$DB_FILE_NAME does not exist, skipping")
+            return null
+        }
+        val db = Room.databaseBuilder(
+            context,
+            MastDatabase::class.java,
+            DB_FILE_NAME
+        ).build()
+        database = db
+        return database
+    }
+
+    private fun reloadDb() {
+        try {
+            val dbFile = context.getDatabasePath(DB_FILE_NAME)
+            if (!dbFile.exists()) {
+                Log.i(TAG, "$DB_FILE_NAME does not exist")
+                database = null
+                return
+            }
+            val db = Room.databaseBuilder(
+                context,
+                MastDatabase::class.java,
+                DB_FILE_NAME
+            ).build()
+            database = db
+        } catch (e: Exception) {
+            Log.w(TAG, "reloadDb error", e)
+        }
+    }
+
     suspend fun checkUpdate(): SyncResponse {
         return syncApi.checkUpdate()
     }
 
-    // Get current offline DB version
     suspend fun getCurrentVersion(): Int {
-        if (!mastDbFile.exists()) return 0
+        val db = getDb() ?: return 0
         return try {
-            val db = Room.databaseBuilder(
-                context,
-                MastDatabase::class.java,
-                "mast.db"
-            ).build()
-
-            // Should properly close DB after use or use a singleton if manageable.
-            // For now, since we might overwrite it, we open/close.
             val versionStr = try {
                 db.mastDao().getVersion()
             } finally {
@@ -55,7 +80,6 @@ class SyncRepository(
         }
     }
 
-    // Download, Verify, Unzip, Install
     suspend fun downloadAndInstall(
         downloadUrl: String,
         expectedChecksum: String,
@@ -117,6 +141,7 @@ class SyncRepository(
             if (tempDbFile == null) return@withContext false
 
             // 5. Replace existing DB
+            val mastDbFile = context.getDatabasePath(DB_FILE_NAME)
             if (mastDbFile.exists()) {
                 mastDbFile.delete()
             }
@@ -125,6 +150,7 @@ class SyncRepository(
             if (tempDbFile.renameTo(mastDbFile)) {
                 // Clean up zip
                 tempZipFile.delete()
+                reloadDb()
                 return@withContext true
             } else {
                 // Rename failed, try copy and delete
@@ -132,15 +158,15 @@ class SyncRepository(
                     tempDbFile.copyTo(mastDbFile, overwrite = true)
                     tempDbFile.delete()
                     tempZipFile.delete()
+                    reloadDb()
                     return@withContext true
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e(TAG, "Error during rename", e)
                     return@withContext false
                 }
             }
-
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error during download", e)
             return@withContext false
         } finally {
             if (tempZipFile.exists()) tempZipFile.delete()

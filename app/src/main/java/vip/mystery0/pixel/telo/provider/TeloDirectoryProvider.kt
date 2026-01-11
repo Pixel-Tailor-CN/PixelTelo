@@ -9,10 +9,15 @@ import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.ContactsContract.Directory
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.repository.SyncRepository
 
-class TeloDirectoryProvider : ContentProvider() {
+class TeloDirectoryProvider : ContentProvider(), KoinComponent {
     companion object {
         private const val TAG = "TeloDirectoryProvider"
         const val MATCH_DIRECTORIES = 1
@@ -20,12 +25,11 @@ class TeloDirectoryProvider : ContentProvider() {
         private const val AUTHORITY = "${BuildConfig.APPLICATION_ID}.provider"
     }
 
+    private val syncRepository: SyncRepository by inject()
+
     private val MATCHER = UriMatcher(UriMatcher.NO_MATCH).apply {
-        // 1. 系统查询有哪些目录 (关键！之前缺了这个)
         addURI(AUTHORITY, "directories", MATCH_DIRECTORIES)
-        // 2. 具体的号码查询 (匹配 /filter/123456)
         addURI(AUTHORITY, "phone_lookup/*", MATCH_PHONE_LOOKUP)
-        // 3. 通用查询 (匹配 /123456)
         addURI(AUTHORITY, "*", MATCH_PHONE_LOOKUP)
     }
 
@@ -39,8 +43,6 @@ class TeloDirectoryProvider : ContentProvider() {
         sortOrder: String?
     ): Cursor? {
         val match = MATCHER.match(uri)
-        Log.d(TAG, "Provider Query: $uri, Match Code: $match")
-
         return when (match) {
             MATCH_DIRECTORIES -> handleDirectoriesQuery(projection)
             MATCH_PHONE_LOOKUP -> handlePhoneLookup(uri, projection)
@@ -73,37 +75,60 @@ class TeloDirectoryProvider : ContentProvider() {
         row.add(Directory.EXPORT_SUPPORT, Directory.EXPORT_SUPPORT_ANY_ACCOUNT)
         row.add(Directory.SHORTCUT_SUPPORT, Directory.SHORTCUT_SUPPORT_NONE)
         row.add(Directory.PHOTO_SUPPORT, Directory.PHOTO_SUPPORT_NONE)
-
-        Log.d(TAG, "Returned directory info")
         return cursor
     }
 
     // --- 号码查询逻辑 ---
     private fun handlePhoneLookup(uri: Uri, projection: Array<out String>?): Cursor? {
-        // 获取查询的号码 (通常在 URL 的最后一段)
         val filter = uri.lastPathSegment ?: return null
         Log.d(TAG, "Looking up number: $filter")
+        // 构建数据库实例
+        val db = syncRepository.getDb() ?: return null
 
-        // 模拟查库逻辑
-        // 只有包含 12345 才返回，否则返回空 Cursor (表示没找到)
-        if (!filter.contains("12345")) {
-            return null
+        return runBlocking(Dispatchers.IO) {
+            var label: String
+            var displayName: String
+
+            try {
+                val spamNumber = try {
+                    db.spamNumberDao().search(filter)
+                } finally {
+                    db.close()
+                }
+
+                if (spamNumber != null) {
+                    Log.i(TAG, "Found spam tag: ${spamNumber.tag}")
+                    displayName = spamNumber.tag
+                    label = spamNumber.tag
+                } else {
+                    Log.i(TAG, "Number not found in mast.db")
+                    return@runBlocking null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error looking up number", e)
+                return@runBlocking null
+            }
+
+            val columns = projection ?: arrayOf(
+                ContactsContract.Contacts.DISPLAY_NAME,
+                ContactsContract.CommonDataKinds.Phone.NUMBER,
+                ContactsContract.CommonDataKinds.Phone.LABEL,
+                ContactsContract.CommonDataKinds.Phone.TYPE
+            )
+
+            val cursor = MatrixCursor(columns)
+            val row = cursor.newRow()
+
+            row.add(ContactsContract.Contacts.DISPLAY_NAME, displayName)
+            row.add(ContactsContract.CommonDataKinds.Phone.NUMBER, filter)
+            row.add(ContactsContract.CommonDataKinds.Phone.LABEL, label)
+            row.add(
+                ContactsContract.CommonDataKinds.Phone.TYPE,
+                ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM
+            )
+
+            return@runBlocking cursor
         }
-
-        val columns = projection ?: arrayOf(
-            ContactsContract.Contacts.DISPLAY_NAME,
-            ContactsContract.CommonDataKinds.Phone.NUMBER,
-            ContactsContract.CommonDataKinds.Phone.LABEL
-        )
-
-        val cursor = MatrixCursor(columns)
-        val row = cursor.newRow()
-
-        row.add(ContactsContract.Contacts.DISPLAY_NAME, "Pixel Telo: 骚扰测试")
-        row.add(ContactsContract.CommonDataKinds.Phone.NUMBER, filter)
-        row.add(ContactsContract.CommonDataKinds.Phone.LABEL, "广告")
-
-        return cursor
     }
 
     // 其他方法保持默认
