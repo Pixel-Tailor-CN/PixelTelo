@@ -24,6 +24,31 @@ import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 fun SettingsScreen(viewModel: SettingViewModel) {
     val context = LocalContext.current
 
+    // Handling Toast for Sync Status
+    if (viewModel.syncStatusMessage != null) {
+        Toast.makeText(context, viewModel.syncStatusMessage, Toast.LENGTH_SHORT).show()
+        viewModel.clearStatusMessage()
+    }
+
+    // Update Confirmation Dialog
+    if (viewModel.showUpdateDialog != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelUpdate() },
+            title = { Text("Update Available") },
+            text = { Text("New version: ${viewModel.showUpdateDialog?.latestVersion}\nDo you want to update?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmUpdate() }) {
+                    Text("Update")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelUpdate() }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     if (viewModel.showTestDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.hideTestDialog() },
@@ -56,10 +81,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         Column(modifier = Modifier.fillMaxSize()) {
             Preference(
                 title = { Text("更新离线数据") },
-                summary = { Text("从云端下载最新的骚扰拦截数据库") },
+                summary = { Text("当前版本: ${viewModel.offlineDbVersion}") },
                 icon = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
                 onClick = {
-                    Toast.makeText(context, "Clicked Update", Toast.LENGTH_SHORT).show()
+                    viewModel.checkUpdate()
                 }
             )
 
@@ -69,8 +94,6 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 icon = { Icon(Icons.Default.PhonelinkSetup, contentDescription = null) },
                 onClick = { viewModel.showTestDialog() }
             )
-
-
 
             PreferenceCategory(title = { Text("关于") })
             Preference(
