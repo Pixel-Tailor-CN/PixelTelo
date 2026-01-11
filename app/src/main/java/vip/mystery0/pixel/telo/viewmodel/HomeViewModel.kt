@@ -1,4 +1,4 @@
-package vip.mystery0.pixel.telo.ui
+package vip.mystery0.pixel.telo.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,22 +16,9 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     val blockedCalls: StateFlow<List<BlockedCall>> = repository.allBlockedCalls
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.Companion.WhileSubscribed(5000),
             initialValue = emptyList()
         )
-
-    fun addDummyData() {
-        viewModelScope.launch {
-            repository.insert(
-                phoneNumber = "10086",
-                remark = "Spam/Harassment"
-            )
-            repository.insert(
-                phoneNumber = "12345678901",
-                remark = "Real Estate Agent"
-            )
-        }
-    }
 
     fun delete(blockedCall: BlockedCall) {
         viewModelScope.launch {
