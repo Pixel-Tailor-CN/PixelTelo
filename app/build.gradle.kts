@@ -99,6 +99,7 @@ dependencies {
     implementation(libs.material.icons.extended)
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+    implementation(libs.compose.preference)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
