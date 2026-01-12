@@ -28,8 +28,10 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         runBlocking(Dispatchers.IO) {
             val (shouldFilter, spamLabel) = spamNumberRepository.checkSpam(phoneNumber)
             if (shouldFilter) {
-                response.setDisallowCall(true) // 拦截
-                response.setRejectCall(true)   // 挂断
+//                response.setDisallowCall(true) // 拦截
+//                response.setRejectCall(true)   // 挂断
+                response.setDisallowCall(false)
+                response.setRejectCall(false)
                 response.setSkipCallLog(false) // 是否跳过通话记录(false表示记录)
 
                 // 记录拦截信息

@@ -19,7 +19,24 @@ data class SyncResponse(
     val checksum: String
 )
 
+@Serializable
+data class QueryResponse(
+    @SerialName("phone")
+    val phone: String,
+    @SerialName("is_spam")
+    val isSpam: Boolean,
+    @SerialName("tag")
+    val tag: String = "",
+    @SerialName("confidence")
+    val confidence: Int,
+    @SerialName("source")
+    val source: String
+)
+
 interface SyncApi {
     @GET("api/v1/sync/check")
     suspend fun checkUpdate(@Query("current_version") currentVersion: String): SyncResponse
+
+    @GET("api/v1/query")
+    suspend fun queryNumber(@Query("number") number: String): QueryResponse
 }
