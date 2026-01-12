@@ -61,22 +61,23 @@ class SyncRepository(
         }
     }
 
-    suspend fun checkUpdate(): SyncResponse {
-        return syncApi.checkUpdate()
+    suspend fun checkUpdate(currentVersion: String): SyncResponse {
+        val version = currentVersion.ifBlank { "" }
+        return syncApi.checkUpdate(version)
     }
 
-    suspend fun getCurrentVersion(): Int {
-        val db = getDb() ?: return 0
+    suspend fun getCurrentVersion(): String {
+        val db = getDb() ?: return ""
         return try {
             val versionStr = try {
                 db.mastDao().getVersion()
             } finally {
                 db.close()
             }
-            versionStr?.toIntOrNull() ?: 0
+            versionStr ?: ""
         } catch (e: Exception) {
-            e.printStackTrace()
-            0
+            Log.w(TAG, "Error getting current version", e)
+            ""
         }
     }
 

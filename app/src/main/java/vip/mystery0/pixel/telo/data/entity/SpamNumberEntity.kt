@@ -9,8 +9,8 @@ data class SpamNumberEntity(
     @PrimaryKey
     @ColumnInfo(name = "phone_number")
     val phoneNumber: String,
-    @ColumnInfo(name = "tag", defaultValue = "")
+    @ColumnInfo(name = "tag")
     val tag: String,
-    @ColumnInfo(name = "source", defaultValue = "")
+    @ColumnInfo(name = "source")
     val source: String,
 )

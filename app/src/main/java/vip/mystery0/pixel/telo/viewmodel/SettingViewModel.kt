@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.viewmodel
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -13,6 +14,10 @@ import vip.mystery0.pixel.telo.data.remote.SyncResponse
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 
 class SettingViewModel : ViewModel(), KoinComponent {
+    companion object {
+        private const val TAG = "SettingViewModel"
+    }
+
     private val syncRepository: SyncRepository by inject()
 
     var showTestDialog by mutableStateOf(false)
@@ -21,7 +26,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var testPhoneNumber by mutableStateOf("")
 
     // Sync State
-    var offlineDbVersion by mutableStateOf<String>("Loading...")
+    var offlineDbVersion by mutableStateOf("检查中...")
         private set
     var showUpdateDialog by mutableStateOf<SyncResponse?>(null)
         private set
@@ -35,46 +40,46 @@ class SettingViewModel : ViewModel(), KoinComponent {
     private fun refreshOfflineVersion() {
         viewModelScope.launch {
             val version = syncRepository.getCurrentVersion()
-            offlineDbVersion = if (version == 0) "Not Found" else version.toString()
+            offlineDbVersion = if (version == "") "Not Found" else version
         }
     }
 
     fun checkUpdate() {
         viewModelScope.launch {
-            syncStatusMessage = "Checking for updates..."
+            syncStatusMessage = "检查更新中..."
             try {
                 val currentVersion = syncRepository.getCurrentVersion()
-                val response = syncRepository.checkUpdate()
+                val response = syncRepository.checkUpdate(currentVersion)
 
-                if (response.latestVersion > currentVersion) {
+                if (response.hasUpdate) {
                     showUpdateDialog = response
                     syncStatusMessage = null
                 } else {
-                    syncStatusMessage = "Already latest version."
+                    syncStatusMessage = "已经是最新版本了"
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
-                syncStatusMessage = "Check failed: ${e.message}"
+                Log.w(TAG, "Error checking update", e)
+                syncStatusMessage = "检查更新失败: ${e.message}"
             }
         }
     }
 
     fun confirmUpdate() {
         val updateInfo = showUpdateDialog ?: return
-        showUpdateDialog = null // Dismiss dialog
+        showUpdateDialog = null
 
         viewModelScope.launch {
-            syncStatusMessage = "Downloading..."
+            syncStatusMessage = "下载中..."
             val success = syncRepository.downloadAndInstall(
                 updateInfo.downloadUrl,
                 updateInfo.checksum,
                 updateInfo.sizeBytes
             )
             if (success) {
-                syncStatusMessage = "Update successful!"
+                syncStatusMessage = "更新成功！"
                 refreshOfflineVersion()
             } else {
-                syncStatusMessage = "Update failed."
+                syncStatusMessage = "离线数据更新失败"
             }
         }
     }

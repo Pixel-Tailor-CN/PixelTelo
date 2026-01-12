@@ -34,16 +34,16 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     if (viewModel.showUpdateDialog != null) {
         AlertDialog(
             onDismissRequest = { viewModel.cancelUpdate() },
-            title = { Text("Update Available") },
-            text = { Text("New version: ${viewModel.showUpdateDialog?.latestVersion}\nDo you want to update?") },
+            title = { Text("检测到离线数据存在新版本") },
+            text = { Text("新版本: ${viewModel.showUpdateDialog?.latestVersion}\n下载更新吗？") },
             confirmButton = {
                 TextButton(onClick = { viewModel.confirmUpdate() }) {
-                    Text("Update")
+                    Text("下载更新")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelUpdate() }) {
-                    Text("Cancel")
+                    Text("取消")
                 }
             }
         )
