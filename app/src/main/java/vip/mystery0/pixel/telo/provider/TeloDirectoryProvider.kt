@@ -15,6 +15,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 
 class TeloDirectoryProvider : ContentProvider(), KoinComponent {
@@ -25,6 +26,7 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
         private const val AUTHORITY = "${BuildConfig.APPLICATION_ID}.provider"
     }
 
+    private val spamNumberRepository: SpamNumberRepository by inject()
     private val syncRepository: SyncRepository by inject()
 
     private val MATCHER = UriMatcher(UriMatcher.NO_MATCH).apply {
@@ -50,7 +52,6 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
         }
     }
 
-    // --- 核心修复：告诉系统我们有一个名为 "Pixel Telo" 的目录 ---
     private fun handleDirectoriesQuery(projection: Array<out String>?): Cursor {
         val columns = projection ?: arrayOf(
             Directory._ID,
@@ -82,30 +83,18 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
     private fun handlePhoneLookup(uri: Uri, projection: Array<out String>?): Cursor? {
         val filter = uri.lastPathSegment ?: return null
         Log.d(TAG, "Looking up number: $filter")
-        // 构建数据库实例
-        val db = syncRepository.getDb() ?: return null
 
         return runBlocking(Dispatchers.IO) {
             var label: String
             var displayName: String
 
-            try {
-                val spamNumber = try {
-                    db.spamNumberDao().search(filter)
-                } finally {
-                    db.close()
-                }
-
-                if (spamNumber != null) {
-                    Log.i(TAG, "Found spam tag: ${spamNumber.tag}")
-                    displayName = spamNumber.tag
-                    label = spamNumber.tag
-                } else {
-                    Log.i(TAG, "Number not found in mast.db")
-                    return@runBlocking null
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error looking up number", e)
+            val (shouldFilter, spamLabel) = spamNumberRepository.checkSpam(filter)
+            if (shouldFilter) {
+                Log.i(TAG, "Found spam number: $filter")
+                label = spamLabel
+                displayName = spamLabel
+            } else {
+                Log.i(TAG, "Not spam number: $filter")
                 return@runBlocking null
             }
 

@@ -1,10 +1,14 @@
 package vip.mystery0.pixel.telo.data.repository
 
 import kotlinx.coroutines.flow.Flow
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.dao.BlockedCallDao
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 
-class BlockedCallRepository(private val blockedCallDao: BlockedCallDao) {
+class BlockedCallRepository : KoinComponent {
+    private val blockedCallDao: BlockedCallDao by inject()
+
     val allBlockedCalls: Flow<List<BlockedCall>> = blockedCallDao.getAll()
 
     suspend fun insert(phoneNumber: String, remark: String?) {

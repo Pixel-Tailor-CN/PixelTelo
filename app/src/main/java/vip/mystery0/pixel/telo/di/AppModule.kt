@@ -11,6 +11,7 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import vip.mystery0.pixel.telo.data.AppDatabase
 import vip.mystery0.pixel.telo.data.remote.SyncApi
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
+import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 
 val appModule = module {
@@ -24,7 +25,8 @@ val appModule = module {
 
     single { get<AppDatabase>().blockedCallDao() }
 
-    single { BlockedCallRepository(get()) }
+    single { BlockedCallRepository() }
+    single { SpamNumberRepository() }
 
     single {
         OkHttpClient.Builder()
