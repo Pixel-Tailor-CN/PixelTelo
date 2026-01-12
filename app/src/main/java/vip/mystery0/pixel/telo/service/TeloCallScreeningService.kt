@@ -12,7 +12,7 @@ import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 
 class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     companion object {
-        private const val TAG = "TeloCallScreeningServic"
+        private const val TAG = "TeloCallScreeningService"
     }
 
     private val blockedCallRepository: BlockedCallRepository by inject()
