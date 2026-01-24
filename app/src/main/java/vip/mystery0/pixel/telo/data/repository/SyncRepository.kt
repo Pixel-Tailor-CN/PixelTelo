@@ -6,6 +6,7 @@ import androidx.room.Room
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -32,6 +33,12 @@ class SyncRepository(
     private val _versionFlow = MutableStateFlow("")
     val versionFlow = _versionFlow.asStateFlow()
 
+    init {
+        runBlocking {
+            _versionFlow.value = getCurrentVersion()
+        }
+    }
+
     fun getDb(): MastDatabase? {
         val dbFile = context.getDatabasePath(DB_FILE_NAME)
         if (!dbFile.exists()) {
@@ -53,6 +60,7 @@ class SyncRepository(
             if (!dbFile.exists()) {
                 Log.i(TAG, "$DB_FILE_NAME does not exist")
                 database = null
+                _versionFlow.value = ""
                 return
             }
             val db = Room.databaseBuilder(

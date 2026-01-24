@@ -28,7 +28,6 @@ class NotificationHelper(private val context: Context) : KoinComponent {
     }
 
     private fun createNotificationChannel() {
-
         val name = "Database Download"
         val descriptionText = "Shows progress of database updates"
         val group = NotificationChannelGroup(CHANNEL_ID_DOWNLOAD, name)
