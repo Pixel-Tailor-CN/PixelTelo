@@ -37,6 +37,13 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val _missingPermissions = MutableStateFlow<List<String>>(emptyList())
     val missingPermissions: StateFlow<List<String>> = _missingPermissions.asStateFlow()
 
+    private val _isDefaultApp = MutableStateFlow(true)
+    val isDefaultApp: StateFlow<Boolean> = _isDefaultApp.asStateFlow()
+
+    fun updateDefaultAppState(isDefault: Boolean) {
+        _isDefaultApp.value = isDefault
+    }
+
     fun updateMissingPermissions(permissions: List<String>) {
         _missingPermissions.value = permissions
     }

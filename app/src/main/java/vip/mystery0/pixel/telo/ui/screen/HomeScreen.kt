@@ -1,57 +1,50 @@
 package vip.mystery0.pixel.telo.ui.screen
 
+import android.app.role.RoleManager
+import android.content.Context
 import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.SettingsPhone
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxDefaults
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.ui.components.SwipeToDeleteContainer
+import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import java.text.SimpleDateFormat
@@ -67,10 +60,23 @@ fun HomeScreen(
     val blockedCalls by viewModel.blockedCalls.collectAsState()
     val isDatabaseReady by viewModel.isDatabaseReady.collectAsState()
     val missingPermissions by viewModel.missingPermissions.collectAsState()
+    val isDefaultApp by viewModel.isDefaultApp.collectAsState()
+
+    val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
+    val roleLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        // Re-check after returning from role request
+        viewModel.updateDefaultAppState(roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING))
+    }
+
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var itemToDelete by remember { mutableStateOf<BlockedCall?>(null) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        // Check Permissions
         val missing = PermissionUtils.allPermissions
-            .filter { it.isCritical } // Only warn about critical permissions on Home
+            .filter { it.isCritical }
             .filter {
                 ContextCompat.checkSelfPermission(
                     context,
@@ -79,131 +85,47 @@ fun HomeScreen(
             }
             .map { it.permission }
         viewModel.updateMissingPermissions(missing)
+
+        // Check Default App Role
+        viewModel.updateDefaultAppState(roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING))
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        AnimatedVisibility(missingPermissions.isNotEmpty()) {
-            PermissionWarningCard(onNavigateToSettings)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+    ) {
+        item {
+            AnimatedVisibility(!isDefaultApp) {
+                DefaultAppWarningCard {
+                    val intent =
+                        roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING)
+                    roleLauncher.launch(intent)
+                }
+            }
         }
-
-        AnimatedVisibility(!isDatabaseReady) {
-            DatabaseWarningCard(onNavigateToSettings)
+        item {
+            AnimatedVisibility(missingPermissions.isNotEmpty()) {
+                PermissionWarningCard(onNavigateToSettings)
+            }
         }
-
-        BlockedCallsList(
+        item {
+            AnimatedVisibility(!isDatabaseReady) {
+                DatabaseWarningCard(onNavigateToSettings)
+            }
+        }
+        blockedCallsList(
             calls = blockedCalls,
-            onDelete = { viewModel.delete(it) }
+            onDelete = { call ->
+                itemToDelete = call
+                showDeleteDialog = true
+            },
         )
     }
-}
 
-@Composable
-fun PermissionWarningCard(onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "缺少必要权限",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            Text(
-                text = "为了正常拦截骚扰电话，请授予相关权限。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                )
-            ) {
-                Text("去授权")
-            }
-        }
-    }
-}
-
-@Composable
-fun DatabaseWarningCard(onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "离线数据库缺失",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            Text(
-                text = "为了实现最佳拦截效果，请下载离线数据库。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                )
-            ) {
-                Text("去下载")
-            }
-        }
-    }
-}
-
-@Composable
-fun BlockedCallsList(
-    calls: List<BlockedCall>,
-    onDelete: (BlockedCall) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var showDialog by remember { mutableStateOf(false) }
-    var itemToDelete by remember { mutableStateOf<BlockedCall?>(null) }
-
-    if (showDialog && itemToDelete != null) {
+    if (showDeleteDialog && itemToDelete != null) {
         AlertDialog(
             onDismissRequest = {
-                showDialog = false
+                showDeleteDialog = false
                 itemToDelete = null
             },
             title = { Text("删除记录") },
@@ -211,8 +133,8 @@ fun BlockedCallsList(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        itemToDelete?.let { onDelete(it) }
-                        showDialog = false
+                        itemToDelete?.let { viewModel.delete(it) }
+                        showDeleteDialog = false
                         itemToDelete = null
                     }
                 ) {
@@ -222,7 +144,7 @@ fun BlockedCallsList(
             dismissButton = {
                 TextButton(
                     onClick = {
-                        showDialog = false
+                        showDeleteDialog = false
                         itemToDelete = null
                     }
                 ) {
@@ -231,103 +153,111 @@ fun BlockedCallsList(
             }
         )
     }
+}
 
-    if (calls.isEmpty()) {
-        Column(
-            modifier = modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+@Composable
+fun DefaultAppWarningCard(onClick: () -> Unit) {
+    WarningCard(
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        icon = Icons.Default.SettingsPhone,
+        iconColor = MaterialTheme.colorScheme.tertiary,
+        title = "未设置为默认应用",
+        message = "Pixel Telo 需要成为默认的“来电显示与骚扰拦截应用”才能生效。",
+    ) {
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary
+            )
         ) {
-            Text("暂无拦截记录", style = MaterialTheme.typography.bodyLarge)
+            Text("设为默认")
+        }
+    }
+}
+
+@Composable
+fun PermissionWarningCard(onClick: () -> Unit) {
+    WarningCard(
+        containerColor = MaterialTheme.colorScheme.errorContainer,
+        icon = Icons.Default.Warning,
+        iconColor = MaterialTheme.colorScheme.error,
+        title = "缺少必要权限",
+        message = "为了正常拦截骚扰电话，请授予相关权限。",
+    ) {
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError
+            )
+        ) {
+            Text("去授权")
+        }
+    }
+}
+
+@Composable
+fun DatabaseWarningCard(onClick: () -> Unit) {
+    WarningCard(
+        containerColor = MaterialTheme.colorScheme.errorContainer,
+        icon = Icons.Default.Warning,
+        iconColor = MaterialTheme.colorScheme.error,
+        title = "离线数据库缺失",
+        message = "为了实现最佳拦截效果，请下载离线数据库。",
+    ) {
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError
+            )
+        ) {
+            Text("去下载")
+        }
+    }
+}
+
+private fun LazyListScope.blockedCallsList(
+    calls: List<BlockedCall>,
+    onDelete: (BlockedCall) -> Unit,
+) {
+    if (calls.isEmpty()) {
+        item {
+            Text(
+                "暂无拦截记录",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+            )
         }
     } else {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
-        ) {
-            items(calls, key = { it.id }) { call ->
-                SwipeToDeleteContainer(
-                    onDelete = {
-                        itemToDelete = call
-                        showDialog = true
-                    }
-                ) {
-                    BlockedCallItem(call)
+        items(calls, key = { it.id }) { call ->
+            SwipeToDeleteContainer(
+                onDelete = {
+                    onDelete(call)
                 }
+            ) {
+                BlockedCallItem(call)
             }
         }
     }
 }
 
 @Composable
-fun SwipeToDeleteContainer(
-    onDelete: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        SwipeToDismissBoxValue.Settled,
-        SwipeToDismissBoxDefaults.positionalThreshold
-    )
-    val scope = rememberCoroutineScope()
-
-    SwipeToDismissBox(
-        state = dismissState,
-        onDismiss = {
-            if (it == SwipeToDismissBoxValue.StartToEnd || it == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                scope.launch {
-                    dismissState.reset()
-                }
-            }
-        },
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val color by animateColorAsState(
-                when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.Settled -> Color.Transparent
-                    SwipeToDismissBoxValue.StartToEnd -> Color.Red
-                    SwipeToDismissBoxValue.EndToStart -> Color.Red
-                }, label = "SwipeBackground"
-            )
-            val icon = Icons.Default.Delete
-            val scale by animateFloatAsState(
-                if (dismissState.targetValue == SwipeToDismissBoxValue.Settled) 0.75f else 1f,
-                label = "SwipeIconScale"
-            )
-            val alignment = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
-                else -> Alignment.CenterStart
-            }
-
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(color)
-                    .padding(horizontal = 20.dp),
-                contentAlignment = alignment
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = "Delete",
-                    modifier = Modifier.scale(scale),
-                    tint = Color.White
-                )
-            }
-        },
-        content = { content() }
-    )
-}
-
-@Composable
 fun BlockedCallItem(call: BlockedCall) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .fillMaxWidth()
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Row 1: Number + Time
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = call.phoneNumber,
@@ -374,7 +304,7 @@ fun BlockedCallItem(call: BlockedCall) {
 
             // Row 4: Duration
             val durationText = buildString {
-                append("耗时: 本地 ${call.localDuration}ms")
+                append("处理耗时: 本地 ${call.localDuration}ms")
                 if (call.networkDuration > 0) {
                     append(" | 网络 ${call.networkDuration}ms")
                 }
