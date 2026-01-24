@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -7,14 +8,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,13 +52,70 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel) {
+fun HomeScreen(
+    viewModel: HomeViewModel,
+    onNavigateToSettings: () -> Unit
+) {
     val blockedCalls by viewModel.blockedCalls.collectAsState()
+    val isDatabaseReady by viewModel.isDatabaseReady.collectAsState()
 
-    BlockedCallsList(
-        calls = blockedCalls,
-        onDelete = { viewModel.delete(it) }
-    )
+    Column(modifier = Modifier.fillMaxSize()) {
+        AnimatedVisibility(!isDatabaseReady) {
+            DatabaseWarningCard(onNavigateToSettings)
+        }
+
+        BlockedCallsList(
+            calls = blockedCalls,
+            onDelete = { viewModel.delete(it) }
+        )
+    }
+}
+
+@Composable
+fun DatabaseWarningCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "离线数据库缺失",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Text(
+                text = "为了实现最佳拦截效果，请下载离线数据库。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                Text("去下载")
+            }
+        }
+    }
 }
 
 @Composable

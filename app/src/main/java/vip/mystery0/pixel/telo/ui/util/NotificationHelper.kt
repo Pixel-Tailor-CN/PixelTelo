@@ -36,7 +36,7 @@ class NotificationHelper(private val context: Context) : KoinComponent {
         val channel = NotificationChannel(
             CHANNEL_ID_DOWNLOAD,
             name,
-            NotificationManager.IMPORTANCE_DEFAULT
+            NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = descriptionText
             setShowBadge(true)

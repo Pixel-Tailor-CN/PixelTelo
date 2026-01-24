@@ -66,7 +66,12 @@ class MainActivity : ComponentActivity() {
                     Column(modifier = Modifier.padding(innerPadding)) {
                         when (currentDestination) {
                             AppDestinations.HOME -> {
-                                HomeScreen(homeViewModel)
+                                HomeScreen(
+                                    homeViewModel,
+                                    onNavigateToSettings = {
+                                        currentDestination = AppDestinations.SETTINGS
+                                    }
+                                )
                             }
 
                             AppDestinations.SETTINGS -> {
