@@ -81,10 +81,11 @@ class SyncRepository(
         }
     }
 
-    suspend fun downloadAndInstall(
+    suspend fun downloadAndInstallWithProgress(
         downloadUrl: String,
         expectedChecksum: String,
-        expectedSize: Long
+        expectedSize: Long,
+        onProgress: (Int) -> Unit
     ): Boolean = withContext(Dispatchers.IO) {
         val tempZipFile = File(context.cacheDir, "mast_update.zip")
         try {
@@ -94,13 +95,24 @@ class SyncRepository(
             if (!response.isSuccessful) return@withContext false
             val body = response.body
 
+            val contentLength = body.contentLength()
             val inputStream = body.byteStream()
             val outputStream = FileOutputStream(tempZipFile)
-            inputStream.use { input ->
-                outputStream.use { output ->
-                    input.copyTo(output)
+
+            var bytesCopied: Long = 0
+            val buffer = ByteArray(8 * 1024)
+            var bytes = inputStream.read(buffer)
+            while (bytes >= 0) {
+                outputStream.write(buffer, 0, bytes)
+                bytesCopied += bytes
+                if (contentLength > 0) {
+                    val progress = ((bytesCopied * 100) / contentLength).toInt()
+                    onProgress(progress)
                 }
+                bytes = inputStream.read(buffer)
             }
+            outputStream.close()
+            inputStream.close()
 
             // 2. Verify Size
             if (tempZipFile.length() != expectedSize) {
@@ -109,6 +121,7 @@ class SyncRepository(
             }
 
             // 3. Verify Checksum (SHA-256)
+            onProgress(100) // verifying
             val calculatedChecksum = calculateSha256(tempZipFile)
             if (calculatedChecksum != expectedChecksum) {
                 Log.w(TAG, "Checksum mismatch: $calculatedChecksum vs $expectedChecksum")

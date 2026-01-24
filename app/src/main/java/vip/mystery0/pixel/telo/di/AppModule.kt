@@ -1,5 +1,7 @@
 package vip.mystery0.pixel.telo.di
 
+import android.app.NotificationManager
+import android.content.Context
 import androidx.room.Room
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -13,6 +15,7 @@ import vip.mystery0.pixel.telo.data.remote.SyncApi
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
+import vip.mystery0.pixel.telo.ui.util.NotificationHelper
 
 val appModule = module {
     single {
@@ -43,5 +46,9 @@ val appModule = module {
             .create(SyncApi::class.java)
     }
 
+    single { androidContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
+
     single { SyncRepository(androidContext(), get(), get()) }
+
+    single { NotificationHelper(androidContext()) }
 }
