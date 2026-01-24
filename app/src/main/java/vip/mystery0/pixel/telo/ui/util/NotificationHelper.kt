@@ -9,9 +9,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.MainActivity
 
-class NotificationHelper(private val context: Context) {
+class NotificationHelper(private val context: Context) : KoinComponent {
 
     companion object {
         const val CHANNEL_ID_DOWNLOAD = "download_channel"
@@ -19,8 +21,7 @@ class NotificationHelper(private val context: Context) {
         const val NOTIFICATION_ID_COMPLETE = 1002
     }
 
-    private val notificationManager =
-        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    private val notificationManager: NotificationManager by inject()
 
     init {
         createNotificationChannel()
