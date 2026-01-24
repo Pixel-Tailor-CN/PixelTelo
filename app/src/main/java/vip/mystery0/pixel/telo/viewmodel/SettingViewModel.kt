@@ -1,10 +1,12 @@
 package vip.mystery0.pixel.telo.viewmodel
 
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
@@ -17,9 +19,11 @@ import vip.mystery0.pixel.telo.data.repository.SyncRepository
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
         private const val TAG = "SettingViewModel"
+        const val KEY_NOTIFY_ONLY = "notify_only"
     }
 
     private val syncRepository: SyncRepository by inject()
+    private val prefs: SharedPreferences by inject()
 
     var showTestDialog by mutableStateOf(false)
         private set
@@ -28,6 +32,14 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     // Debug Options
     var forceDownload by mutableStateOf(false)
+
+    // App Features
+    var notifyOnly by mutableStateOf(prefs.getBoolean(KEY_NOTIFY_ONLY, false))
+
+    fun updateNotifyOnly(enabled: Boolean) {
+        notifyOnly = enabled
+        prefs.edit { putBoolean(KEY_NOTIFY_ONLY, enabled) }
+    }
 
     // Sync State
     var offlineDbVersion by mutableStateOf("检查中...")

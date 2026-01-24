@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.service
 
+import android.content.SharedPreferences
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.util.Log
@@ -10,6 +11,7 @@ import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
+import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     companion object {
@@ -18,6 +20,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
     private val blockedCallRepository: BlockedCallRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
+    private val prefs: SharedPreferences by inject()
 
     override fun onScreenCall(callDetails: Call.Details) {
         val phoneNumber = callDetails.handle?.schemeSpecificPart ?: return
@@ -25,6 +28,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         Log.d(TAG, "Incoming call detected: $phoneNumber")
 
         val response = CallResponse.Builder()
+        val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, false)
 
         runBlocking(Dispatchers.IO) {
             try {
@@ -32,18 +36,33 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
                 // Decide response based on result type
                 if (result.shouldBlock) {
-                    response.setDisallowCall(true)
-                    response.setRejectCall(true)
-                    response.setSkipCallLog(false)
+                    if (notifyOnly) {
+                        // Pass but record as PASS_BUT_NOTIFY
+                        response.setDisallowCall(false)
+                        response.setRejectCall(false)
+                        response.setSkipCallLog(false)
 
-                    // Only record if blocked
-                    blockedCallRepository.insert(
-                        phoneNumber,
-                        result.label,
-                        result.resultType,
-                        result.localCost,
-                        result.networkCost
-                    )
+                        blockedCallRepository.insert(
+                            phoneNumber,
+                            result.label + " (仅提示)",
+                            ResultType.PASS_BUT_NOTIFY,
+                            result.localCost,
+                            result.networkCost
+                        )
+                    } else {
+                        // Real Block
+                        response.setDisallowCall(true)
+                        response.setRejectCall(true)
+                        response.setSkipCallLog(false)
+
+                        blockedCallRepository.insert(
+                            phoneNumber,
+                            result.label,
+                            ResultType.INTERCEPT,
+                            result.localCost,
+                            result.networkCost
+                        )
+                    }
                 } else {
                     // Allowed
                     response.setDisallowCall(false)
