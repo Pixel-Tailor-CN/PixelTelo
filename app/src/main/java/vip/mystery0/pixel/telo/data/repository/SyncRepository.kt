@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.room.Room
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,6 +29,9 @@ class SyncRepository(
 
     private var database: MastDatabase? = null
 
+    private val _versionFlow = MutableStateFlow("")
+    val versionFlow = _versionFlow.asStateFlow()
+
     fun getDb(): MastDatabase? {
         val dbFile = context.getDatabasePath(DB_FILE_NAME)
         if (!dbFile.exists()) {
@@ -42,7 +47,7 @@ class SyncRepository(
         return database
     }
 
-    private fun reloadDb() {
+    private suspend fun reloadDb() {
         try {
             val dbFile = context.getDatabasePath(DB_FILE_NAME)
             if (!dbFile.exists()) {
@@ -56,6 +61,8 @@ class SyncRepository(
                 DB_FILE_NAME
             ).build()
             database = db
+
+            _versionFlow.value = getCurrentVersion()
         } catch (e: Exception) {
             Log.w(TAG, "reloadDb error", e)
         }

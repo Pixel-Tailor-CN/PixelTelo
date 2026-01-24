@@ -39,13 +39,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
         private set
 
     init {
-        refreshOfflineVersion()
-    }
-
-    private fun refreshOfflineVersion() {
         viewModelScope.launch {
-            val version = syncRepository.getCurrentVersion()
-            offlineDbVersion = if (version == "") "Not Found" else version
+            syncRepository.versionFlow.collect { version ->
+                offlineDbVersion = version.ifBlank {
+                    val v = syncRepository.getCurrentVersion()
+                    v.ifBlank { "Not Found" }
+                }
+            }
         }
     }
 
