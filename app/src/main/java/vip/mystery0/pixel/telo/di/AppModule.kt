@@ -48,6 +48,8 @@ val appModule = module {
 
     single { androidContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager }
 
+    single { androidx.work.WorkManager.getInstance(androidContext()) }
+
     single { SyncRepository(androidContext(), get(), get()) }
 
     single { NotificationHelper(androidContext()) }

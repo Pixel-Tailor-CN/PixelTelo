@@ -6,12 +6,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.data.remote.SyncResponse
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
+import vip.mystery0.pixel.telo.worker.DatabaseSyncWorker
 
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
@@ -19,6 +23,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     private val syncRepository: SyncRepository by inject()
+    private val workManager: WorkManager by inject()
 
     var showTestDialog by mutableStateOf(false)
         private set
@@ -68,20 +73,18 @@ class SettingViewModel : ViewModel(), KoinComponent {
         val updateInfo = showUpdateDialog ?: return
         showUpdateDialog = null
 
-        viewModelScope.launch {
-            syncStatusMessage = "下载中..."
-            val success = syncRepository.downloadAndInstall(
-                updateInfo.downloadUrl,
-                updateInfo.checksum,
-                updateInfo.sizeBytes
-            )
-            if (success) {
-                syncStatusMessage = "更新成功！"
-                refreshOfflineVersion()
-            } else {
-                syncStatusMessage = "离线数据更新失败"
-            }
-        }
+        val inputData = workDataOf(
+            "downloadUrl" to updateInfo.downloadUrl,
+            "checksum" to updateInfo.checksum,
+            "sizeBytes" to updateInfo.sizeBytes,
+            "latestVersion" to updateInfo.latestVersion
+        )
+
+        val request = OneTimeWorkRequest.Builder(DatabaseSyncWorker::class.java)
+            .setInputData(inputData)
+            .build()
+        workManager.enqueue(request)
+        syncStatusMessage = "已在后台开始更新，请查看通知栏进度"
     }
 
     fun cancelUpdate() {

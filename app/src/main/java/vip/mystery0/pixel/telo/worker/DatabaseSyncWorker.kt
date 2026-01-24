@@ -38,19 +38,17 @@ class DatabaseSyncWorker(
         try {
             setForeground(foregroundInfo)
 
-            // 1. Check Update
-            val currentVersion = syncRepository.getCurrentVersion()
-            val updateInfo = syncRepository.checkUpdate(currentVersion)
-
-            if (!updateInfo.hasUpdate) {
-                return Result.success()
-            }
+            // 1. Get Params from InputData
+            val downloadUrl = inputData.getString("downloadUrl") ?: return Result.failure()
+            val checksum = inputData.getString("checksum") ?: return Result.failure()
+            val sizeBytes = inputData.getLong("sizeBytes", 0L)
+            val latestVersion = inputData.getString("latestVersion") ?: "Unknown"
 
             // 2. Download and Install
             val success = syncRepository.downloadAndInstallWithProgress(
-                updateInfo.downloadUrl,
-                updateInfo.checksum,
-                updateInfo.sizeBytes
+                downloadUrl,
+                checksum,
+                sizeBytes
             ) { progress ->
                 // Update Progress
                 val notification = notificationHelper.getDownloadNotification(progress)
@@ -62,8 +60,8 @@ class DatabaseSyncWorker(
 
             if (success) {
                 notificationHelper.showCompleteNotification(
-                    updateInfo.latestVersion,
-                    formatSize(updateInfo.sizeBytes)
+                    latestVersion,
+                    formatSize(sizeBytes)
                 )
                 return Result.success()
             } else {
