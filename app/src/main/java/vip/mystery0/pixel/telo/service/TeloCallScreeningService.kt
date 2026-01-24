@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 
@@ -27,27 +28,46 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
         runBlocking(Dispatchers.IO) {
             try {
-                val (shouldFilter, spamLabel) = spamNumberRepository.checkSpam(phoneNumber)
-                if (shouldFilter) {
-                    response.setDisallowCall(true) // 拦截
-                    response.setRejectCall(true)   // 挂断
-                    response.setSkipCallLog(false) // 是否跳过通话记录(false表示记录)
+                val result = spamNumberRepository.checkSpam(phoneNumber)
 
-                    // 记录拦截信息
-                    blockedCallRepository.insert(phoneNumber, spamLabel)
+                // Decide response based on result type
+                if (result.shouldBlock) {
+                    response.setDisallowCall(true)
+                    response.setRejectCall(true)
+                    response.setSkipCallLog(false)
+
+                    // Only record if blocked
+                    blockedCallRepository.insert(
+                        phoneNumber,
+                        result.label,
+                        result.resultType,
+                        result.localCost,
+                        result.networkCost
+                    )
                 } else {
+                    // Allowed
                     response.setDisallowCall(false)
                     response.setRejectCall(false)
                     response.setSkipCallLog(false)
+
+                    // If TIMEOUT, we still record it for diagnostics as requested
+                    if (result.resultType == ResultType.NETWORK_TIMEOUT) {
+                        blockedCallRepository.insert(
+                            phoneNumber,
+                            "Network Timeout (Allowed)",
+                            result.resultType,
+                            result.localCost,
+                            result.networkCost
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking spam, allowing call", e)
-                // Fallback: allow call if anything crashes
+                // Fallback
                 response.setDisallowCall(false)
                 response.setRejectCall(false)
                 response.setSkipCallLog(false)
             } finally {
-                // CRITICAL: Must always respond to call to avoid blocking the phone
                 respondToCall(callDetails, response.build())
             }
         }

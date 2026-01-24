@@ -51,6 +51,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
+import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import java.text.SimpleDateFormat
@@ -323,6 +324,7 @@ fun SwipeToDeleteContainer(
 fun BlockedCallItem(call: BlockedCall) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Row 1: Number + Time
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
@@ -339,15 +341,50 @@ fun BlockedCallItem(call: BlockedCall) {
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+
+            // Row 2: Result Type
+            val resultText = when (call.resultType) {
+                ResultType.INTERCEPT -> "拦截原因: 骚扰电话"
+                ResultType.PASS_BUT_NOTIFY -> "拦截原因: 提示(未拦截)"
+                ResultType.NETWORK_TIMEOUT -> "拦截原因: 联网查询超时(已放行)"
+            }
+            val resultColor = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.primary
+            }
+            Text(
+                text = resultText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = resultColor,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            // Row 3: Remark
             if (!call.remark.isNullOrEmpty()) {
                 Text(
                     text = "备注: ${call.remark}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
+
+            // Row 4: Duration
+            val durationText = buildString {
+                append("耗时: 本地 ${call.localDuration}ms")
+                if (call.networkDuration > 0) {
+                    append(" | 网络 ${call.networkDuration}ms")
+                }
+            }
+            Text(
+                text = durationText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
     }
 }
