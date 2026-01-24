@@ -110,7 +110,6 @@ dependencies {
     implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.work.runtime.ktx)
 }
 
 apply(from = rootProject.file("signing.gradle"))

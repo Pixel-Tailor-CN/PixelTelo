@@ -2,20 +2,17 @@ package vip.mystery0.pixel.telo.viewmodel
 
 import android.util.Log
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.OneTimeWorkRequest
-import androidx.work.WorkManager
-import androidx.work.workDataOf
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.data.remote.SyncResponse
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
-import vip.mystery0.pixel.telo.worker.DatabaseSyncWorker
 
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
@@ -23,7 +20,6 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     private val syncRepository: SyncRepository by inject()
-    private val workManager: WorkManager by inject()
 
     var showTestDialog by mutableStateOf(false)
         private set
@@ -41,6 +37,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var syncStatusMessage by mutableStateOf<String?>(null)
         private set
 
+    // Download State
+    var isDownloading by mutableStateOf(false)
+        private set
+    var downloadProgress by mutableFloatStateOf(0f)
+        private set
+
     init {
         viewModelScope.launch {
             syncRepository.versionFlow.collect { version ->
@@ -56,10 +58,14 @@ class SettingViewModel : ViewModel(), KoinComponent {
         viewModelScope.launch {
             syncStatusMessage = "检查更新中..."
             try {
-                val currentVersion = syncRepository.getCurrentVersion()
+                val currentVersion = if (forceDownload) {
+                    ""
+                } else {
+                    syncRepository.getCurrentVersion()
+                }
                 val response = syncRepository.checkUpdate(currentVersion)
 
-                if (response.hasUpdate || forceDownload) {
+                if (response.hasUpdate) {
                     showUpdateDialog = response
                     syncStatusMessage = null
                 } else {
@@ -76,18 +82,26 @@ class SettingViewModel : ViewModel(), KoinComponent {
         val updateInfo = showUpdateDialog ?: return
         showUpdateDialog = null
 
-        val inputData = workDataOf(
-            "downloadUrl" to updateInfo.downloadUrl,
-            "checksum" to updateInfo.checksum,
-            "sizeBytes" to updateInfo.sizeBytes,
-            "latestVersion" to updateInfo.latestVersion
-        )
+        viewModelScope.launch {
+            isDownloading = true
+            downloadProgress = 0f
+            syncStatusMessage = null
 
-        val request = OneTimeWorkRequest.Builder(DatabaseSyncWorker::class.java)
-            .setInputData(inputData)
-            .build()
-        workManager.enqueue(request)
-        syncStatusMessage = "已在后台开始更新，请查看通知栏进度"
+            val success = syncRepository.downloadAndInstallWithProgress(
+                updateInfo.downloadUrl,
+                updateInfo.checksum,
+                updateInfo.sizeBytes
+            ) { progress ->
+                downloadProgress = progress / 100f
+            }
+
+            isDownloading = false
+            syncStatusMessage = if (success) {
+                "更新成功！"
+            } else {
+                "离线数据更新失败"
+            }
+        }
     }
 
     fun cancelUpdate() {
