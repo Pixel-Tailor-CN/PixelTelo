@@ -205,4 +205,22 @@ class SyncRepository(
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
+
+    suspend fun deleteDatabase() = withContext(Dispatchers.IO) {
+        try {
+            val dbFile = context.getDatabasePath(DB_FILE_NAME)
+            if (dbFile.exists()) {
+                dbFile.delete()
+            }
+            // Close existing connection if any
+            database?.close()
+            database = null
+
+            // Update version flow to empty
+            _versionFlow.value = ""
+            Log.i(TAG, "Database deleted successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting database", e)
+        }
+    }
 }

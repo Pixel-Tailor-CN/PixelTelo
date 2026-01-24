@@ -30,6 +30,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     var testPhoneNumber by mutableStateOf("")
 
+    // Debug Options
+    var forceDownload by mutableStateOf(false)
+
     // Sync State
     var offlineDbVersion by mutableStateOf("检查中...")
         private set
@@ -56,7 +59,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 val currentVersion = syncRepository.getCurrentVersion()
                 val response = syncRepository.checkUpdate(currentVersion)
 
-                if (response.hasUpdate) {
+                if (response.hasUpdate || forceDownload) {
                     showUpdateDialog = response
                     syncStatusMessage = null
                 } else {
@@ -112,6 +115,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
         viewModelScope.launch {
             println("Testing block for number: $testPhoneNumber")
             hideTestDialog()
+        }
+    }
+
+    fun deleteDatabase() {
+        viewModelScope.launch {
+            syncRepository.deleteDatabase()
+            syncStatusMessage = "离线数据库已删除"
         }
     }
 

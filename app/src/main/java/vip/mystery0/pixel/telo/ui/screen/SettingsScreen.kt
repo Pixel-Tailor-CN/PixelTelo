@@ -4,6 +4,8 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -18,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
+import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 @Composable
@@ -93,6 +96,21 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 summary = { Text("输入号码模拟拦截检查") },
                 icon = { Icon(Icons.Default.PhonelinkSetup, contentDescription = null) },
                 onClick = { viewModel.showTestDialog() }
+            )
+
+            PreferenceCategory(title = { Text("调试模式") })
+            SwitchPreference(
+                value = viewModel.forceDownload,
+                onValueChange = { viewModel.forceDownload = it },
+                title = { Text("始终下载离线数据库") },
+                summary = { Text("忽略版本检查，强制下载最新库") },
+                icon = { Icon(Icons.Default.CloudDownload, contentDescription = null) }
+            )
+            Preference(
+                title = { Text("删除离线数据库") },
+                summary = { Text("删除已下载的本地数据库文件") },
+                icon = { Icon(Icons.Default.DeleteForever, contentDescription = null) },
+                onClick = { viewModel.deleteDatabase() }
             )
 
             PreferenceCategory(title = { Text("关于") })
