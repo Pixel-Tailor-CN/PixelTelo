@@ -2,8 +2,10 @@ package vip.mystery0.pixel.telo.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -29,8 +31,15 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = true // Assume ready initially to avoid flash, or false if safer
+            initialValue = true
         )
+
+    private val _missingPermissions = MutableStateFlow<List<String>>(emptyList())
+    val missingPermissions: StateFlow<List<String>> = _missingPermissions.asStateFlow()
+
+    fun updateMissingPermissions(permissions: List<String>) {
+        _missingPermissions.value = permissions
+    }
 
     fun delete(blockedCall: BlockedCall) {
         viewModelScope.launch {

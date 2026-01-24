@@ -1,9 +1,16 @@
 package vip.mystery0.pixel.telo.ui.screen
 
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
@@ -11,21 +18,63 @@ import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import me.zhanghai.compose.preference.SwitchPreference
+import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 @Composable
 fun SettingsScreen(viewModel: SettingViewModel) {
     val context = LocalContext.current
+    var permissionsState by remember {
+        mutableStateOf(
+            PermissionUtils.allPermissions.associate {
+                it.permission to (ContextCompat.checkSelfPermission(
+                    context,
+                    it.permission
+                ) == PackageManager.PERMISSION_GRANTED)
+            }
+        )
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        permissionsState = permissionsState.toMutableMap().apply {
+            result.forEach { (permission, isGranted) ->
+                this[permission] = isGranted
+            }
+        }
+    }
+
+    fun checkPermissions() {
+        permissionsState = PermissionUtils.allPermissions.associate {
+            it.permission to (ContextCompat.checkSelfPermission(
+                context,
+                it.permission
+            ) == PackageManager.PERMISSION_GRANTED)
+        }
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        checkPermissions()
+    }
 
     // Handling Toast for Sync Status
     if (viewModel.syncStatusMessage != null) {
@@ -81,7 +130,12 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     }
 
     ProvidePreferenceLocals {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            PreferenceCategory(title = { Text("应用功能") })
             Preference(
                 title = { Text("更新离线数据") },
                 summary = { Text("当前版本: ${viewModel.offlineDbVersion}") },
@@ -98,6 +152,39 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 onClick = { viewModel.showTestDialog() }
             )
 
+            PreferenceCategory(title = { Text("权限申请") })
+            PermissionUtils.allPermissions.forEach { item ->
+                val isGranted = permissionsState[item.permission] == true
+                Preference(
+                    title = { Text(item.name) },
+                    summary = { Text(item.description) },
+                    icon = {
+                        Icon(
+                            if (isGranted) Icons.Default.Check else Icons.Default.Close,
+                            contentDescription = null,
+                            tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                    },
+                    onClick = {
+                        if (!isGranted) {
+                            launcher.launch(arrayOf(item.permission))
+                        }
+                    }
+                )
+            }
+
+            PreferenceCategory(title = { Text("关于") })
+            Preference(
+                title = { Text("版本名称") },
+                summary = { Text(viewModel.versionName) },
+                icon = { Icon(Icons.Default.Info, contentDescription = null) }
+            )
+            Preference(
+                title = { Text("版本号") },
+                summary = { Text(viewModel.versionCode.toString()) },
+                icon = { Icon(Icons.Default.Info, contentDescription = null) }
+            )
+
             PreferenceCategory(title = { Text("调试模式") })
             SwitchPreference(
                 value = viewModel.forceDownload,
@@ -111,18 +198,6 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 summary = { Text("删除已下载的本地数据库文件") },
                 icon = { Icon(Icons.Default.DeleteForever, contentDescription = null) },
                 onClick = { viewModel.deleteDatabase() }
-            )
-
-            PreferenceCategory(title = { Text("关于") })
-            Preference(
-                title = { Text("版本名称") },
-                summary = { Text(viewModel.versionName) },
-                icon = { Icon(Icons.Default.Info, contentDescription = null) }
-            )
-            Preference(
-                title = { Text("版本号") },
-                summary = { Text(viewModel.versionCode.toString()) },
-                icon = { Icon(Icons.Default.Info, contentDescription = null) }
             )
         }
     }

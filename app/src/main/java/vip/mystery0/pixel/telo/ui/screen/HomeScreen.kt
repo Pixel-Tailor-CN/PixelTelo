@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.ui.screen
 
+import android.content.pm.PackageManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -42,10 +43,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
+import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,10 +62,29 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onNavigateToSettings: () -> Unit
 ) {
+    val context = LocalContext.current
     val blockedCalls by viewModel.blockedCalls.collectAsState()
     val isDatabaseReady by viewModel.isDatabaseReady.collectAsState()
+    val missingPermissions by viewModel.missingPermissions.collectAsState()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        val missing = PermissionUtils.allPermissions
+            .filter { it.isCritical } // Only warn about critical permissions on Home
+            .filter {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    it.permission
+                ) != PackageManager.PERMISSION_GRANTED
+            }
+            .map { it.permission }
+        viewModel.updateMissingPermissions(missing)
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        AnimatedVisibility(missingPermissions.isNotEmpty()) {
+            PermissionWarningCard(onNavigateToSettings)
+        }
+
         AnimatedVisibility(!isDatabaseReady) {
             DatabaseWarningCard(onNavigateToSettings)
         }
@@ -68,6 +93,53 @@ fun HomeScreen(
             calls = blockedCalls,
             onDelete = { viewModel.delete(it) }
         )
+    }
+}
+
+@Composable
+fun PermissionWarningCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "缺少必要权限",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Text(
+                text = "为了正常拦截骚扰电话，请授予相关权限。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                Text("去授权")
+            }
+        }
     }
 }
 
