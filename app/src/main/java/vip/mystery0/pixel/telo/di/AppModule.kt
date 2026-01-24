@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.di
 
+import android.content.Context
 import androidx.room.Room
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -44,4 +45,6 @@ val appModule = module {
     }
 
     single { SyncRepository(androidContext(), get(), get()) }
+
+    single { androidContext().getSharedPreferences("pixel_telo", Context.MODE_PRIVATE) }
 }

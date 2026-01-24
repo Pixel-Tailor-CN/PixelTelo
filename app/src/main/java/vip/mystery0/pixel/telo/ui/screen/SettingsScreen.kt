@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
@@ -167,6 +168,14 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 onClick = {
                     viewModel.checkUpdate()
                 }
+            )
+
+            SwitchPreference(
+                value = viewModel.notifyOnly,
+                onValueChange = { viewModel.updateNotifyOnly(it) },
+                title = { Text("仅提示不拦截") },
+                summary = { Text("识别到骚扰电话时仅记录，不挂断") },
+                icon = { Icon(Icons.Default.NotificationsActive, contentDescription = null) }
             )
 
             Preference(
