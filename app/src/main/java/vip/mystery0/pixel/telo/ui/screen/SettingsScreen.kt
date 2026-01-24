@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -113,7 +113,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             title = { Text("正在下载离线数据...") },
             text = {
                 Column {
-                    LinearProgressIndicator(
+                    LinearWavyProgressIndicator(
                         progress = { viewModel.downloadProgress },
                         modifier = Modifier.fillMaxWidth()
                     )
