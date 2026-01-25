@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhonelinkSetup
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -215,7 +216,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             Preference(
                 title = { Text("版本号") },
                 summary = { Text(viewModel.versionCode.toString()) },
-                icon = { Icon(Icons.Default.Info, contentDescription = null) }
+                icon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) }
             )
 
             PreferenceCategory(title = { Text("调试模式") })
