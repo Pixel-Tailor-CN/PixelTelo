@@ -14,6 +14,9 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.data.remote.SyncResponse
+import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
+import vip.mystery0.pixel.telo.data.repository.CheckResult
+import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 
 class SettingViewModel : ViewModel(), KoinComponent {
@@ -23,12 +26,17 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     private val syncRepository: SyncRepository by inject()
+    private val blockedCallRepository: BlockedCallRepository by inject()
+    private val spamNumberRepository: SpamNumberRepository by inject()
     private val prefs: SharedPreferences by inject()
 
     var showTestDialog by mutableStateOf(false)
         private set
 
     var testPhoneNumber by mutableStateOf("")
+
+    var testResult by mutableStateOf<CheckResult?>(null)
+        private set
 
     // Debug Options
     var forceDownload by mutableStateOf(false)
@@ -131,6 +139,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun hideTestDialog() {
         showTestDialog = false
         testPhoneNumber = ""
+        testResult = null
     }
 
     fun updateTestPhoneNumber(number: String) {
@@ -138,9 +147,29 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     fun testBlock() {
+        if (testPhoneNumber.isBlank()) return
         viewModelScope.launch {
-            println("Testing block for number: $testPhoneNumber")
+            try {
+                testResult = spamNumberRepository.checkSpam(testPhoneNumber)
+            } catch (e: Exception) {
+                Log.e(TAG, "Test block failed", e)
+                syncStatusMessage = "测试失败: ${e.message}"
+            }
+        }
+    }
+
+    fun saveTestResult() {
+        val result = testResult ?: return
+        viewModelScope.launch {
+            blockedCallRepository.insert(
+                testPhoneNumber,
+                result.label.ifBlank { "手动测试" },
+                result.resultType,
+                result.localCost,
+                result.networkCost
+            )
             hideTestDialog()
+            syncStatusMessage = "已记录到拦截列表"
         }
     }
 

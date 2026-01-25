@@ -133,23 +133,40 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             title = { Text("测试拦截") },
             text = {
                 Column {
-                    Text("输入需要检查的电话号码")
-                    OutlinedTextField(
-                        value = viewModel.testPhoneNumber,
-                        onValueChange = { viewModel.updateTestPhoneNumber(it) },
-                        label = { Text("电话号码") },
-                        singleLine = true
-                    )
+                    if (viewModel.testResult == null) {
+                        Text("输入需要检查的电话号码")
+                        OutlinedTextField(
+                            value = viewModel.testPhoneNumber,
+                            onValueChange = { viewModel.updateTestPhoneNumber(it) },
+                            label = { Text("电话号码") },
+                            singleLine = true
+                        )
+                    } else {
+                        val result = viewModel.testResult!!
+                        Text("号码: ${viewModel.testPhoneNumber}")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("是否拦截: ${if (result.shouldBlock) "是" else "否"}")
+                        Text("标签信息: ${result.label.ifEmpty { "无" }}")
+                        Text("结果类型: ${result.resultType}")
+                        Text("本地耗时: ${result.localCost}ms")
+                        Text("网络耗时: ${result.networkCost}ms")
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.testBlock() }) {
-                    Text("检查")
+                if (viewModel.testResult == null) {
+                    TextButton(onClick = { viewModel.testBlock() }) {
+                        Text("检查")
+                    }
+                } else {
+                    TextButton(onClick = { viewModel.saveTestResult() }) {
+                        Text("记录")
+                    }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.hideTestDialog() }) {
-                    Text("取消")
+                    Text(if (viewModel.testResult == null) "取消" else "关闭")
                 }
             }
         )
