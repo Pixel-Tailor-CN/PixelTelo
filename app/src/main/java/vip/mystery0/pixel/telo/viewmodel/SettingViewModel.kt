@@ -34,7 +34,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var forceDownload by mutableStateOf(false)
 
     // App Features
-    var notifyOnly by mutableStateOf(prefs.getBoolean(KEY_NOTIFY_ONLY, false))
+    var notifyOnly by mutableStateOf(prefs.getBoolean(KEY_NOTIFY_ONLY, true))
 
     fun updateNotifyOnly(enabled: Boolean) {
         notifyOnly = enabled

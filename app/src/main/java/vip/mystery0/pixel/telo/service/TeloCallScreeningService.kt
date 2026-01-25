@@ -28,7 +28,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         Log.d(TAG, "Incoming call detected: $phoneNumber")
 
         val response = CallResponse.Builder()
-        val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, false)
+        val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, true)
 
         runBlocking(Dispatchers.IO) {
             try {
