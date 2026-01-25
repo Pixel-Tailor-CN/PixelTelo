@@ -228,7 +228,7 @@ private fun LazyListScope.blockedCallsList(
                 "暂无拦截记录",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
+                    .height(360.dp),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
             )

@@ -30,7 +30,9 @@ fun WarningCard(
     content: @Composable () -> Unit,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = containerColor
         )
