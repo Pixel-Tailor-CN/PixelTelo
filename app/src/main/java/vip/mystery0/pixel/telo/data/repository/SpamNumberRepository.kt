@@ -28,8 +28,8 @@ class SpamNumberRepository : KoinComponent {
     suspend fun checkSpam(phoneNumber: String): CheckResult {
         val start = System.currentTimeMillis()
         val phone = phoneNumber.removePrefix("+86")
-        var localCost = 0L
-        var networkCost = 0L
+        var localCost: Long
+        var networkCost: Long
 
         // 1. Local Lookup
         val db = syncRepository.getDb()
