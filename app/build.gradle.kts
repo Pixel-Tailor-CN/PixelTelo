@@ -61,6 +61,7 @@ android {
         debug {
             isMinifyEnabled = false
             isShrinkResources = false
+            applicationIdSuffix = ".debug"
             versionNameSuffix = ".d$gitVersionCode.$gitVersionName"
         }
         release {
