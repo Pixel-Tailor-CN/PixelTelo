@@ -13,6 +13,12 @@ interface BlockedCallDao {
     @Query("SELECT * FROM blocked_calls ORDER BY blockTime DESC")
     fun getAll(): Flow<List<BlockedCall>>
 
+    @Query("SELECT * FROM blocked_calls")
+    suspend fun getAllSnapshot(): List<BlockedCall>
+
+    @Query("SELECT * FROM blocked_calls WHERE phoneNumber = :phoneNumber AND blockTime = :blockTime LIMIT 1")
+    suspend fun findByKey(phoneNumber: String, blockTime: Long): BlockedCall?
+
     @Insert
     suspend fun insert(blockedCall: BlockedCall)
 

@@ -14,10 +14,23 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.data.remote.SyncResponse
+import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
+import java.io.InputStream
+import java.io.OutputStream
+
+/**
+ * 备份/恢复操作的结果状态
+ */
+sealed interface BackupRestoreState {
+    data object Idle : BackupRestoreState
+    data object Processing : BackupRestoreState
+    data class Success(val message: String) : BackupRestoreState
+    data class Failure(val message: String) : BackupRestoreState
+}
 
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
@@ -27,8 +40,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     private val syncRepository: SyncRepository by inject()
     private val blockedCallRepository: BlockedCallRepository by inject()
+    private val backupRepository: BackupRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val prefs: SharedPreferences by inject()
+
+    // Backup / Restore State
+    var backupRestoreState by mutableStateOf<BackupRestoreState>(BackupRestoreState.Idle)
+        private set
 
     var showTestDialog by mutableStateOf(false)
         private set
@@ -171,6 +189,36 @@ class SettingViewModel : ViewModel(), KoinComponent {
             hideTestDialog()
             syncStatusMessage = "已记录到拦截列表"
         }
+    }
+
+    fun performBackup(outputStream: OutputStream) {
+        viewModelScope.launch {
+            backupRestoreState = BackupRestoreState.Processing
+            try {
+                backupRepository.backup(outputStream)
+                backupRestoreState = BackupRestoreState.Success("备份已导出")
+            } catch (e: Exception) {
+                Log.e(TAG, "Backup failed", e)
+                backupRestoreState = BackupRestoreState.Failure("备份失败: ${e.message}")
+            }
+        }
+    }
+
+    fun performRestore(inputStream: InputStream) {
+        viewModelScope.launch {
+            backupRestoreState = BackupRestoreState.Processing
+            try {
+                val count = backupRepository.restore(inputStream)
+                backupRestoreState = BackupRestoreState.Success("已恢复 $count 条记录")
+            } catch (e: Exception) {
+                Log.e(TAG, "Restore failed", e)
+                backupRestoreState = BackupRestoreState.Failure("恢复失败: ${e.message}")
+            }
+        }
+    }
+
+    fun dismissBackupRestoreResult() {
+        backupRestoreState = BackupRestoreState.Idle
     }
 
     fun deleteDatabase() {

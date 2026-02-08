@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -51,6 +53,7 @@ import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
+import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 @Composable
@@ -77,6 +80,26 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         }
     }
 
+    // 备份：通过系统文件保存对话框选择保存位置
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        uri?.let {
+            val stream = context.contentResolver.openOutputStream(it)
+            if (stream != null) viewModel.performBackup(stream)
+        }
+    }
+
+    // 恢复：通过系统文件选择对话框选择备份文件
+    val restoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val stream = context.contentResolver.openInputStream(it)
+            if (stream != null) viewModel.performRestore(stream)
+        }
+    }
+
     fun checkPermissions() {
         permissionsState = PermissionUtils.allPermissions.associate {
             it.permission to (ContextCompat.checkSelfPermission(
@@ -94,6 +117,52 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     if (viewModel.syncStatusMessage != null) {
         Toast.makeText(context, viewModel.syncStatusMessage, Toast.LENGTH_SHORT).show()
         viewModel.clearStatusMessage()
+    }
+
+    // 备份/恢复结果 Bottom Sheet
+    val backupState = viewModel.backupRestoreState
+    if (backupState is BackupRestoreState.Success) {
+        ModalBottomSheet(onDismissRequest = { viewModel.dismissBackupRestoreResult() }) {
+            Column(
+                modifier = androidx.compose.ui.Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("操作成功", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    backupState.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(
+                    onClick = { viewModel.dismissBackupRestoreResult() },
+                    modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+                ) { Text("确定") }
+            }
+        }
+    } else if (backupState is BackupRestoreState.Failure) {
+        ModalBottomSheet(onDismissRequest = { viewModel.dismissBackupRestoreResult() }) {
+            Column(
+                modifier = androidx.compose.ui.Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("操作失败", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    backupState.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(
+                    onClick = { viewModel.dismissBackupRestoreResult() },
+                    modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+                ) { Text("确定") }
+            }
+        }
     }
 
     // 更新离线数据 Bottom Sheet：确认与下载进度共用同一个 Sheet，用 AnimatedContent 切换
@@ -253,6 +322,25 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 summary = { Text("输入号码模拟拦截检查") },
                 icon = { Icon(Icons.Default.PhonelinkSetup, contentDescription = null) },
                 onClick = { viewModel.showTestDialog() }
+            )
+
+            Preference(
+                title = { Text("备份拦截记录") },
+                summary = { Text("将拦截记录导出为 ZIP 文件") },
+                icon = { Icon(Icons.Default.Save, contentDescription = null) },
+                onClick = {
+                    val date =
+                        java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                            .format(java.util.Date())
+                    backupLauncher.launch("pixeltelo_backup_$date.zip")
+                }
+            )
+
+            Preference(
+                title = { Text("恢复拦截记录") },
+                summary = { Text("从备份文件恢复拦截记录") },
+                icon = { Icon(Icons.Default.Restore, contentDescription = null) },
+                onClick = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
             )
 
             PreferenceCategory(title = { Text("权限申请") })
