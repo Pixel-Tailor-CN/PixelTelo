@@ -31,6 +31,10 @@ class BlockedCallRepository : KoinComponent {
         blockedCallDao.insert(blockedCall)
     }
 
+    suspend fun update(blockedCall: BlockedCall) {
+        blockedCallDao.update(blockedCall)
+    }
+
     suspend fun delete(blockedCall: BlockedCall) {
         blockedCallDao.delete(blockedCall)
     }

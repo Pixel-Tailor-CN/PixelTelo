@@ -19,12 +19,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SettingsPhone
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,6 +52,7 @@ import vip.mystery0.pixel.telo.ui.components.SwipeToDeleteContainer
 import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
+import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,6 +67,7 @@ fun HomeScreen(
     val isDatabaseReady by viewModel.isDatabaseReady.collectAsState()
     val missingPermissions by viewModel.missingPermissions.collectAsState()
     val isDefaultApp by viewModel.isDefaultApp.collectAsState()
+    val retryQueryState by viewModel.retryQueryState.collectAsState()
 
     val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
     val roleLauncher = rememberLauncherForActivityResult(
@@ -120,7 +126,75 @@ fun HomeScreen(
                 itemToDelete = call
                 showDeleteDialog = true
             },
+            onRetry = { call -> viewModel.retryNetworkQuery(call) },
         )
+    }
+
+    // 联网重查对话框
+    when (val state = retryQueryState) {
+        is RetryQueryState.Loading -> AlertDialog(
+            onDismissRequest = { viewModel.dismissRetry() },
+            title = { Text("联网查询") },
+            text = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator()
+                    Text("正在查询 ${state.call.phoneNumber}…")
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissRetry() }) { Text("取消") }
+            }
+        )
+
+        is RetryQueryState.Success -> {
+            val resp = state.response
+            val remarkText = if (resp.isSpam) {
+                "[重查] 骚扰, 标签: ${resp.tag}, 可信度: ${resp.confidence}%, 来源: ${resp.source}"
+            } else {
+                "[重查] 非骚扰, 来源: ${resp.source}"
+            }
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissRetry() },
+                title = { Text("查询结果 — ${state.call.phoneNumber}") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("是否骚扰: ${if (resp.isSpam) "是" else "否"}")
+                        if (resp.isSpam) Text("标签: ${resp.tag}")
+                        Text("可信度: ${resp.confidence}%")
+                        Text("来源: ${resp.source}")
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.writeQueryResultToRemark(
+                            state.call,
+                            remarkText
+                        )
+                    }) {
+                        Text("写入备注")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissRetry() }) { Text("关闭") }
+                }
+            )
+        }
+
+        is RetryQueryState.Failure -> AlertDialog(
+            onDismissRequest = { viewModel.dismissRetry() },
+            title = { Text("查询失败") },
+            text = { Text(state.message) },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissRetry() }) { Text("关闭") }
+            }
+        )
+
+        RetryQueryState.Idle -> Unit
     }
 
     if (showDeleteDialog && itemToDelete != null) {
@@ -222,6 +296,7 @@ fun DatabaseWarningCard(onClick: () -> Unit) {
 private fun LazyListScope.blockedCallsList(
     calls: List<BlockedCall>,
     onDelete: (BlockedCall) -> Unit,
+    onRetry: (BlockedCall) -> Unit,
 ) {
     if (calls.isEmpty()) {
         item {
@@ -243,36 +318,53 @@ private fun LazyListScope.blockedCallsList(
                 onDelete = { onDelete(call) },
                 contentVerticalPadding = 4.dp,
             ) {
-                BlockedCallItem(call)
+                BlockedCallItem(
+                    call = call,
+                    onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
+                        { onRetry(call) }
+                    } else null,
+                )
             }
         }
     }
 }
 
 @Composable
-fun BlockedCallItem(call: BlockedCall) {
+fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
     Card(
         modifier = Modifier
             .padding(vertical = 4.dp)
             .fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Row 1: Number + Time
+            // Row 1: Number + (Retry) + Time
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = call.phoneNumber,
                     style = MaterialTheme.typography.titleMedium
                 )
-                Text(
-                    text = SimpleDateFormat(
-                        "MM-dd HH:mm",
-                        Locale.getDefault()
-                    ).format(Date(call.blockTime)),
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onRetry != null) {
+                        IconButton(onClick = onRetry) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "重新联网查询",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Text(
+                        text = SimpleDateFormat(
+                            "MM-dd HH:mm",
+                            Locale.getDefault()
+                        ).format(Date(call.blockTime)),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
 
             // Row 2: Result Type

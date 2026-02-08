@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 
@@ -14,6 +15,9 @@ interface BlockedCallDao {
 
     @Insert
     suspend fun insert(blockedCall: BlockedCall)
+
+    @Update
+    suspend fun update(blockedCall: BlockedCall)
 
     @Delete
     suspend fun delete(blockedCall: BlockedCall)

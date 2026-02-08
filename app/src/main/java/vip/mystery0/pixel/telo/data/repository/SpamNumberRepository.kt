@@ -7,6 +7,7 @@ import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.remote.SyncApi
 
 data class CheckResult(
@@ -24,6 +25,19 @@ class SpamNumberRepository : KoinComponent {
 
     private val syncRepository: SyncRepository by inject()
     private val syncApi: SyncApi by inject()
+
+    /**
+     * 仅发起联网查询，跳过本地数据库检查。
+     * 用于手动重试联网查询超时的记录。超时限制同为 3s。
+     */
+    suspend fun queryNetwork(phoneNumber: String): QueryResponse {
+        val phone = phoneNumber.removePrefix("+86")
+        return withContext(Dispatchers.IO) {
+            withTimeout(3000L) {
+                syncApi.queryNumber(phone)
+            }
+        }
+    }
 
     suspend fun checkSpam(phoneNumber: String): CheckResult {
         val start = System.currentTimeMillis()
