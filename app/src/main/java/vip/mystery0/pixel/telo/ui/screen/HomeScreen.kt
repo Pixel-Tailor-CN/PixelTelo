@@ -240,9 +240,8 @@ private fun LazyListScope.blockedCallsList(
     } else {
         items(calls, key = { it.id }) { call ->
             SwipeToDeleteContainer(
-                onDelete = {
-                    onDelete(call)
-                }
+                onDelete = { onDelete(call) },
+                contentVerticalPadding = 4.dp,
             ) {
                 BlockedCallItem(call)
             }
