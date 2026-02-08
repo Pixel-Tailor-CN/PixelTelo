@@ -268,7 +268,7 @@ fun DefaultAppWarningCard(onClick: () -> Unit) {
     WarningCard(
         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
         icon = Icons.Default.SettingsPhone,
-        iconColor = MaterialTheme.colorScheme.tertiary,
+        iconColor = MaterialTheme.colorScheme.onTertiaryContainer,
         title = "未设置为默认应用",
         message = "Pixel Telo 需要成为默认的“来电显示与骚扰拦截应用”才能生效。",
     ) {
