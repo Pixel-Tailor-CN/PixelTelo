@@ -5,7 +5,11 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -30,6 +35,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -130,71 +137,97 @@ fun HomeScreen(
         )
     }
 
-    // 联网重查对话框
-    when (val state = retryQueryState) {
-        is RetryQueryState.Loading -> AlertDialog(
-            onDismissRequest = { viewModel.dismissRetry() },
-            title = { Text("联网查询") },
-            text = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+    // 联网重查 Bottom Sheet：单实例 + AnimatedContent 避免状态切换时的闪烁
+    if (retryQueryState !is RetryQueryState.Idle) {
+        ModalBottomSheet(onDismissRequest = { viewModel.dismissRetry() }) {
+            AnimatedContent(
+                targetState = retryQueryState,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "RetryQueryContent"
+            ) { state ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    CircularProgressIndicator()
-                    Text("正在查询 ${state.call.phoneNumber}…")
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissRetry() }) { Text("取消") }
-            }
-        )
+                    when (state) {
+                        is RetryQueryState.Loading -> {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                Text(
+                                    "正在查询 ${state.call.phoneNumber}…",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                            OutlinedButton(
+                                onClick = { viewModel.dismissRetry() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("取消") }
+                        }
 
-        is RetryQueryState.Success -> {
-            val resp = state.response
-            val remarkText = if (resp.isSpam) {
-                "[重查] 骚扰, 标签: ${resp.tag}, 可信度: ${resp.confidence}%, 来源: ${resp.source}"
-            } else {
-                "[重查] 非骚扰, 来源: ${resp.source}"
-            }
-            AlertDialog(
-                onDismissRequest = { viewModel.dismissRetry() },
-                title = { Text("查询结果 — ${state.call.phoneNumber}") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("是否骚扰: ${if (resp.isSpam) "是" else "否"}")
-                        if (resp.isSpam) Text("标签: ${resp.tag}")
-                        Text("可信度: ${resp.confidence}%")
-                        Text("来源: ${resp.source}")
+                        is RetryQueryState.Success -> {
+                            val resp = state.response
+                            val remarkText = if (resp.isSpam) {
+                                "[重查] 骚扰, 标签: ${resp.tag}, 可信度: ${resp.confidence}%, 来源: ${resp.source}"
+                            } else {
+                                "[重查] 非骚扰, 来源: ${resp.source}"
+                            }
+                            Text(
+                                "查询结果",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                state.call.phoneNumber,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text("是否骚扰: ${if (resp.isSpam) "是" else "否"}")
+                            if (resp.isSpam) Text("标签: ${resp.tag}")
+                            Text("可信度: ${resp.confidence}%")
+                            Text("来源: ${resp.source}")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.dismissRetry() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("关闭") }
+                                Button(
+                                    onClick = {
+                                        viewModel.writeQueryResultToRemark(
+                                            state.call,
+                                            remarkText
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("写入备注") }
+                            }
+                        }
+
+                        is RetryQueryState.Failure -> {
+                            Text("查询失败", style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                state.message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Button(
+                                onClick = { viewModel.dismissRetry() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("关闭") }
+                        }
+
+                        RetryQueryState.Idle -> Unit
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.writeQueryResultToRemark(
-                            state.call,
-                            remarkText
-                        )
-                    }) {
-                        Text("写入备注")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.dismissRetry() }) { Text("关闭") }
                 }
-            )
+            }
         }
-
-        is RetryQueryState.Failure -> AlertDialog(
-            onDismissRequest = { viewModel.dismissRetry() },
-            title = { Text("查询失败") },
-            text = { Text(state.message) },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissRetry() }) { Text("关闭") }
-            }
-        )
-
-        RetryQueryState.Idle -> Unit
     }
 
     if (showDeleteDialog && itemToDelete != null) {
