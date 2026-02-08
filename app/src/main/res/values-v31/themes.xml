@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.PixelTelo" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- 启动页背景色，夜间模式由 values-night/colors.xml 的 splash_background 覆盖 -->
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+    </style>
+</resources>
