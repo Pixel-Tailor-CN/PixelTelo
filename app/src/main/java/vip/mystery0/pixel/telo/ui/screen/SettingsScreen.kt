@@ -4,11 +4,17 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,13 +27,14 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,87 +96,132 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         viewModel.clearStatusMessage()
     }
 
-    // Update Confirmation Dialog
-    if (viewModel.showUpdateDialog != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.cancelUpdate() },
-            title = { Text("检测到离线数据存在新版本") },
-            text = { Text("新版本: ${viewModel.showUpdateDialog?.latestVersion}\n下载更新吗？") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.confirmUpdate() }) {
-                    Text("下载更新")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.cancelUpdate() }) {
-                    Text("取消")
+    // 更新离线数据 Bottom Sheet：确认与下载进度共用同一个 Sheet，用 AnimatedContent 切换
+    if (viewModel.showUpdateDialog != null || viewModel.isDownloading) {
+        ModalBottomSheet(
+            onDismissRequest = { if (!viewModel.isDownloading) viewModel.cancelUpdate() }
+        ) {
+            AnimatedContent(
+                targetState = viewModel.isDownloading,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "UpdateContent"
+            ) { isDownloading ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (isDownloading) {
+                        Text("正在下载离线数据", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "${(viewModel.downloadProgress * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        LinearWavyProgressIndicator(
+                            progress = { viewModel.downloadProgress },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Text("检测到新版本", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "新版本: ${viewModel.showUpdateDialog?.latestVersion}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.cancelUpdate() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("取消") }
+                            Button(
+                                onClick = { viewModel.confirmUpdate() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("下载更新") }
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 
-    // Download Progress Dialog
-    if (viewModel.isDownloading) {
-        AlertDialog(
-            onDismissRequest = { },
-            title = { Text("正在下载离线数据...") },
-            text = {
-                Column {
-                    LinearWavyProgressIndicator(
-                        progress = { viewModel.downloadProgress },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("${(viewModel.downloadProgress * 100).toInt()}%")
-                }
-            },
-            confirmButton = {}
-        )
-    }
-
+    // 测试拦截 Bottom Sheet：输入与结果两态，用 AnimatedContent 切换
     if (viewModel.showTestDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.hideTestDialog() },
-            title = { Text("测试拦截") },
-            text = {
-                Column {
-                    if (viewModel.testResult == null) {
-                        Text("输入需要检查的电话号码")
+        ModalBottomSheet(onDismissRequest = { viewModel.hideTestDialog() }) {
+            AnimatedContent(
+                targetState = viewModel.testResult,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "TestContent"
+            ) { result ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (result == null) {
+                        Text("测试拦截", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "输入需要检查的电话号码",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         OutlinedTextField(
                             value = viewModel.testPhoneNumber,
                             onValueChange = { viewModel.updateTestPhoneNumber(it) },
                             label = { Text("电话号码") },
-                            singleLine = true
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.hideTestDialog() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("取消") }
+                            Button(
+                                onClick = { viewModel.testBlock() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("检查") }
+                        }
                     } else {
-                        val result = viewModel.testResult!!
-                        Text("号码: ${viewModel.testPhoneNumber}")
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("测试拦截", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            viewModel.testPhoneNumber,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Text("是否拦截: ${if (result.shouldBlock) "是" else "否"}")
                         Text("标签信息: ${result.label.ifEmpty { "无" }}")
                         Text("结果类型: ${result.resultType}")
                         Text("本地耗时: ${result.localCost}ms")
                         Text("网络耗时: ${result.networkCost}ms")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.hideTestDialog() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("关闭") }
+                            Button(
+                                onClick = { viewModel.saveTestResult() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("记录") }
+                        }
                     }
-                }
-            },
-            confirmButton = {
-                if (viewModel.testResult == null) {
-                    TextButton(onClick = { viewModel.testBlock() }) {
-                        Text("检查")
-                    }
-                } else {
-                    TextButton(onClick = { viewModel.saveTestResult() }) {
-                        Text("记录")
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.hideTestDialog() }) {
-                    Text(if (viewModel.testResult == null) "取消" else "关闭")
                 }
             }
-        )
+        }
     }
 
     ProvidePreferenceLocals {

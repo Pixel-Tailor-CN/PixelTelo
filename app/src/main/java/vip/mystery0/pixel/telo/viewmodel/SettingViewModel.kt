@@ -100,10 +100,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     fun confirmUpdate() {
         val updateInfo = showUpdateDialog ?: return
-        showUpdateDialog = null
-
         viewModelScope.launch {
+            // 在同一帧内完成状态切换，避免 BottomSheet 短暂关闭后重开
             isDownloading = true
+            showUpdateDialog = null
             downloadProgress = 0f
             syncStatusMessage = null
 
