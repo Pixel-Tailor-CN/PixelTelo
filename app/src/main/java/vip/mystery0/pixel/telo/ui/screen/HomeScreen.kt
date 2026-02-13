@@ -424,7 +424,7 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
                     text = "备注: ${call.remark}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp)
                 )
