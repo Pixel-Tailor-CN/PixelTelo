@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SettingsPhone
@@ -369,80 +370,82 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
             .padding(vertical = 4.dp)
             .fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Row 1: Number + (Retry) + Time
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = call.phoneNumber,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (onRetry != null) {
-                        IconButton(onClick = onRetry) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "重新联网查询",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
+        SelectionContainer {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Row 1: Number + (Retry) + Time
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = SimpleDateFormat(
-                            "MM-dd HH:mm",
-                            Locale.getDefault()
-                        ).format(Date(call.blockTime)),
-                        style = MaterialTheme.typography.bodySmall
+                        text = call.phoneNumber,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (onRetry != null) {
+                            IconButton(onClick = onRetry) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "重新联网查询",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        Text(
+                            text = SimpleDateFormat(
+                                "MM-dd HH:mm",
+                                Locale.getDefault()
+                            ).format(Date(call.blockTime)),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                // Row 2: Result Type
+                val resultText = when (call.resultType) {
+                    ResultType.INTERCEPT -> "拦截原因: 骚扰电话"
+                    ResultType.PASS_BUT_NOTIFY -> "拦截原因: 提示(未拦截)"
+                    ResultType.NETWORK_TIMEOUT -> "拦截原因: 联网查询超时(已放行)"
+                }
+                val resultColor = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
+                Text(
+                    text = resultText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = resultColor,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                // Row 3: Remark
+                if (!call.remark.isNullOrEmpty()) {
+                    Text(
+                        text = "备注: ${call.remark}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
-            }
 
-            // Row 2: Result Type
-            val resultText = when (call.resultType) {
-                ResultType.INTERCEPT -> "拦截原因: 骚扰电话"
-                ResultType.PASS_BUT_NOTIFY -> "拦截原因: 提示(未拦截)"
-                ResultType.NETWORK_TIMEOUT -> "拦截原因: 联网查询超时(已放行)"
-            }
-            val resultColor = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.primary
-            }
-            Text(
-                text = resultText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = resultColor,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
-            // Row 3: Remark
-            if (!call.remark.isNullOrEmpty()) {
+                // Row 4: Duration
+                val durationText = buildString {
+                    append("处理耗时: 本地 ${call.localDuration}ms")
+                    if (call.networkDuration > 0) {
+                        append(" | 网络 ${call.networkDuration}ms")
+                    }
+                }
                 Text(
-                    text = "备注: ${call.remark}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp)
+                    text = durationText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
-
-            // Row 4: Duration
-            val durationText = buildString {
-                append("处理耗时: 本地 ${call.localDuration}ms")
-                if (call.networkDuration > 0) {
-                    append(" | 网络 ${call.networkDuration}ms")
-                }
-            }
-            Text(
-                text = durationText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(top = 4.dp)
-            )
         }
     }
 }
