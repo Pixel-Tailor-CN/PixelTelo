@@ -56,6 +56,20 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var testResult by mutableStateOf<CheckResult?>(null)
         private set
 
+    // 调试模式解锁状态（每次启动默认隐藏，不持久化）
+    var debugUnlocked by mutableStateOf(false)
+        private set
+
+    private var versionClickCount = 0
+
+    fun onVersionClick() {
+        if (debugUnlocked) return
+        versionClickCount++
+        if (versionClickCount >= 5) {
+            debugUnlocked = true
+        }
+    }
+
     // Debug Options
     var forceDownload by mutableStateOf(false)
 

@@ -38,6 +38,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,6 +112,13 @@ fun SettingsScreen(viewModel: SettingViewModel) {
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         checkPermissions()
+    }
+
+    // 监听调试模式解锁，显示 Toast 提示
+    LaunchedEffect(viewModel.debugUnlocked) {
+        if (viewModel.debugUnlocked) {
+            Toast.makeText(context, "调试模式已开启", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // Handling Toast for Sync Status
@@ -376,7 +384,8 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             Preference(
                 title = { Text("版本名称") },
                 summary = { Text(viewModel.versionName) },
-                icon = { Icon(Icons.Default.Info, contentDescription = null) }
+                icon = { Icon(Icons.Default.Info, contentDescription = null) },
+                onClick = { viewModel.onVersionClick() }
             )
             Preference(
                 title = { Text("版本号") },
@@ -384,20 +393,22 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 icon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) }
             )
 
-            PreferenceCategory(title = { Text("调试模式") })
-            SwitchPreference(
-                value = viewModel.forceDownload,
-                onValueChange = { viewModel.forceDownload = it },
-                title = { Text("始终下载离线数据库") },
-                summary = { Text("忽略版本检查，强制下载最新库") },
-                icon = { Icon(Icons.Default.CloudDownload, contentDescription = null) }
-            )
-            Preference(
-                title = { Text("删除离线数据库") },
-                summary = { Text("删除已下载的本地数据库文件") },
-                icon = { Icon(Icons.Default.DeleteForever, contentDescription = null) },
-                onClick = { viewModel.deleteDatabase() }
-            )
+            if (viewModel.debugUnlocked) {
+                PreferenceCategory(title = { Text("调试模式") })
+                SwitchPreference(
+                    value = viewModel.forceDownload,
+                    onValueChange = { viewModel.forceDownload = it },
+                    title = { Text("始终下载离线数据库") },
+                    summary = { Text("忽略版本检查，强制下载最新库") },
+                    icon = { Icon(Icons.Default.CloudDownload, contentDescription = null) }
+                )
+                Preference(
+                    title = { Text("删除离线数据库") },
+                    summary = { Text("删除已下载的本地数据库文件") },
+                    icon = { Icon(Icons.Default.DeleteForever, contentDescription = null) },
+                    onClick = { viewModel.deleteDatabase() }
+                )
+            }
         }
     }
 }
