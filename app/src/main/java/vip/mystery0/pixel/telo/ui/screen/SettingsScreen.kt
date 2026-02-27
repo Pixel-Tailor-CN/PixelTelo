@@ -200,6 +200,14 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        val rowCount = viewModel.showUpdateDialog?.rowCount ?: 0
+                        if (rowCount > 0) {
+                            Text(
+                                "数据行数: %,d 条".format(rowCount),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)

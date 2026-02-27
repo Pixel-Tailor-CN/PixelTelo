@@ -16,7 +16,9 @@ data class SyncResponse(
     @SerialName("size_bytes")
     val sizeBytes: Long,
     @SerialName("checksum")
-    val checksum: String
+    val checksum: String,
+    @SerialName("row_count")
+    val rowCount: Long = 0
 )
 
 @Serializable
