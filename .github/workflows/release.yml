@@ -60,21 +60,22 @@ jobs:
              "apk-output/PixelTelo-${GITHUB_REF_NAME}.aab"
 
       - name: Create Release in AppRelease
-        env:
-          GH_TOKEN: ${{ secrets.APP_RELEASE_TOKEN }}
-        run: |
-          gh release create "${{ github.ref_name }}" \
-            --repo PixelTelo/AppRelease \
-            --title "Pixel Telo ${{ github.ref_name }}" \
-            --notes "## 下载
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.APP_RELEASE_TOKEN }}
+          repository: PixelTelo/AppRelease
+          name: Pixel Telo ${{ github.ref_name }}
+          body: |
+            ## 下载
 
-安装到手机请下载 \`.apk\` 文件。\`.aab\` 为开发者归档包。
+            安装到手机请下载 `.apk` 文件。`.aab` 为开发者归档包。
 
-## 更新说明
+            ## 更新说明
 
-详见私有仓库 Release 说明。" \
-            "apk-output/PixelTelo-${GITHUB_REF_NAME}.apk#Universal APK" \
-            "apk-output/PixelTelo-${GITHUB_REF_NAME}.aab#Android App Bundle"
+            详见私有仓库 Release 说明。
+          files: |
+            apk-output/PixelTelo-${{ github.ref_name }}.apk
+            apk-output/PixelTelo-${{ github.ref_name }}.aab
 
       - name: Cleanup Keystore
         if: always()
