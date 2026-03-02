@@ -43,7 +43,7 @@
 
 
 * **权限控制**:
-* **最小权限**: 仅申请核心功能必要的 `READ_CALL_LOG`, `READ_CONTACTS` (用于 Provider),
+* **最小权限**: 仅申请核心功能必要的 `READ_CONTACTS` (用于 Provider),
   `ANSWER_PHONE_CALLS` 等权限。
 
 
