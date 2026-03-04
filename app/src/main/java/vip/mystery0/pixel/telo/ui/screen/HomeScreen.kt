@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -63,7 +64,6 @@ import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -395,7 +395,7 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
                         Text(
                             text = SimpleDateFormat(
                                 "MM-dd HH:mm",
-                                Locale.getDefault()
+                                LocalLocale.current.platformLocale
                             ).format(Date(call.blockTime)),
                             style = MaterialTheme.typography.bodySmall
                         )

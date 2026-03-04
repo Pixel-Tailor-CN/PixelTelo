@@ -16,7 +16,6 @@ import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
-import vip.mystery0.pixel.telo.data.repository.SyncRepository
 
 class TeloDirectoryProvider : ContentProvider(), KoinComponent {
     companion object {
@@ -27,7 +26,6 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
     }
 
     private val spamNumberRepository: SpamNumberRepository by inject()
-    private val syncRepository: SyncRepository by inject()
 
     private val MATCHER = UriMatcher(UriMatcher.NO_MATCH).apply {
         addURI(AUTHORITY, "directories", MATCH_DIRECTORIES)
