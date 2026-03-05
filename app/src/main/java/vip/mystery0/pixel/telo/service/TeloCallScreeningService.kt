@@ -78,6 +78,14 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             result.localCost,
                             result.networkCost
                         )
+                    } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
+                        blockedCallRepository.insert(
+                            phoneNumber,
+                            result.label.takeIf { it.isNotBlank() } ?: "正常来电",
+                            ResultType.PASS,
+                            result.localCost,
+                            result.networkCost
+                        )
                     }
                 }
             } catch (e: Exception) {

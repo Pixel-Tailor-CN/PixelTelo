@@ -407,9 +407,12 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
                     ResultType.INTERCEPT -> "拦截原因: 骚扰电话"
                     ResultType.PASS_BUT_NOTIFY -> "拦截原因: 提示(未拦截)"
                     ResultType.NETWORK_TIMEOUT -> "拦截原因: 联网查询超时(已放行)"
+                    ResultType.PASS -> "记录原因: 始终显示记录"
                 }
                 val resultColor = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
                     MaterialTheme.colorScheme.error
+                } else if (call.resultType == ResultType.PASS) {
+                    MaterialTheme.colorScheme.secondary
                 } else {
                     MaterialTheme.colorScheme.primary
                 }

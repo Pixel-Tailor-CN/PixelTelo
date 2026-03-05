@@ -3,4 +3,6 @@
     <string name="app_name">Pixel Telo</string>
     <string name="setting_no_network_query">不联网查询</string>
     <string name="setting_no_network_query_summary">开启后拦截检查仅匹配本地数据库，不再进行联网查询</string>
+    <string name="setting_always_record">始终显示在拦截记录中</string>
+    <string name="setting_always_record_summary">开启后，所有来电不论是否被拦截都会显示在拦截记录中</string>
 </resources>

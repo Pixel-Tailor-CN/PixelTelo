@@ -37,6 +37,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         private const val TAG = "SettingViewModel"
         const val KEY_NOTIFY_ONLY = "notify_only"
         const val KEY_NO_NETWORK_QUERY = "no_network_query"
+        const val KEY_ALWAYS_RECORD = "always_record"
     }
 
     private val syncRepository: SyncRepository by inject()
@@ -87,6 +88,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun updateNoNetworkQuery(enabled: Boolean) {
         noNetworkQuery = enabled
         prefs.edit { putBoolean(KEY_NO_NETWORK_QUERY, enabled) }
+    }
+
+    var alwaysRecord by mutableStateOf(prefs.getBoolean(KEY_ALWAYS_RECORD, false))
+
+    fun updateAlwaysRecord(enabled: Boolean) {
+        alwaysRecord = enabled
+        prefs.edit { putBoolean(KEY_ALWAYS_RECORD, enabled) }
     }
 
     // Sync State

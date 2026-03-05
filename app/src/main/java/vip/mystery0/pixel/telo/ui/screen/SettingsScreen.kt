@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhonelinkSetup
@@ -342,6 +343,14 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 title = { Text(stringResource(R.string.setting_no_network_query)) },
                 summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
                 icon = { Icon(Icons.Default.CloudOff, contentDescription = null) }
+            )
+
+            SwitchPreference(
+                value = viewModel.alwaysRecord,
+                onValueChange = { viewModel.updateAlwaysRecord(it) },
+                title = { Text(stringResource(R.string.setting_always_record)) },
+                summary = { Text(stringResource(R.string.setting_always_record_summary)) },
+                icon = { Icon(Icons.Default.FindInPage, contentDescription = null) }
             )
 
             Preference(
