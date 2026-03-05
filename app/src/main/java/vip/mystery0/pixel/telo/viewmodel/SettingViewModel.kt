@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.viewmodel
 
+import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.runtime.getValue
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
+import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.remote.SyncResponse
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
@@ -45,6 +47,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     private val backupRepository: BackupRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val prefs: SharedPreferences by inject()
+    private val context: Context by inject()
 
     // Backup / Restore State
     var backupRestoreState by mutableStateOf<BackupRestoreState>(BackupRestoreState.Idle)
@@ -98,7 +101,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     // Sync State
-    var offlineDbVersion by mutableStateOf("检查中...")
+    var offlineDbVersion by mutableStateOf("")
         private set
     var showUpdateDialog by mutableStateOf<SyncResponse?>(null)
         private set
@@ -112,11 +115,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
         private set
 
     init {
+        offlineDbVersion = context.getString(R.string.msg_checking)
         viewModelScope.launch {
             syncRepository.versionFlow.collect { version ->
                 offlineDbVersion = version.ifBlank {
                     val v = syncRepository.getCurrentVersion()
-                    v.ifBlank { "Not Found" }
+                    v.ifBlank { context.getString(R.string.msg_not_found) }
                 }
             }
         }
@@ -124,7 +128,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     fun checkUpdate() {
         viewModelScope.launch {
-            syncStatusMessage = "检查更新中..."
+            syncStatusMessage = context.getString(R.string.msg_checking_update)
             try {
                 val currentVersion = if (forceDownload) {
                     ""
@@ -137,11 +141,11 @@ class SettingViewModel : ViewModel(), KoinComponent {
                     showUpdateDialog = response
                     syncStatusMessage = null
                 } else {
-                    syncStatusMessage = "已经是最新版本了"
+                    syncStatusMessage = context.getString(R.string.msg_already_latest_version)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Error checking update", e)
-                syncStatusMessage = "检查更新失败: ${e.message}"
+                syncStatusMessage = context.getString(R.string.msg_check_update_failed, e.message)
             }
         }
     }
@@ -165,9 +169,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
             isDownloading = false
             syncStatusMessage = if (success) {
-                "更新成功！"
+                context.getString(R.string.msg_update_success)
             } else {
-                "离线数据更新失败"
+                context.getString(R.string.msg_update_failed)
             }
         }
     }
@@ -202,7 +206,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
                     spamNumberRepository.checkSpam(testPhoneNumber, forceNetworkQuery = true)
             } catch (e: Exception) {
                 Log.e(TAG, "Test block failed", e)
-                syncStatusMessage = "测试失败: ${e.message}"
+                syncStatusMessage = context.getString(R.string.msg_test_failed, e.message)
             }
         }
     }
@@ -212,13 +216,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
         viewModelScope.launch {
             blockedCallRepository.insert(
                 testPhoneNumber,
-                result.label.ifBlank { "手动测试" },
+                result.label.ifBlank { context.getString(R.string.label_manual_test) },
                 result.resultType,
                 result.localCost,
                 result.networkCost
             )
             hideTestDialog()
-            syncStatusMessage = "已记录到拦截列表"
+            syncStatusMessage = context.getString(R.string.msg_recorded_to_intercept_list)
         }
     }
 
@@ -227,10 +231,16 @@ class SettingViewModel : ViewModel(), KoinComponent {
             backupRestoreState = BackupRestoreState.Processing
             try {
                 backupRepository.backup(outputStream)
-                backupRestoreState = BackupRestoreState.Success("备份已导出")
+                backupRestoreState =
+                    BackupRestoreState.Success(context.getString(R.string.msg_backup_exported))
             } catch (e: Exception) {
                 Log.e(TAG, "Backup failed", e)
-                backupRestoreState = BackupRestoreState.Failure("备份失败: ${e.message}")
+                backupRestoreState = BackupRestoreState.Failure(
+                    context.getString(
+                        R.string.msg_backup_failed,
+                        e.message
+                    )
+                )
             }
         }
     }
@@ -240,10 +250,20 @@ class SettingViewModel : ViewModel(), KoinComponent {
             backupRestoreState = BackupRestoreState.Processing
             try {
                 val count = backupRepository.restore(inputStream)
-                backupRestoreState = BackupRestoreState.Success("已恢复 $count 条记录")
+                backupRestoreState = BackupRestoreState.Success(
+                    context.getString(
+                        R.string.msg_restored_count_records,
+                        count
+                    )
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Restore failed", e)
-                backupRestoreState = BackupRestoreState.Failure("恢复失败: ${e.message}")
+                backupRestoreState = BackupRestoreState.Failure(
+                    context.getString(
+                        R.string.msg_restore_failed,
+                        e.message
+                    )
+                )
             }
         }
     }
@@ -255,7 +275,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun deleteDatabase() {
         viewModelScope.launch {
             syncRepository.deleteDatabase()
-            syncStatusMessage = "离线数据库已删除"
+            syncStatusMessage = context.getString(R.string.msg_database_deleted)
         }
     }
 

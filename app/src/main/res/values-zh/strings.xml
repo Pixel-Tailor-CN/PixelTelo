@@ -5,4 +5,105 @@
     <string name="setting_no_network_query_summary">开启后拦截检查仅匹配本地数据库，不再进行联网查询</string>
     <string name="setting_always_record">始终显示在拦截记录中</string>
     <string name="setting_always_record_summary">开启后，所有来电不论是否被拦截都会显示在拦截记录中</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">拦截记录</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- Warnings -->
+    <string name="warning_not_default_title">未设置为默认应用</string>
+    <string name="warning_not_default_message">Pixel Telo 需要成为默认的“来电显示与骚扰拦截应用”才能生效。</string>
+    <string name="action_set_default">设为默认</string>
+    <string name="warning_missing_permissions_title">缺少必要权限</string>
+    <string name="warning_missing_permissions_message">为了正常拦截骚扰电话，请授予相关权限。</string>
+    <string name="action_grant_permissions">去授权</string>
+    <string name="warning_missing_db_title">离线数据库缺失</string>
+    <string name="warning_missing_db_message">为了实现最佳拦截效果，请下载离线数据库。</string>
+    <string name="action_download_db">去下载</string>
+
+    <!-- Home Screen -->
+    <string name="home_no_records">暂无拦截记录</string>
+    <string name="action_retry_query">重新联网查询</string>
+    <string name="result_intercept_spam">拦截原因: 骚扰电话</string>
+    <string name="result_pass_but_notify">拦截原因: 提示(未拦截)</string>
+    <string name="result_network_timeout">拦截原因: 联网查询超时(已放行)</string>
+    <string name="result_pass_always_record">记录原因: 始终显示记录</string>
+    <string name="label_remark">"备注: "</string>
+    <string name="label_duration_with_network">"处理耗时: 本地 %1$dms | 网络 %2$dms"</string>
+    <string name="label_duration_local">"处理耗时: 本地 %1$dms"</string>
+    <string name="msg_querying">正在查询 %1$s…</string>
+    <string name="action_cancel">取消</string>
+    <string name="msg_retry_spam">[重查] 骚扰, 标签: %1$s, 可信度: %2$d%%, 来源: %3$s</string>
+    <string name="msg_retry_not_spam">[重查] 非骚扰, 来源: %1$s</string>
+    <string name="title_query_result">查询结果</string>
+    <string name="label_is_spam_yes">是否骚扰: 是</string>
+    <string name="label_is_spam_no">是否骚扰: 否</string>
+    <string name="label_tag">标签: </string>
+    <string name="label_confidence">可信度: </string>
+    <string name="label_source">来源: </string>
+    <string name="action_close">关闭</string>
+    <string name="action_write_remark">写入备注</string>
+    <string name="title_query_failed">查询失败</string>
+    <string name="title_delete_record">删除记录</string>
+    <string name="msg_delete_record_confirm">确定要删除这条拦截记录吗？此操作无法撤销。</string>
+    <string name="action_delete">删除</string>
+
+    <!-- Settings Screen -->
+    <string name="title_operation_success">操作成功</string>
+    <string name="action_ok">确定</string>
+    <string name="title_operation_failed">操作失败</string>
+    <string name="title_downloading_offline_data">正在下载离线数据</string>
+    <string name="title_new_version_detected">检测到新版本</string>
+    <string name="label_new_version">新版本: %1$s</string>
+    <string name="label_row_count">数据行数: %1$,d 条</string>
+    <string name="action_download_update">下载更新</string>
+    <string name="title_test_intercept">测试拦截</string>
+    <string name="msg_input_phone_number">输入需要检查的电话号码</string>
+    <string name="label_phone_number">电话号码</string>
+    <string name="action_check">检查</string>
+    <string name="label_should_block_yes">是否拦截: 是</string>
+    <string name="label_should_block_no">是否拦截: 否</string>
+    <string name="label_tag_info">标签信息: </string>
+    <string name="label_none">无</string>
+    <string name="label_result_type">结果类型: </string>
+    <string name="label_local_cost">本地耗时: </string>
+    <string name="label_network_cost">网络耗时: </string>
+    <string name="action_record">记录</string>
+    <string name="category_app_features">应用功能</string>
+    <string name="setting_update_offline_data">更新离线数据</string>
+    <string name="summary_current_version">当前版本: </string>
+    <string name="setting_notify_only">仅提示不拦截</string>
+    <string name="setting_notify_only_summary">识别到骚扰电话时仅记录，不挂断</string>
+    <string name="summary_test_intercept">输入号码模拟拦截检查</string>
+    <string name="setting_backup_records">备份拦截记录</string>
+    <string name="setting_backup_records_summary">将拦截记录导出为 ZIP 文件</string>
+    <string name="setting_restore_records">恢复拦截记录</string>
+    <string name="setting_restore_records_summary">从备份文件恢复拦截记录</string>
+    <string name="category_permissions">权限申请</string>
+    <string name="category_about">关于</string>
+    <string name="setting_version_name">版本名称</string>
+    <string name="setting_version_code">版本号</string>
+    <string name="category_debug_mode">调试模式</string>
+    <string name="setting_force_download">始终下载离线数据库</string>
+    <string name="setting_force_download_summary">忽略版本检查，强制下载最新库</string>
+    <string name="setting_delete_database">删除离线数据库</string>
+    <string name="setting_delete_database_summary">删除已下载的本地数据库文件</string>
+    <string name="msg_debug_mode_enabled">调试模式已开启</string>
+
+    <!-- ViewModel Strings -->
+    <string name="msg_checking">检查中…</string>
+    <string name="msg_not_found">Not Found</string>
+    <string name="msg_checking_update">检查更新中…</string>
+    <string name="msg_already_latest_version">已经是最新版本了</string>
+    <string name="msg_check_update_failed">检查更新失败: %1$s</string>
+    <string name="msg_update_success">更新成功！</string>
+    <string name="msg_update_failed">离线数据更新失败</string>
+    <string name="msg_test_failed">测试失败: %1$s</string>
+    <string name="label_manual_test">手动测试</string>
+    <string name="msg_recorded_to_intercept_list">已记录到拦截列表</string>
+    <string name="msg_backup_exported">备份已导出</string>
+    <string name="msg_backup_failed">备份失败: %1$s</string>
+    <string name="msg_restored_count_records">已恢复 %1$d 条记录</string>
+    <string name="msg_restore_failed">恢复失败: %1$s</string>
+    <string name="msg_database_deleted">离线数据库已删除</string>
 </resources>

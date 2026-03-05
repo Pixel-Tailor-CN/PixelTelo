@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import vip.mystery0.pixel.telo.ui.screen.HomeScreen
 import vip.mystery0.pixel.telo.ui.screen.SettingsScreen
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
@@ -44,7 +45,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        TopAppBar(title = { Text(currentDestination.title) })
+                        TopAppBar(title = { Text(stringResource(currentDestination.titleResId)) })
                     },
                     bottomBar = {
                         NavigationBar {
@@ -55,10 +56,10 @@ class MainActivity : ComponentActivity() {
                                     icon = {
                                         Icon(
                                             destination.icon,
-                                            contentDescription = destination.label
+                                            contentDescription = stringResource(destination.labelResId)
                                         )
                                     },
-                                    label = { Text(destination.label) }
+                                    label = { Text(stringResource(destination.labelResId)) }
                                 )
                             }
                         }
@@ -86,7 +87,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class AppDestinations(val title: String, val label: String, val icon: ImageVector) {
-    HOME("Pixel Telo", "拦截记录", Icons.Default.Home),
-    SETTINGS("设置", "设置", Icons.Default.Settings)
+enum class AppDestinations(val titleResId: Int, val labelResId: Int, val icon: ImageVector) {
+    HOME(R.string.app_name, R.string.nav_home, Icons.Default.Home),
+    SETTINGS(R.string.nav_settings, R.string.nav_settings, Icons.Default.Settings)
 }

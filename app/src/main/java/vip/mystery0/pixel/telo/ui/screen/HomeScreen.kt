@@ -50,11 +50,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.ui.components.SwipeToDeleteContainer
@@ -161,25 +163,30 @@ fun HomeScreen(
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
                                 Text(
-                                    "正在查询 ${state.call.phoneNumber}…",
+                                    stringResource(R.string.msg_querying, state.call.phoneNumber),
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                             }
                             OutlinedButton(
                                 onClick = { viewModel.dismissRetry() },
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Text("取消") }
+                            ) { Text(stringResource(R.string.action_cancel)) }
                         }
 
                         is RetryQueryState.Success -> {
                             val resp = state.response
                             val remarkText = if (resp.isSpam) {
-                                "[重查] 骚扰, 标签: ${resp.tag}, 可信度: ${resp.confidence}%, 来源: ${resp.source}"
+                                stringResource(
+                                    R.string.msg_retry_spam,
+                                    resp.tag,
+                                    resp.confidence,
+                                    resp.source
+                                )
                             } else {
-                                "[重查] 非骚扰, 来源: ${resp.source}"
+                                stringResource(R.string.msg_retry_not_spam, resp.source)
                             }
                             Text(
-                                "查询结果",
+                                stringResource(R.string.title_query_result),
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
@@ -187,10 +194,10 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text("是否骚扰: ${if (resp.isSpam) "是" else "否"}")
-                            if (resp.isSpam) Text("标签: ${resp.tag}")
-                            Text("可信度: ${resp.confidence}%")
-                            Text("来源: ${resp.source}")
+                            Text(stringResource(if (resp.isSpam) R.string.label_is_spam_yes else R.string.label_is_spam_no))
+                            if (resp.isSpam) Text("${stringResource(R.string.label_tag)}${resp.tag}")
+                            Text("${stringResource(R.string.label_confidence)}${resp.confidence}%")
+                            Text("${stringResource(R.string.label_source)}${resp.source}")
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -198,7 +205,7 @@ fun HomeScreen(
                                 OutlinedButton(
                                     onClick = { viewModel.dismissRetry() },
                                     modifier = Modifier.weight(1f)
-                                ) { Text("关闭") }
+                                ) { Text(stringResource(R.string.action_close)) }
                                 Button(
                                     onClick = {
                                         viewModel.writeQueryResultToRemark(
@@ -207,12 +214,15 @@ fun HomeScreen(
                                         )
                                     },
                                     modifier = Modifier.weight(1f)
-                                ) { Text("写入备注") }
+                                ) { Text(stringResource(R.string.action_write_remark)) }
                             }
                         }
 
                         is RetryQueryState.Failure -> {
-                            Text("查询失败", style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                stringResource(R.string.title_query_failed),
+                                style = MaterialTheme.typography.titleLarge
+                            )
                             Text(
                                 state.message,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -221,7 +231,7 @@ fun HomeScreen(
                             Button(
                                 onClick = { viewModel.dismissRetry() },
                                 modifier = Modifier.fillMaxWidth()
-                            ) { Text("关闭") }
+                            ) { Text(stringResource(R.string.action_close)) }
                         }
 
                         RetryQueryState.Idle -> Unit
@@ -237,8 +247,8 @@ fun HomeScreen(
                 showDeleteDialog = false
                 itemToDelete = null
             },
-            title = { Text("删除记录") },
-            text = { Text("确定要删除这条拦截记录吗？此操作无法撤销。") },
+            title = { Text(stringResource(R.string.title_delete_record)) },
+            text = { Text(stringResource(R.string.msg_delete_record_confirm)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -247,7 +257,7 @@ fun HomeScreen(
                         itemToDelete = null
                     }
                 ) {
-                    Text("删除")
+                    Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
@@ -257,7 +267,7 @@ fun HomeScreen(
                         itemToDelete = null
                     }
                 ) {
-                    Text("取消")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -270,8 +280,8 @@ fun DefaultAppWarningCard(onClick: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
         icon = Icons.Default.SettingsPhone,
         iconColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        title = "未设置为默认应用",
-        message = "Pixel Telo 需要成为默认的“来电显示与骚扰拦截应用”才能生效。",
+        title = stringResource(R.string.warning_not_default_title),
+        message = stringResource(R.string.warning_not_default_message),
     ) {
         Button(
             onClick = onClick,
@@ -280,7 +290,7 @@ fun DefaultAppWarningCard(onClick: () -> Unit) {
                 contentColor = MaterialTheme.colorScheme.onTertiary
             )
         ) {
-            Text("设为默认")
+            Text(stringResource(R.string.action_set_default))
         }
     }
 }
@@ -291,8 +301,8 @@ fun PermissionWarningCard(onClick: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.errorContainer,
         icon = Icons.Default.Warning,
         iconColor = MaterialTheme.colorScheme.error,
-        title = "缺少必要权限",
-        message = "为了正常拦截骚扰电话，请授予相关权限。",
+        title = stringResource(R.string.warning_missing_permissions_title),
+        message = stringResource(R.string.warning_missing_permissions_message),
     ) {
         Button(
             onClick = onClick,
@@ -301,7 +311,7 @@ fun PermissionWarningCard(onClick: () -> Unit) {
                 contentColor = MaterialTheme.colorScheme.onError
             )
         ) {
-            Text("去授权")
+            Text(stringResource(R.string.action_grant_permissions))
         }
     }
 }
@@ -312,8 +322,8 @@ fun DatabaseWarningCard(onClick: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.errorContainer,
         icon = Icons.Default.Warning,
         iconColor = MaterialTheme.colorScheme.error,
-        title = "离线数据库缺失",
-        message = "为了实现最佳拦截效果，请下载离线数据库。",
+        title = stringResource(R.string.warning_missing_db_title),
+        message = stringResource(R.string.warning_missing_db_message),
     ) {
         Button(
             onClick = onClick,
@@ -322,7 +332,7 @@ fun DatabaseWarningCard(onClick: () -> Unit) {
                 contentColor = MaterialTheme.colorScheme.onError
             )
         ) {
-            Text("去下载")
+            Text(stringResource(R.string.action_download_db))
         }
     }
 }
@@ -340,7 +350,7 @@ private fun LazyListScope.blockedCallsList(
                     .height(360.dp),
             ) {
                 Text(
-                    "暂无拦截记录",
+                    stringResource(R.string.home_no_records),
                     modifier = Modifier.align(Alignment.Center),
                     style = MaterialTheme.typography.bodyLarge,
                 )
@@ -387,7 +397,7 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
                             IconButton(onClick = onRetry) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
-                                    contentDescription = "重新联网查询",
+                                    contentDescription = stringResource(R.string.action_retry_query),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -404,10 +414,10 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
 
                 // Row 2: Result Type
                 val resultText = when (call.resultType) {
-                    ResultType.INTERCEPT -> "拦截原因: 骚扰电话"
-                    ResultType.PASS_BUT_NOTIFY -> "拦截原因: 提示(未拦截)"
-                    ResultType.NETWORK_TIMEOUT -> "拦截原因: 联网查询超时(已放行)"
-                    ResultType.PASS -> "记录原因: 始终显示记录"
+                    ResultType.INTERCEPT -> stringResource(R.string.result_intercept_spam)
+                    ResultType.PASS_BUT_NOTIFY -> stringResource(R.string.result_pass_but_notify)
+                    ResultType.NETWORK_TIMEOUT -> stringResource(R.string.result_network_timeout)
+                    ResultType.PASS -> stringResource(R.string.result_pass_always_record)
                 }
                 val resultColor = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
                     MaterialTheme.colorScheme.error
@@ -426,7 +436,7 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
                 // Row 3: Remark
                 if (!call.remark.isNullOrEmpty()) {
                     Text(
-                        text = "备注: ${call.remark}",
+                        text = "${stringResource(R.string.label_remark)}${call.remark}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 3,
@@ -436,11 +446,14 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
                 }
 
                 // Row 4: Duration
-                val durationText = buildString {
-                    append("处理耗时: 本地 ${call.localDuration}ms")
-                    if (call.networkDuration > 0) {
-                        append(" | 网络 ${call.networkDuration}ms")
-                    }
+                val durationText = if (call.networkDuration > 0) {
+                    stringResource(
+                        R.string.label_duration_with_network,
+                        call.localDuration,
+                        call.networkDuration
+                    )
+                } else {
+                    stringResource(R.string.label_duration_local, call.localDuration)
                 }
                 Text(
                     text = durationText,

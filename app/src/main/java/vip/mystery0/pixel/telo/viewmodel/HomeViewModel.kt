@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
@@ -29,6 +31,7 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val repository: BlockedCallRepository by inject()
     private val syncRepository: SyncRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
+    private val context: Context by inject()
 
     val blockedCalls: StateFlow<List<BlockedCall>> = repository.allBlockedCalls
         .stateIn(
@@ -70,7 +73,10 @@ class HomeViewModel() : ViewModel(), KoinComponent {
                 val response = spamNumberRepository.queryNetwork(call.phoneNumber)
                 _retryQueryState.value = RetryQueryState.Success(call, response)
             } catch (e: Exception) {
-                _retryQueryState.value = RetryQueryState.Failure(call, e.message ?: "查询失败")
+                _retryQueryState.value = RetryQueryState.Failure(
+                    call,
+                    e.message ?: context.getString(R.string.title_query_failed)
+                )
             }
         }
     }

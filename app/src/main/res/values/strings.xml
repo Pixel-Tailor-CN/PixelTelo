@@ -3,5 +3,106 @@
     <string name="setting_no_network_query">No Network Query</string>
     <string name="setting_no_network_query_summary">When enabled, intercept checks only match the local database and no longer perform network queries.</string>
     <string name="setting_always_record">Always Record</string>
-    <string name="setting_always_record_summary">Record all incoming calls in the intercept log even if they are not blocked</string>
+    <string name="setting_always_record_summary">Record all incoming calls in the intercept log even if they are not blocked.</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Intercepts</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Warnings -->
+    <string name="warning_not_default_title">Not Default App</string>
+    <string name="warning_not_default_message">Pixel Telo must be set as the default \"Caller ID &amp; Spam\" app to function.</string>
+    <string name="action_set_default">Set as default</string>
+    <string name="warning_missing_permissions_title">Missing Permissions</string>
+    <string name="warning_missing_permissions_message">Please grant the required permissions to intercept spam calls normally.</string>
+    <string name="action_grant_permissions">Grant permissions</string>
+    <string name="warning_missing_db_title">Offline Database Missing</string>
+    <string name="warning_missing_db_message">For the best intercept performance, please download the offline database.</string>
+    <string name="action_download_db">Download</string>
+
+    <!-- Home Screen -->
+    <string name="home_no_records">No intercept records</string>
+    <string name="action_retry_query">Retry Query</string>
+    <string name="result_intercept_spam">Reason: Spam Call</string>
+    <string name="result_pass_but_notify">Reason: Notify (Not Blocked)</string>
+    <string name="result_network_timeout">Reason: Network Timeout (Allowed)</string>
+    <string name="result_pass_always_record">Reason: Always Record (Allowed)</string>
+    <string name="label_remark">"Remark: "</string>
+    <string name="label_duration_with_network">"Duration: Local %1$dms | Network %2$dms"</string>
+    <string name="label_duration_local">"Duration: Local %1$dms"</string>
+    <string name="msg_querying">Querying %1$s…</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="msg_retry_spam">[Retry] Spam, Tag: %1$s, Confidence: %2$d%%, Source: %3$s</string>
+    <string name="msg_retry_not_spam">[Retry] Not spam, Source: %1$s</string>
+    <string name="title_query_result">Query Result</string>
+    <string name="label_is_spam_yes">Is spam: Yes</string>
+    <string name="label_is_spam_no">Is spam: No</string>
+    <string name="label_tag">Tag: </string>
+    <string name="label_confidence">Confidence: </string>
+    <string name="label_source">Source: </string>
+    <string name="action_close">Close</string>
+    <string name="action_write_remark">Write Remark</string>
+    <string name="title_query_failed">Query Failed</string>
+    <string name="title_delete_record">Delete Record</string>
+    <string name="msg_delete_record_confirm">Are you sure you want to delete this intercept record? This action cannot be undone.</string>
+    <string name="action_delete">Delete</string>
+
+    <!-- Settings Screen -->
+    <string name="title_operation_success">Operation Successful</string>
+    <string name="action_ok">OK</string>
+    <string name="title_operation_failed">Operation Failed</string>
+    <string name="title_downloading_offline_data">Downloading Offline Data</string>
+    <string name="title_new_version_detected">New Version Detected</string>
+    <string name="label_new_version">New Version: %1$s</string>
+    <string name="label_row_count">Data Rows: %,d</string>
+    <string name="action_download_update">Download Update</string>
+    <string name="title_test_intercept">Test Intercept</string>
+    <string name="msg_input_phone_number">Enter a phone number to check</string>
+    <string name="label_phone_number">Phone Number</string>
+    <string name="action_check">Check</string>
+    <string name="label_should_block_yes">Should block: Yes</string>
+    <string name="label_should_block_no">Should block: No</string>
+    <string name="label_tag_info">Tag: </string>
+    <string name="label_none">None</string>
+    <string name="label_result_type">Result Type: </string>
+    <string name="label_local_cost">Local Cost: </string>
+    <string name="label_network_cost">Network Cost: </string>
+    <string name="action_record">Record</string>
+    <string name="category_app_features">App Features</string>
+    <string name="setting_update_offline_data">Update Offline Data</string>
+    <string name="summary_current_version">Current version: </string>
+    <string name="setting_notify_only">Notify Only</string>
+    <string name="setting_notify_only_summary">Only record spam calls, do not hang up.</string>
+    <string name="summary_test_intercept">Enter a number to simulate intercept check.</string>
+    <string name="setting_backup_records">Backup Records</string>
+    <string name="setting_backup_records_summary">Export intercept records to a ZIP file.</string>
+    <string name="setting_restore_records">Restore Records</string>
+    <string name="setting_restore_records_summary">Restore intercept records from a ZIP file.</string>
+    <string name="category_permissions">Permissions</string>
+    <string name="category_about">About</string>
+    <string name="setting_version_name">Version Name</string>
+    <string name="setting_version_code">Version Code</string>
+    <string name="category_debug_mode">Debug Mode</string>
+    <string name="setting_force_download">Force Download</string>
+    <string name="setting_force_download_summary">Ignore version check and force download of the latest database.</string>
+    <string name="setting_delete_database">Delete Database</string>
+    <string name="setting_delete_database_summary">Delete the downloaded local database file.</string>
+    <string name="msg_debug_mode_enabled">Debug Mode Enabled</string>
+
+    <!-- ViewModel Strings -->
+    <string name="msg_checking">Checking…</string>
+    <string name="msg_not_found">Not Found</string>
+    <string name="msg_checking_update">Checking for updates…</string>
+    <string name="msg_already_latest_version">Already the latest version.</string>
+    <string name="msg_check_update_failed">Check update failed: %1$s</string>
+    <string name="msg_update_success">Update successful!</string>
+    <string name="msg_update_failed">Offline data update failed.</string>
+    <string name="msg_test_failed">Test failed: %1$s</string>
+    <string name="label_manual_test">Manual Test</string>
+    <string name="msg_recorded_to_intercept_list">Recorded to intercept list.</string>
+    <string name="msg_backup_exported">Backup exported.</string>
+    <string name="msg_backup_failed">Backup failed: %1$s</string>
+    <string name="msg_restored_count_records">Restored %1$d records.</string>
+    <string name="msg_restore_failed">Restore failed: %1$s</string>
+    <string name="msg_database_deleted">Offline database deleted.</string>
 </resources>

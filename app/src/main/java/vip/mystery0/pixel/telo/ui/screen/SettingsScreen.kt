@@ -118,10 +118,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         checkPermissions()
     }
 
-    // 监听调试模式解锁，显示 Toast 提示
+    val msgDebugModeEnabled = stringResource(R.string.msg_debug_mode_enabled)
     LaunchedEffect(viewModel.debugUnlocked) {
         if (viewModel.debugUnlocked) {
-            Toast.makeText(context, "调试模式已开启", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, msgDebugModeEnabled, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -142,7 +142,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("操作成功", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.title_operation_success),
+                    style = MaterialTheme.typography.titleLarge
+                )
                 Text(
                     backupState.message,
                     style = MaterialTheme.typography.bodyMedium,
@@ -151,7 +154,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 Button(
                     onClick = { viewModel.dismissBackupRestoreResult() },
                     modifier = androidx.compose.ui.Modifier.fillMaxWidth()
-                ) { Text("确定") }
+                ) { Text(stringResource(R.string.action_ok)) }
             }
         }
     } else if (backupState is BackupRestoreState.Failure) {
@@ -163,7 +166,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("操作失败", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.title_operation_failed),
+                    style = MaterialTheme.typography.titleLarge
+                )
                 Text(
                     backupState.message,
                     style = MaterialTheme.typography.bodyMedium,
@@ -172,7 +178,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 Button(
                     onClick = { viewModel.dismissBackupRestoreResult() },
                     modifier = androidx.compose.ui.Modifier.fillMaxWidth()
-                ) { Text("确定") }
+                ) { Text(stringResource(R.string.action_ok)) }
             }
         }
     }
@@ -195,7 +201,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (isDownloading) {
-                        Text("正在下载离线数据", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            stringResource(R.string.title_downloading_offline_data),
+                            style = MaterialTheme.typography.titleLarge
+                        )
                         Text(
                             "${(viewModel.downloadProgress * 100).toInt()}%",
                             style = MaterialTheme.typography.bodyMedium,
@@ -206,16 +215,22 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
-                        Text("检测到新版本", style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "新版本: ${viewModel.showUpdateDialog?.latestVersion}",
+                            stringResource(R.string.title_new_version_detected),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            stringResource(
+                                R.string.label_new_version,
+                                viewModel.showUpdateDialog?.latestVersion ?: ""
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         val rowCount = viewModel.showUpdateDialog?.rowCount ?: 0
                         if (rowCount > 0) {
                             Text(
-                                "数据行数: %,d 条".format(rowCount),
+                                stringResource(R.string.label_row_count, rowCount),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -227,11 +242,11 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                             OutlinedButton(
                                 onClick = { viewModel.cancelUpdate() },
                                 modifier = Modifier.weight(1f)
-                            ) { Text("取消") }
+                            ) { Text(stringResource(R.string.action_cancel)) }
                             Button(
                                 onClick = { viewModel.confirmUpdate() },
                                 modifier = Modifier.weight(1f)
-                            ) { Text("下载更新") }
+                            ) { Text(stringResource(R.string.action_download_update)) }
                         }
                     }
                 }
@@ -256,16 +271,19 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (result == null) {
-                        Text("测试拦截", style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "输入需要检查的电话号码",
+                            stringResource(R.string.title_test_intercept),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            stringResource(R.string.msg_input_phone_number),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         OutlinedTextField(
                             value = viewModel.testPhoneNumber,
                             onValueChange = { viewModel.updateTestPhoneNumber(it) },
-                            label = { Text("电话号码") },
+                            label = { Text(stringResource(R.string.label_phone_number)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -276,24 +294,31 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                             OutlinedButton(
                                 onClick = { viewModel.hideTestDialog() },
                                 modifier = Modifier.weight(1f)
-                            ) { Text("取消") }
+                            ) { Text(stringResource(R.string.action_cancel)) }
                             Button(
                                 onClick = { viewModel.testBlock() },
                                 modifier = Modifier.weight(1f)
-                            ) { Text("检查") }
+                            ) { Text(stringResource(R.string.action_check)) }
                         }
                     } else {
-                        Text("测试拦截", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            stringResource(R.string.title_test_intercept),
+                            style = MaterialTheme.typography.titleLarge
+                        )
                         Text(
                             viewModel.testPhoneNumber,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text("是否拦截: ${if (result.shouldBlock) "是" else "否"}")
-                        Text("标签信息: ${result.label.ifEmpty { "无" }}")
-                        Text("结果类型: ${result.resultType}")
-                        Text("本地耗时: ${result.localCost}ms")
-                        Text("网络耗时: ${result.networkCost}ms")
+                        Text(stringResource(if (result.shouldBlock) R.string.label_should_block_yes else R.string.label_should_block_no))
+                        Text(stringResource(R.string.label_tag_info) + result.label.ifEmpty {
+                            stringResource(
+                                R.string.label_none
+                            )
+                        })
+                        Text(stringResource(R.string.label_result_type) + result.resultType.name)
+                        Text(stringResource(R.string.label_local_cost) + "${result.localCost}ms")
+                        Text(stringResource(R.string.label_network_cost) + "${result.networkCost}ms")
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -301,11 +326,11 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                             OutlinedButton(
                                 onClick = { viewModel.hideTestDialog() },
                                 modifier = Modifier.weight(1f)
-                            ) { Text("关闭") }
+                            ) { Text(stringResource(R.string.action_close)) }
                             Button(
                                 onClick = { viewModel.saveTestResult() },
                                 modifier = Modifier.weight(1f)
-                            ) { Text("记录") }
+                            ) { Text(stringResource(R.string.action_record)) }
                         }
                     }
                 }
@@ -319,10 +344,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            PreferenceCategory(title = { Text("应用功能") })
+            PreferenceCategory(title = { Text(stringResource(R.string.category_app_features)) })
             Preference(
-                title = { Text("更新离线数据") },
-                summary = { Text("当前版本: ${viewModel.offlineDbVersion}") },
+                title = { Text(stringResource(R.string.setting_update_offline_data)) },
+                summary = { Text(stringResource(R.string.summary_current_version) + viewModel.offlineDbVersion) },
                 icon = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
                 onClick = {
                     viewModel.checkUpdate()
@@ -332,8 +357,8 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             SwitchPreference(
                 value = viewModel.notifyOnly,
                 onValueChange = { viewModel.updateNotifyOnly(it) },
-                title = { Text("仅提示不拦截") },
-                summary = { Text("识别到骚扰电话时仅记录，不挂断") },
+                title = { Text(stringResource(R.string.setting_notify_only)) },
+                summary = { Text(stringResource(R.string.setting_notify_only_summary)) },
                 icon = { Icon(Icons.Default.NotificationsActive, contentDescription = null) }
             )
 
@@ -354,15 +379,15 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             )
 
             Preference(
-                title = { Text("测试拦截") },
-                summary = { Text("输入号码模拟拦截检查") },
+                title = { Text(stringResource(R.string.title_test_intercept)) },
+                summary = { Text(stringResource(R.string.summary_test_intercept)) },
                 icon = { Icon(Icons.Default.PhonelinkSetup, contentDescription = null) },
                 onClick = { viewModel.showTestDialog() }
             )
 
             Preference(
-                title = { Text("备份拦截记录") },
-                summary = { Text("将拦截记录导出为 ZIP 文件") },
+                title = { Text(stringResource(R.string.setting_backup_records)) },
+                summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
                 icon = { Icon(Icons.Default.Save, contentDescription = null) },
                 onClick = {
                     val date =
@@ -373,13 +398,13 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             )
 
             Preference(
-                title = { Text("恢复拦截记录") },
-                summary = { Text("从备份文件恢复拦截记录") },
+                title = { Text(stringResource(R.string.setting_restore_records)) },
+                summary = { Text(stringResource(R.string.setting_restore_records_summary)) },
                 icon = { Icon(Icons.Default.Restore, contentDescription = null) },
                 onClick = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
             )
 
-            PreferenceCategory(title = { Text("权限申请") })
+            PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
             PermissionUtils.allPermissions.forEach { item ->
                 val isGranted = permissionsState[item.permission] == true
                 Preference(
@@ -400,31 +425,31 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 )
             }
 
-            PreferenceCategory(title = { Text("关于") })
+            PreferenceCategory(title = { Text(stringResource(R.string.category_about)) })
             Preference(
-                title = { Text("版本名称") },
+                title = { Text(stringResource(R.string.setting_version_name)) },
                 summary = { Text(viewModel.versionName) },
                 icon = { Icon(Icons.Default.Info, contentDescription = null) },
                 onClick = { viewModel.onVersionClick() }
             )
             Preference(
-                title = { Text("版本号") },
+                title = { Text(stringResource(R.string.setting_version_code)) },
                 summary = { Text(viewModel.versionCode.toString()) },
                 icon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) }
             )
 
             if (viewModel.debugUnlocked) {
-                PreferenceCategory(title = { Text("调试模式") })
+                PreferenceCategory(title = { Text(stringResource(R.string.category_debug_mode)) })
                 SwitchPreference(
                     value = viewModel.forceDownload,
                     onValueChange = { viewModel.forceDownload = it },
-                    title = { Text("始终下载离线数据库") },
-                    summary = { Text("忽略版本检查，强制下载最新库") },
+                    title = { Text(stringResource(R.string.setting_force_download)) },
+                    summary = { Text(stringResource(R.string.setting_force_download_summary)) },
                     icon = { Icon(Icons.Default.CloudDownload, contentDescription = null) }
                 )
                 Preference(
-                    title = { Text("删除离线数据库") },
-                    summary = { Text("删除已下载的本地数据库文件") },
+                    title = { Text(stringResource(R.string.setting_delete_database)) },
+                    summary = { Text(stringResource(R.string.setting_delete_database_summary)) },
                     icon = { Icon(Icons.Default.DeleteForever, contentDescription = null) },
                     onClick = { viewModel.deleteDatabase() }
                 )
