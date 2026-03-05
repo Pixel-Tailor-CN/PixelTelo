@@ -87,6 +87,11 @@ android {
     lint {
         checkReleaseBuilds = false
     }
+    @Suppress("UnstableApiUsage")
+    androidResources {
+        localeFilters.add("en")
+        localeFilters.add("zh-rCN")
+    }
 }
 
 dependencies {
