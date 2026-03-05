@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Pixel Telo</string>
+    <string name="setting_no_network_query">No Network Query</string>
+    <string name="setting_no_network_query_summary">When enabled, intercept checks only match the local database and no longer perform network queries.</string>
 </resources>

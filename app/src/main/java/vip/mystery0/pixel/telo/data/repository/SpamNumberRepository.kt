@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.data.repository
 
+import android.content.SharedPreferences
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,6 +26,7 @@ class SpamNumberRepository : KoinComponent {
 
     private val syncRepository: SyncRepository by inject()
     private val syncApi: SyncApi by inject()
+    private val prefs: SharedPreferences by inject()
 
     /**
      * 仅发起联网查询，跳过本地数据库检查。
@@ -39,7 +41,7 @@ class SpamNumberRepository : KoinComponent {
         }
     }
 
-    suspend fun checkSpam(phoneNumber: String): CheckResult {
+    suspend fun checkSpam(phoneNumber: String, forceNetworkQuery: Boolean = false): CheckResult {
         val start = System.currentTimeMillis()
         val phone = phoneNumber.removePrefix("+86")
         var localCost: Long
@@ -69,6 +71,13 @@ class SpamNumberRepository : KoinComponent {
 
         if (localCost > 100) {
             Log.w(TAG, "Local lookup too slow: ${localCost}ms")
+        }
+
+        // Check if user disabled network query
+        val noNetworkQuery = prefs.getBoolean("no_network_query", false)
+        if (noNetworkQuery && !forceNetworkQuery) {
+            Log.i(TAG, "Offline query only enabled, skipping network query for $phone")
+            return CheckResult(false, "", ResultType.PASS_BUT_NOTIFY, localCost, 0)
         }
 
         // 2. Online Fallback

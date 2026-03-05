@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -45,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -53,6 +55,7 @@ import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import me.zhanghai.compose.preference.SwitchPreference
+import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
@@ -331,6 +334,14 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 title = { Text("仅提示不拦截") },
                 summary = { Text("识别到骚扰电话时仅记录，不挂断") },
                 icon = { Icon(Icons.Default.NotificationsActive, contentDescription = null) }
+            )
+
+            SwitchPreference(
+                value = viewModel.noNetworkQuery,
+                onValueChange = { viewModel.updateNoNetworkQuery(it) },
+                title = { Text(stringResource(R.string.setting_no_network_query)) },
+                summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
+                icon = { Icon(Icons.Default.CloudOff, contentDescription = null) }
             )
 
             Preference(

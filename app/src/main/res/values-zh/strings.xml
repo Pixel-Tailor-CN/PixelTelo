@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pixel Telo</string>
+    <string name="setting_no_network_query">不联网查询</string>
+    <string name="setting_no_network_query_summary">开启后拦截检查仅匹配本地数据库，不再进行联网查询</string>
+</resources>

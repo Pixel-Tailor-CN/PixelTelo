@@ -36,6 +36,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
         private const val TAG = "SettingViewModel"
         const val KEY_NOTIFY_ONLY = "notify_only"
+        const val KEY_NO_NETWORK_QUERY = "no_network_query"
     }
 
     private val syncRepository: SyncRepository by inject()
@@ -79,6 +80,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun updateNotifyOnly(enabled: Boolean) {
         notifyOnly = enabled
         prefs.edit { putBoolean(KEY_NOTIFY_ONLY, enabled) }
+    }
+
+    var noNetworkQuery by mutableStateOf(prefs.getBoolean(KEY_NO_NETWORK_QUERY, false))
+
+    fun updateNoNetworkQuery(enabled: Boolean) {
+        noNetworkQuery = enabled
+        prefs.edit { putBoolean(KEY_NO_NETWORK_QUERY, enabled) }
     }
 
     // Sync State
@@ -182,7 +190,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
         if (testPhoneNumber.isBlank()) return
         viewModelScope.launch {
             try {
-                testResult = spamNumberRepository.checkSpam(testPhoneNumber)
+                testResult =
+                    spamNumberRepository.checkSpam(testPhoneNumber, forceNetworkQuery = true)
             } catch (e: Exception) {
                 Log.e(TAG, "Test block failed", e)
                 syncStatusMessage = "测试失败: ${e.message}"
