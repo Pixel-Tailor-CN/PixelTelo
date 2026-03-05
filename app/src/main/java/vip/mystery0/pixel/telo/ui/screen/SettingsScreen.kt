@@ -408,8 +408,8 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             PermissionUtils.allPermissions.forEach { item ->
                 val isGranted = permissionsState[item.permission] == true
                 Preference(
-                    title = { Text(item.name) },
-                    summary = { Text(item.description) },
+                    title = { Text(stringResource(item.nameResId)) },
+                    summary = { Text(stringResource(item.descriptionResId)) },
                     icon = {
                         Icon(
                             if (isGranted) Icons.Default.Check else Icons.Default.Close,

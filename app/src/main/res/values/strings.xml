@@ -79,6 +79,9 @@
     <string name="setting_restore_records">Restore Records</string>
     <string name="setting_restore_records_summary">Restore intercept records from a ZIP file.</string>
     <string name="category_permissions">Permissions</string>
+    <string name="permission_read_contacts_name">Contacts</string>
+    <string name="permission_read_contacts_desc">Used to display information on the incoming call screen.</string>
+
     <string name="category_about">About</string>
     <string name="setting_version_name">Version Name</string>
     <string name="setting_version_code">Version Code</string>

@@ -80,6 +80,9 @@
     <string name="setting_restore_records">恢复拦截记录</string>
     <string name="setting_restore_records_summary">从备份文件恢复拦截记录</string>
     <string name="category_permissions">权限申请</string>
+    <string name="permission_read_contacts_name">联系人</string>
+    <string name="permission_read_contacts_desc">用于在来电界面显示信息</string>
+
     <string name="category_about">关于</string>
     <string name="setting_version_name">版本名称</string>
     <string name="setting_version_code">版本号</string>

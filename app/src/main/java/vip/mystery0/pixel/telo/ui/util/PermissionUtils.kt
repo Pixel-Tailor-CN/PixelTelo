@@ -2,10 +2,12 @@ package vip.mystery0.pixel.telo.ui.util
 
 import android.Manifest
 
+import vip.mystery0.pixel.telo.R
+
 data class PermissionItem(
     val permission: String,
-    val name: String,
-    val description: String,
+    val nameResId: Int,
+    val descriptionResId: Int,
     val isCritical: Boolean = true
 )
 
@@ -15,8 +17,8 @@ object PermissionUtils {
             val list = mutableListOf(
                 PermissionItem(
                     Manifest.permission.READ_CONTACTS,
-                    "联系人",
-                    "用于在来电界面显示信息",
+                    R.string.permission_read_contacts_name,
+                    R.string.permission_read_contacts_desc,
                     true
                 )
             )
