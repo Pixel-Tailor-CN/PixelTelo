@@ -112,8 +112,8 @@
     <string name="msg_restore_failed">Restore failed: %1$s</string>
     <string name="msg_database_deleted">Offline database deleted.</string>
 
-    <!-- Navigation - List -->
-    <string name="nav_list">Lists</string>
+    <!-- Navigation - Custom Rules -->
+    <string name="nav_list">Custom</string>
 
     <!-- List Screen -->
     <string name="tab_blacklist">Blacklist</string>
