@@ -27,6 +27,7 @@ class SpamNumberRepository : KoinComponent {
     private val syncRepository: SyncRepository by inject()
     private val syncApi: SyncApi by inject()
     private val prefs: SharedPreferences by inject()
+    private val userListRepository: UserListRepository by inject()
 
     /**
      * 仅发起联网查询，跳过本地数据库检查。
@@ -46,6 +47,20 @@ class SpamNumberRepository : KoinComponent {
         val phone = phoneNumber.removePrefix("+86")
         var localCost: Long
         var networkCost: Long
+
+        // 0. 用户白名单检查（最高优先级，直接放行，跳过所有后续检测）
+        val whiteMatch = userListRepository.findWhiteListMatch(phone)
+        if (whiteMatch != null) {
+            Log.i(TAG, "White list hit: $phone, entry: ${whiteMatch.phoneNumber}")
+            return CheckResult(false, whiteMatch.remark ?: "", ResultType.WHITE_LIST, 0, 0)
+        }
+
+        // 0. 用户黑名单检查（最高优先级，直接拦截，跳过所有后续检测）
+        val blackMatch = userListRepository.findBlackListMatch(phone)
+        if (blackMatch != null) {
+            Log.i(TAG, "Black list hit: $phone, entry: ${blackMatch.phoneNumber}")
+            return CheckResult(true, blackMatch.remark ?: "", ResultType.BLACK_LIST, 0, 0)
+        }
 
         // 1. Local Lookup
         val db = syncRepository.getDb()

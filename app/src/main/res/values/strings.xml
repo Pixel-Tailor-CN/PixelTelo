@@ -27,6 +27,8 @@
     <string name="result_pass_but_notify">Reason: Notify (Not Blocked)</string>
     <string name="result_network_timeout">Reason: Network Timeout (Allowed)</string>
     <string name="result_pass_always_record">Reason: Always Record (Allowed)</string>
+    <string name="result_black_list">Reason: User Blacklist (Blocked)</string>
+    <string name="result_white_list">Reason: User Whitelist (Allowed)</string>
     <string name="label_remark">"Remark: "</string>
     <string name="label_duration_with_network">"Duration: Local %1$dms | Network %2$dms"</string>
     <string name="label_duration_local">"Duration: Local %1$dms"</string>

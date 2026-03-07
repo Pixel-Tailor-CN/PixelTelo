@@ -22,5 +22,7 @@ enum class ResultType {
     INTERCEPT, // 拦截
     PASS_BUT_NOTIFY, // 提示但不拦截 (暂未实现完全逻辑，可用于白名单或低风险)
     NETWORK_TIMEOUT, // 联网查询超时
-    PASS // 正常放行并通过设置强制记录
+    PASS, // 正常放行并通过设置强制记录
+    BLACK_LIST, // 用户黑名单拦截
+    WHITE_LIST, // 用户白名单放行
 }

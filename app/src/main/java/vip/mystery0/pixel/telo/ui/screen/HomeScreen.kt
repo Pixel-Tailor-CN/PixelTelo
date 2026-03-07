@@ -418,6 +418,8 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
                     ResultType.PASS_BUT_NOTIFY -> stringResource(R.string.result_pass_but_notify)
                     ResultType.NETWORK_TIMEOUT -> stringResource(R.string.result_network_timeout)
                     ResultType.PASS -> stringResource(R.string.result_pass_always_record)
+                    ResultType.BLACK_LIST -> stringResource(R.string.result_black_list)
+                    ResultType.WHITE_LIST -> stringResource(R.string.result_white_list)
                 }
                 val resultColor = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
                     MaterialTheme.colorScheme.error

@@ -28,6 +28,8 @@
     <string name="result_pass_but_notify">拦截原因: 提示(未拦截)</string>
     <string name="result_network_timeout">拦截原因: 联网查询超时(已放行)</string>
     <string name="result_pass_always_record">记录原因: 始终显示记录</string>
+    <string name="result_black_list">拦截原因: 用户黑名单</string>
+    <string name="result_white_list">放行原因: 用户白名单</string>
     <string name="label_remark">"备注: "</string>
     <string name="label_duration_with_network">"处理耗时: 本地 %1$dms | 网络 %2$dms"</string>
     <string name="label_duration_local">"处理耗时: 本地 %1$dms"</string>
