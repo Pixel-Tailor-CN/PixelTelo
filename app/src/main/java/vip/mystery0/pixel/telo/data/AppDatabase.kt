@@ -20,9 +20,14 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
                 `isPrefix` INTEGER NOT NULL,
                 `listType` TEXT NOT NULL,
                 `remark` TEXT,
-                `addedAt` INTEGER NOT NULL,
-                UNIQUE(`phoneNumber`, `listType`)
+                `addedAt` INTEGER NOT NULL
             )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS `index_user_list_phoneNumber_listType`
+            ON `user_list` (`phoneNumber`, `listType`)
             """.trimIndent()
         )
     }
