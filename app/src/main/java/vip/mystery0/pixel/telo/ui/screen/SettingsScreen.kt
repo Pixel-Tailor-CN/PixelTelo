@@ -235,6 +235,16 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        if (viewModel.localRowCount > 0) {
+                            Text(
+                                stringResource(
+                                    R.string.label_local_row_count,
+                                    viewModel.localRowCount
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)

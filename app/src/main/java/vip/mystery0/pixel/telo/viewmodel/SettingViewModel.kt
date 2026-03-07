@@ -105,6 +105,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
         private set
     var showUpdateDialog by mutableStateOf<SyncResponse?>(null)
         private set
+    var localRowCount by mutableStateOf(0L)
+        private set
     var syncStatusMessage by mutableStateOf<String?>(null)
         private set
 
@@ -135,6 +137,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 } else {
                     syncRepository.getCurrentVersion()
                 }
+                localRowCount = syncRepository.getLocalRowCount()
                 val response = syncRepository.checkUpdate(currentVersion)
 
                 if (response.hasUpdate) {

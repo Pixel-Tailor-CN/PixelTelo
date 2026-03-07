@@ -96,6 +96,21 @@ class SyncRepository(
         }
     }
 
+    suspend fun getLocalRowCount(): Long {
+        val db = getDb() ?: return 0L
+        return try {
+            val count = try {
+                db.spamNumberDao().getRowCount()
+            } finally {
+                db.close()
+            }
+            count
+        } catch (e: Exception) {
+            Log.w(TAG, "Error getting current row count", e)
+            0L
+        }
+    }
+
     suspend fun downloadAndInstallWithProgress(
         downloadUrl: String,
         expectedChecksum: String,

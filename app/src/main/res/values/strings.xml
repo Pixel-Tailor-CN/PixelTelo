@@ -55,6 +55,7 @@
     <string name="title_new_version_detected">New Version Detected</string>
     <string name="label_new_version">New Version: %1$s</string>
     <string name="label_row_count">Data Rows: %,d</string>
+    <string name="label_local_row_count">Local Data Rows: %,d</string>
     <string name="action_download_update">Download Update</string>
     <string name="title_test_intercept">Test Intercept</string>
     <string name="msg_input_phone_number">Enter a phone number to check</string>

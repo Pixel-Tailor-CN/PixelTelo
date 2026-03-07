@@ -54,10 +54,11 @@
     <string name="title_operation_failed">操作失败</string>
     <string name="title_downloading_offline_data">正在下载离线数据</string>
     <string name="title_new_version_detected">检测到新版本</string>
-    <string name="label_new_version">新版本: %1$s</string>
+    <string name="label_new_version">最新数据库版本: %s</string>
     <string name="label_row_count">数据行数: %1$,d 条</string>
+    <string name="label_local_row_count">本地数据行数: %1$,d 条</string>
     <string name="action_download_update">下载更新</string>
-    <string name="title_test_intercept">测试拦截</string>
+    <string name="title_test_intercept">拦截测试</string>
     <string name="msg_input_phone_number">输入需要检查的电话号码</string>
     <string name="label_phone_number">电话号码</string>
     <string name="action_check">检查</string>
