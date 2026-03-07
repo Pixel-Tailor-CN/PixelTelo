@@ -25,6 +25,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -48,6 +49,10 @@ import vip.mystery0.pixel.telo.viewmodel.ListViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.platform.LocalLocale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * 黑白名单管理页面。
@@ -69,7 +74,8 @@ fun ListScreen(viewModel: ListViewModel) {
     }
 
     val tabs = listOf(ListType.BLACK, ListType.WHITE)
-    val tabLabels = listOf(stringResource(R.string.tab_blacklist), stringResource(R.string.tab_whitelist))
+    val tabLabels =
+        listOf(stringResource(R.string.tab_blacklist), stringResource(R.string.tab_whitelist))
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
 
@@ -81,17 +87,21 @@ fun ListScreen(viewModel: ListViewModel) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.openAddSheet() }) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.action_add_entry))
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = stringResource(R.string.action_add_entry)
+                )
             }
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             // Tab 行：点击时通过动画滚动 Pager
-            TabRow(selectedTabIndex = pagerState.currentPage) {
+            SecondaryTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 tabs.forEachIndexed { index, _ ->
                     Tab(
                         selected = pagerState.currentPage == index,
@@ -106,7 +116,6 @@ fun ListScreen(viewModel: ListViewModel) {
             // 禁用用户手势滑动（userScrollEnabled = false），防止与底部导航的左右滑动手势冲突
             HorizontalPager(
                 state = pagerState,
-                userScrollEnabled = false,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 val list = if (page == 0) blackList else whiteList
@@ -131,7 +140,9 @@ fun ListScreen(viewModel: ListViewModel) {
             ) {
                 // 根据当前 Tab 显示对应标题
                 Text(
-                    if (viewModel.currentTab == ListType.BLACK) stringResource(R.string.title_add_to_blacklist) else stringResource(R.string.title_add_to_whitelist),
+                    if (viewModel.currentTab == ListType.BLACK) stringResource(R.string.title_add_to_blacklist) else stringResource(
+                        R.string.title_add_to_whitelist
+                    ),
                     style = MaterialTheme.typography.titleLarge
                 )
 
@@ -161,7 +172,10 @@ fun ListScreen(viewModel: ListViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(stringResource(R.string.label_prefix_match), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(R.string.label_prefix_match),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                         Text(
                             stringResource(R.string.summary_prefix_match),
                             style = MaterialTheme.typography.bodySmall,
@@ -217,7 +231,10 @@ private fun UserListContent(
                 .height(360.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(stringResource(R.string.list_no_entries), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(R.string.list_no_entries),
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -254,7 +271,10 @@ private fun UserListEntryItem(entry: UserListEntry) {
             ) {
                 Text(displayNumber, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(entry.addedAt)),
+                    Instant.ofEpochMilli(entry.addedAt)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDateTime()
+                        .format(DateTimeFormatter.ISO_DATE_TIME),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
