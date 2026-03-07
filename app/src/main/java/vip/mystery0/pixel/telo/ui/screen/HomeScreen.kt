@@ -53,7 +53,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,10 +66,9 @@ import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.ui.components.SwipeToDeleteContainer
 import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
+import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
-import java.text.SimpleDateFormat
-import java.util.Date
 
 @Composable
 fun HomeScreen(
@@ -466,10 +464,7 @@ fun BlockedCallItem(
                             }
                         }
                         Text(
-                            text = SimpleDateFormat(
-                                "MM-dd HH:mm",
-                                LocalLocale.current.platformLocale
-                            ).format(Date(call.blockTime)),
+                            formatMills(call.blockTime),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

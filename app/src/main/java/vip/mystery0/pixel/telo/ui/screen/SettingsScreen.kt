@@ -58,8 +58,10 @@ import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
+import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
+import java.time.LocalDateTime
 
 @Composable
 fun SettingsScreen(viewModel: SettingViewModel) {
@@ -193,7 +195,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(stringResource(R.string.title_backup_select), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.title_backup_select),
+                    style = MaterialTheme.typography.titleLarge
+                )
                 Text(
                     stringResource(R.string.msg_backup_select_hint),
                     style = MaterialTheme.typography.bodyMedium,
@@ -203,21 +208,24 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     checked = viewModel.backupOptions.includeBlockedCalls,
                     label = stringResource(R.string.label_backup_blocked_calls),
                     onCheckedChange = {
-                        viewModel.backupOptions = viewModel.backupOptions.copy(includeBlockedCalls = it)
+                        viewModel.backupOptions =
+                            viewModel.backupOptions.copy(includeBlockedCalls = it)
                     }
                 )
                 BackupCheckboxRow(
                     checked = viewModel.backupOptions.includeBlackList,
                     label = stringResource(R.string.label_backup_blacklist),
                     onCheckedChange = {
-                        viewModel.backupOptions = viewModel.backupOptions.copy(includeBlackList = it)
+                        viewModel.backupOptions =
+                            viewModel.backupOptions.copy(includeBlackList = it)
                     }
                 )
                 BackupCheckboxRow(
                     checked = viewModel.backupOptions.includeWhiteList,
                     label = stringResource(R.string.label_backup_whitelist),
                     onCheckedChange = {
-                        viewModel.backupOptions = viewModel.backupOptions.copy(includeWhiteList = it)
+                        viewModel.backupOptions =
+                            viewModel.backupOptions.copy(includeWhiteList = it)
                     }
                 )
                 Row(
@@ -229,8 +237,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                         modifier = Modifier.weight(1f)
                     ) { Text(stringResource(R.string.action_cancel)) }
                     val opts = viewModel.backupOptions
-                    val date = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                        .format(java.util.Date())
+                    val date = LocalDateTime.now().format(backupDateTimeFormatter)
                     Button(
                         onClick = { backupLauncher.launch("pixeltelo_backup_$date.zip") },
                         enabled = opts.includeBlockedCalls || opts.includeBlackList || opts.includeWhiteList,
@@ -252,29 +259,44 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(stringResource(R.string.title_restore_select), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.title_restore_select),
+                    style = MaterialTheme.typography.titleLarge
+                )
                 BackupCheckboxRow(
                     checked = viewModel.restoreOptions.includeBlockedCalls,
-                    label = stringResource(R.string.label_restore_blocked_calls, preview.blockedCallCount),
+                    label = stringResource(
+                        R.string.label_restore_blocked_calls,
+                        preview.blockedCallCount
+                    ),
                     enabled = preview.blockedCallCount > 0,
                     onCheckedChange = {
-                        viewModel.restoreOptions = viewModel.restoreOptions.copy(includeBlockedCalls = it)
+                        viewModel.restoreOptions =
+                            viewModel.restoreOptions.copy(includeBlockedCalls = it)
                     }
                 )
                 BackupCheckboxRow(
                     checked = viewModel.restoreOptions.includeBlackList,
-                    label = stringResource(R.string.label_restore_blacklist, preview.blackListCount),
+                    label = stringResource(
+                        R.string.label_restore_blacklist,
+                        preview.blackListCount
+                    ),
                     enabled = preview.blackListCount > 0,
                     onCheckedChange = {
-                        viewModel.restoreOptions = viewModel.restoreOptions.copy(includeBlackList = it)
+                        viewModel.restoreOptions =
+                            viewModel.restoreOptions.copy(includeBlackList = it)
                     }
                 )
                 BackupCheckboxRow(
                     checked = viewModel.restoreOptions.includeWhiteList,
-                    label = stringResource(R.string.label_restore_whitelist, preview.whiteListCount),
+                    label = stringResource(
+                        R.string.label_restore_whitelist,
+                        preview.whiteListCount
+                    ),
                     enabled = preview.whiteListCount > 0,
                     onCheckedChange = {
-                        viewModel.restoreOptions = viewModel.restoreOptions.copy(includeWhiteList = it)
+                        viewModel.restoreOptions =
+                            viewModel.restoreOptions.copy(includeWhiteList = it)
                     }
                 )
                 Row(

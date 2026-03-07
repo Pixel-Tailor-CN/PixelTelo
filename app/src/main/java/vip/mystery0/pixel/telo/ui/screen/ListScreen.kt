@@ -28,7 +28,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,14 +44,8 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.ui.components.SwipeToDeleteContainer
+import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import androidx.compose.ui.platform.LocalLocale
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /**
  * 黑白名单管理页面。
@@ -271,10 +264,7 @@ private fun UserListEntryItem(entry: UserListEntry) {
             ) {
                 Text(displayNumber, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    Instant.ofEpochMilli(entry.addedAt)
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDateTime()
-                        .format(DateTimeFormatter.ISO_DATE_TIME),
+                    formatMills(entry.addedAt),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
