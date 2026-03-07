@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -26,13 +27,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import vip.mystery0.pixel.telo.ui.screen.HomeScreen
+import vip.mystery0.pixel.telo.ui.screen.ListScreen
 import vip.mystery0.pixel.telo.ui.screen.SettingsScreen
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
+import vip.mystery0.pixel.telo.viewmodel.ListViewModel
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels()
+    private val listViewModel: ListViewModel by viewModels()
     private val settingViewModel: SettingViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +82,10 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
+                            AppDestinations.LIST -> {
+                                ListScreen(listViewModel)
+                            }
+
                             AppDestinations.SETTINGS -> {
                                 SettingsScreen(settingViewModel)
                             }
@@ -91,5 +99,6 @@ class MainActivity : ComponentActivity() {
 
 enum class AppDestinations(val titleResId: Int, val labelResId: Int, val icon: ImageVector) {
     HOME(R.string.app_name, R.string.nav_home, Icons.Default.Home),
+    LIST(R.string.nav_home, R.string.nav_home, Icons.AutoMirrored.Filled.Rule),  // nav_list 将在 Task 10 添加，暂用 nav_home 占位
     SETTINGS(R.string.nav_settings, R.string.nav_settings, Icons.Default.Settings)
 }
