@@ -26,13 +26,15 @@ interface UserListDao {
     @Delete
     suspend fun delete(entry: UserListEntry)
 
-    /** 查询是否存在匹配的条目（精确或前缀），用于拦截判断 */
+    /** 查询是否存在匹配的条目（精确或前缀），用于拦截判断。
+     *  前缀匹配使用 SUBSTR 而非 LIKE，避免 phoneNumber 中含有 '%'/'_' 等 LIKE 通配符时产生语义错误。
+     */
     @Query("""
         SELECT * FROM user_list
         WHERE listType = :type
         AND (
             (isPrefix = 0 AND phoneNumber = :phone) OR
-            (isPrefix = 1 AND :phone LIKE phoneNumber || '%')
+            (isPrefix = 1 AND SUBSTR(:phone, 1, LENGTH(phoneNumber)) = phoneNumber)
         )
         LIMIT 1
     """)

@@ -22,8 +22,8 @@ data class UserListEntry(
     val listType: ListType,
     /** 可选备注 */
     val remark: String?,
-    /** 添加时间戳 */
-    val addedAt: Long,
+    /** 添加时间戳，默认为当前时间 */
+    val addedAt: Long = System.currentTimeMillis(),
 )
 
 enum class ListType { BLACK, WHITE }
