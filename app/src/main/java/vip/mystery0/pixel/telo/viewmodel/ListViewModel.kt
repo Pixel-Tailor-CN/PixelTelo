@@ -34,6 +34,14 @@ class ListViewModel : ViewModel(), KoinComponent {
     var showAddSheet by mutableStateOf(false)
         private set
 
+    /** 是否展示删除确认对话框 */
+    var showDeleteDialog by mutableStateOf(false)
+        private set
+
+    /** 待删除的条目 */
+    var pendingDeleteEntry by mutableStateOf<UserListEntry?>(null)
+        private set
+
     /** 添加表单：号码输入 */
     var inputPhone by mutableStateOf("")
 
@@ -90,6 +98,29 @@ class ListViewModel : ViewModel(), KoinComponent {
                 toastMessage = context.getString(R.string.msg_added_to_list)
             } else {
                 addErrorMessage = context.getString(R.string.error_phone_already_exists)
+            }
+        }
+    }
+
+    fun requestDelete(entry: UserListEntry) {
+        pendingDeleteEntry = entry
+        showDeleteDialog = true
+    }
+
+    fun cancelDelete() {
+        showDeleteDialog = false
+        pendingDeleteEntry = null
+    }
+
+    fun confirmDelete() {
+        val entry = pendingDeleteEntry ?: return
+        viewModelScope.launch {
+            try {
+                userListRepository.delete(entry)
+                showDeleteDialog = false
+                pendingDeleteEntry = null
+            } catch (e: Exception) {
+                Log.e(TAG, "Delete failed", e)
             }
         }
     }

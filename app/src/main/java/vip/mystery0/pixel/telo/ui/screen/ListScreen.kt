@@ -16,6 +16,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
@@ -29,6 +30,7 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,6 +66,25 @@ fun ListScreen(viewModel: ListViewModel) {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             viewModel.clearToast()
         }
+    }
+
+    // 删除确认对话框
+    if (viewModel.showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelDelete() },
+            title = { Text(stringResource(R.string.title_delete_entry)) },
+            text = { Text(stringResource(R.string.msg_delete_entry_confirm)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmDelete() }) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelDelete() }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 
     val tabs = listOf(ListType.BLACK, ListType.WHITE)
@@ -114,7 +135,7 @@ fun ListScreen(viewModel: ListViewModel) {
                 val list = if (page == 0) blackList else whiteList
                 UserListContent(
                     entries = list,
-                    onDelete = { viewModel.delete(it) }
+                    viewModel = viewModel
                 )
             }
         }
@@ -215,7 +236,7 @@ fun ListScreen(viewModel: ListViewModel) {
 @Composable
 private fun UserListContent(
     entries: List<UserListEntry>,
-    onDelete: (UserListEntry) -> Unit,
+    viewModel: ListViewModel,
 ) {
     if (entries.isEmpty()) {
         Box(
@@ -234,7 +255,7 @@ private fun UserListContent(
             items(entries, key = { it.id }) { entry ->
                 // 复用 SwipeToDeleteContainer 实现左右滑动删除
                 SwipeToDeleteContainer(
-                    onDelete = { onDelete(entry) },
+                    onDelete = { viewModel.requestDelete(entry) },
                     contentVerticalPadding = 4.dp
                 ) {
                     UserListEntryItem(entry)

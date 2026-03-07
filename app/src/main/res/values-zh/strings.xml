@@ -136,6 +136,8 @@
     <string name="error_phone_empty">号码不能为空</string>
     <string name="error_phone_already_exists">该号码已存在</string>
     <string name="msg_added_to_list">已添加</string>
+    <string name="title_delete_entry">删除条目</string>
+    <string name="msg_delete_entry_confirm">确定要删除此条目吗？此操作无法撤销。</string>
 
     <!-- Home Screen - Quick Add -->
     <string name="action_add_to_blacklist">加入黑名单</string>

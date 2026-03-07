@@ -135,6 +135,8 @@
     <string name="error_phone_empty">Phone number cannot be empty</string>
     <string name="error_phone_already_exists">This number already exists in the list</string>
     <string name="msg_added_to_list">Entry added</string>
+    <string name="title_delete_entry">Delete Entry</string>
+    <string name="msg_delete_entry_confirm">Are you sure you want to delete this entry? This action cannot be undone.</string>
 
     <!-- Home Screen - Quick Add -->
     <string name="action_add_to_blacklist">Add to Blacklist</string>
