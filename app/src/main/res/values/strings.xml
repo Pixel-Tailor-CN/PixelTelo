@@ -90,6 +90,8 @@
     <string name="category_about">About</string>
     <string name="setting_version_name">Version Name</string>
     <string name="setting_version_code">Version Code</string>
+    <string name="setting_feedback">Feedback</string>
+    <string name="setting_feedback_summary">Report issues or suggestions (opens GitHub)</string>
     <string name="category_debug_mode">Debug Mode</string>
     <string name="setting_force_download">Force Download</string>
     <string name="setting_force_download_summary">Ignore version check and force download of the latest database.</string>

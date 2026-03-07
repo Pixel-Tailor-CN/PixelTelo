@@ -1,6 +1,8 @@
 package vip.mystery0.pixel.telo.ui.screen
 
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
@@ -576,6 +579,15 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 title = { Text(stringResource(R.string.setting_version_code)) },
                 summary = { Text(viewModel.versionCode.toString()) },
                 icon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) }
+            )
+            Preference(
+                title = { Text(stringResource(R.string.setting_feedback)) },
+                summary = { Text(stringResource(R.string.setting_feedback_summary)) },
+                icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/PixelTelo/AppRelease/issues/new"))
+                    context.startActivity(intent)
+                }
             )
 
             if (viewModel.debugUnlocked) {

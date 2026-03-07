@@ -91,6 +91,8 @@
     <string name="category_about">关于</string>
     <string name="setting_version_name">版本名称</string>
     <string name="setting_version_code">版本号</string>
+    <string name="setting_feedback">问题反馈</string>
+    <string name="setting_feedback_summary">报告问题或提出建议（将打开 GitHub）</string>
     <string name="category_debug_mode">调试模式</string>
     <string name="setting_force_download">始终下载离线数据库</string>
     <string name="setting_force_download_summary">忽略版本检查，强制下载最新库</string>
