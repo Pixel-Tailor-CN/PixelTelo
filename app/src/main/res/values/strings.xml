@@ -111,4 +111,46 @@
     <string name="msg_restored_count_records">Restored %1$d records.</string>
     <string name="msg_restore_failed">Restore failed: %1$s</string>
     <string name="msg_database_deleted">Offline database deleted.</string>
+
+    <!-- Navigation - List -->
+    <string name="nav_list">Lists</string>
+
+    <!-- List Screen -->
+    <string name="tab_blacklist">Blacklist</string>
+    <string name="tab_whitelist">Whitelist</string>
+    <string name="list_no_entries">No entries yet</string>
+    <string name="action_add_entry">Add Entry</string>
+    <string name="title_add_to_blacklist">Add to Blacklist</string>
+    <string name="title_add_to_whitelist">Add to Whitelist</string>
+    <string name="label_prefix_match">Prefix match</string>
+    <string name="summary_prefix_match">Match all numbers starting with this prefix</string>
+    <string name="hint_prefix_example">e.g. 400 matches all 400-xxx numbers</string>
+    <string name="hint_exact_example">e.g. 13800138000</string>
+    <string name="label_remark_optional">Remark (optional)</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="error_phone_empty">Phone number cannot be empty</string>
+    <string name="error_phone_already_exists">This number already exists in the list</string>
+    <string name="msg_added_to_list">Entry added</string>
+
+    <!-- Home Screen - Quick Add -->
+    <string name="action_add_to_blacklist">Add to Blacklist</string>
+    <string name="action_add_to_whitelist">Add to Whitelist</string>
+    <string name="msg_added_to_blacklist">Added to blacklist</string>
+    <string name="msg_already_in_blacklist">Already in blacklist</string>
+    <string name="msg_added_to_whitelist">Added to whitelist</string>
+    <string name="msg_already_in_whitelist">Already in whitelist</string>
+
+    <!-- Backup/Restore Selection -->
+    <string name="title_backup_select">Select Data to Backup</string>
+    <string name="msg_backup_select_hint">Choose which data to include in this backup</string>
+    <string name="label_backup_blocked_calls">Intercept Records</string>
+    <string name="label_backup_blacklist">Blacklist</string>
+    <string name="label_backup_whitelist">Whitelist</string>
+    <string name="action_backup">Backup</string>
+    <string name="title_restore_select">Select Data to Restore</string>
+    <string name="label_restore_blocked_calls">Intercept Records (%1$d entries)</string>
+    <string name="label_restore_blacklist">Blacklist (%1$d entries)</string>
+    <string name="label_restore_whitelist">Whitelist (%1$d entries)</string>
+    <string name="action_restore">Restore</string>
+    <string name="msg_restored_summary">Restored: %1$d intercept records, %2$d blacklist, %3$d whitelist entries</string>
 </resources>

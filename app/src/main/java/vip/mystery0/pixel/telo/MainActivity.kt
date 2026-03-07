@@ -99,6 +99,6 @@ class MainActivity : ComponentActivity() {
 
 enum class AppDestinations(val titleResId: Int, val labelResId: Int, val icon: ImageVector) {
     HOME(R.string.app_name, R.string.nav_home, Icons.Default.Home),
-    LIST(R.string.nav_home, R.string.nav_home, Icons.AutoMirrored.Filled.Rule),  // nav_list 将在 Task 10 添加，暂用 nav_home 占位
+    LIST(R.string.nav_list, R.string.nav_list, Icons.AutoMirrored.Filled.Rule),
     SETTINGS(R.string.nav_settings, R.string.nav_settings, Icons.Default.Settings)
 }

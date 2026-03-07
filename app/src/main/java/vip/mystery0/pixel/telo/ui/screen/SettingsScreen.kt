@@ -193,29 +193,29 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("选择备份内容", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.title_backup_select), style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "请选择需要包含在本次备份中的数据",
+                    stringResource(R.string.msg_backup_select_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 BackupCheckboxRow(
                     checked = viewModel.backupOptions.includeBlockedCalls,
-                    label = "拦截记录",
+                    label = stringResource(R.string.label_backup_blocked_calls),
                     onCheckedChange = {
                         viewModel.backupOptions = viewModel.backupOptions.copy(includeBlockedCalls = it)
                     }
                 )
                 BackupCheckboxRow(
                     checked = viewModel.backupOptions.includeBlackList,
-                    label = "黑名单",
+                    label = stringResource(R.string.label_backup_blacklist),
                     onCheckedChange = {
                         viewModel.backupOptions = viewModel.backupOptions.copy(includeBlackList = it)
                     }
                 )
                 BackupCheckboxRow(
                     checked = viewModel.backupOptions.includeWhiteList,
-                    label = "白名单",
+                    label = stringResource(R.string.label_backup_whitelist),
                     onCheckedChange = {
                         viewModel.backupOptions = viewModel.backupOptions.copy(includeWhiteList = it)
                     }
@@ -235,7 +235,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                         onClick = { backupLauncher.launch("pixeltelo_backup_$date.zip") },
                         enabled = opts.includeBlockedCalls || opts.includeBlackList || opts.includeWhiteList,
                         modifier = Modifier.weight(1f)
-                    ) { Text("备份") }
+                    ) { Text(stringResource(R.string.action_backup)) }
                 }
             }
         }
@@ -252,10 +252,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("选择恢复内容", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.title_restore_select), style = MaterialTheme.typography.titleLarge)
                 BackupCheckboxRow(
                     checked = viewModel.restoreOptions.includeBlockedCalls,
-                    label = "拦截记录（共 ${preview.blockedCallCount} 条）",
+                    label = stringResource(R.string.label_restore_blocked_calls, preview.blockedCallCount),
                     enabled = preview.blockedCallCount > 0,
                     onCheckedChange = {
                         viewModel.restoreOptions = viewModel.restoreOptions.copy(includeBlockedCalls = it)
@@ -263,7 +263,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 )
                 BackupCheckboxRow(
                     checked = viewModel.restoreOptions.includeBlackList,
-                    label = "黑名单（共 ${preview.blackListCount} 条）",
+                    label = stringResource(R.string.label_restore_blacklist, preview.blackListCount),
                     enabled = preview.blackListCount > 0,
                     onCheckedChange = {
                         viewModel.restoreOptions = viewModel.restoreOptions.copy(includeBlackList = it)
@@ -271,7 +271,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 )
                 BackupCheckboxRow(
                     checked = viewModel.restoreOptions.includeWhiteList,
-                    label = "白名单（共 ${preview.whiteListCount} 条）",
+                    label = stringResource(R.string.label_restore_whitelist, preview.whiteListCount),
                     enabled = preview.whiteListCount > 0,
                     onCheckedChange = {
                         viewModel.restoreOptions = viewModel.restoreOptions.copy(includeWhiteList = it)
@@ -288,7 +288,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     Button(
                         onClick = { viewModel.performRestoreWithOptions() },
                         modifier = Modifier.weight(1f)
-                    ) { Text("恢复") }
+                    ) { Text(stringResource(R.string.action_restore)) }
                 }
             }
         }

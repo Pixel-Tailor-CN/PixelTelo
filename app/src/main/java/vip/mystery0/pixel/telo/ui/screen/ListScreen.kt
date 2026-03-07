@@ -69,7 +69,7 @@ fun ListScreen(viewModel: ListViewModel) {
     }
 
     val tabs = listOf(ListType.BLACK, ListType.WHITE)
-    val tabLabels = listOf("黑名单", "白名单")
+    val tabLabels = listOf(stringResource(R.string.tab_blacklist), stringResource(R.string.tab_whitelist))
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val scope = rememberCoroutineScope()
 
@@ -81,7 +81,7 @@ fun ListScreen(viewModel: ListViewModel) {
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.openAddSheet() }) {
-                Icon(Icons.Default.Add, contentDescription = "添加条目")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.action_add_entry))
             }
         }
     ) { innerPadding ->
@@ -131,7 +131,7 @@ fun ListScreen(viewModel: ListViewModel) {
             ) {
                 // 根据当前 Tab 显示对应标题
                 Text(
-                    if (viewModel.currentTab == ListType.BLACK) "加入黑名单" else "加入白名单",
+                    if (viewModel.currentTab == ListType.BLACK) stringResource(R.string.title_add_to_blacklist) else stringResource(R.string.title_add_to_whitelist),
                     style = MaterialTheme.typography.titleLarge
                 )
 
@@ -141,11 +141,11 @@ fun ListScreen(viewModel: ListViewModel) {
                     onValueChange = {
                         viewModel.inputPhone = it
                     },
-                    label = { Text("号码") },
+                    label = { Text(stringResource(R.string.label_phone_number)) },
                     placeholder = {
                         Text(
-                            if (viewModel.inputIsPrefix) "如：400 可匹配所有 400 开头的号码"
-                            else "如：13800138000"
+                            if (viewModel.inputIsPrefix) stringResource(R.string.hint_prefix_example)
+                            else stringResource(R.string.hint_exact_example)
                         )
                     },
                     isError = viewModel.addErrorMessage != null,
@@ -161,9 +161,9 @@ fun ListScreen(viewModel: ListViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("前缀匹配", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.label_prefix_match), style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "匹配所有以该前缀开头的号码",
+                            stringResource(R.string.summary_prefix_match),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -178,7 +178,7 @@ fun ListScreen(viewModel: ListViewModel) {
                 OutlinedTextField(
                     value = viewModel.inputRemark,
                     onValueChange = { viewModel.inputRemark = it },
-                    label = { Text("备注（可选）") },
+                    label = { Text(stringResource(R.string.label_remark_optional)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -195,7 +195,7 @@ fun ListScreen(viewModel: ListViewModel) {
                     Button(
                         onClick = { viewModel.confirmAdd() },
                         modifier = Modifier.weight(1f)
-                    ) { Text("确认") }
+                    ) { Text(stringResource(R.string.action_confirm)) }
                 }
             }
         }
@@ -217,7 +217,7 @@ private fun UserListContent(
                 .height(360.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("暂无条目", style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.list_no_entries), style = MaterialTheme.typography.bodyLarge)
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -271,7 +271,7 @@ private fun UserListEntryItem(entry: UserListEntry) {
             // 前缀匹配条目显示标签
             if (entry.isPrefix) {
                 Text(
-                    "前缀匹配",
+                    stringResource(R.string.label_prefix_match),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 2.dp)

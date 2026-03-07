@@ -323,7 +323,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
                     backupRepository.restore(preview, options)
                 }
                 backupRestoreState = BackupRestoreState.Success(
-                    "已恢复 ${result.insertedCalls} 条拦截记录、${result.insertedBlack} 条黑名单、${result.insertedWhite} 条白名单"
+                    context.getString(
+                        R.string.msg_restored_summary,
+                        result.insertedCalls,
+                        result.insertedBlack,
+                        result.insertedWhite
+                    )
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Restore failed", e)

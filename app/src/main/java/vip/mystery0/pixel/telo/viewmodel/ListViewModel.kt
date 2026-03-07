@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
@@ -22,6 +24,7 @@ class ListViewModel : ViewModel(), KoinComponent {
     }
 
     private val userListRepository: UserListRepository by inject()
+    private val context: Context by inject()
 
     /** 当前选中的 Tab：BLACK 或 WHITE */
     var currentTab by mutableStateOf(ListType.BLACK)
@@ -77,16 +80,16 @@ class ListViewModel : ViewModel(), KoinComponent {
     fun confirmAdd() {
         val phone = inputPhone.trim()
         if (phone.isBlank()) {
-            addErrorMessage = "号码不能为空" // TODO: 移至 strings.xml -> R.string.error_phone_empty
+            addErrorMessage = context.getString(R.string.error_phone_empty)
             return
         }
         viewModelScope.launch {
             val success = userListRepository.add(phone, inputIsPrefix, currentTab, inputRemark)
             if (success) {
                 showAddSheet = false
-                toastMessage = "已添加" // TODO: 移至 strings.xml -> R.string.msg_added_to_list
+                toastMessage = context.getString(R.string.msg_added_to_list)
             } else {
-                addErrorMessage = "该号码已存在" // TODO: 移至 strings.xml -> R.string.error_phone_already_exists
+                addErrorMessage = context.getString(R.string.error_phone_already_exists)
             }
         }
     }
