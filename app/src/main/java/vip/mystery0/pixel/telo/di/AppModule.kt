@@ -34,7 +34,7 @@ val appModule = module {
 
     single { BlockedCallRepository() }
     single { UserListRepository(get()) }
-    single { BackupRepository(get()) }
+    single { BackupRepository(get(), get()) }  // 第二个 get() 注入 UserListDao
     single { SpamNumberRepository() }
 
     single {

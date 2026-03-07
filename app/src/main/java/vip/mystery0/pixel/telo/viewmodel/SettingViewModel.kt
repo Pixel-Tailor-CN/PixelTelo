@@ -10,12 +10,16 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.remote.SyncResponse
+import vip.mystery0.pixel.telo.data.repository.BackupOptions
+import vip.mystery0.pixel.telo.data.repository.BackupPreview
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
@@ -229,50 +233,105 @@ class SettingViewModel : ViewModel(), KoinComponent {
         }
     }
 
-    fun performBackup(outputStream: OutputStream) {
+    fun dismissBackupRestoreResult() {
+        backupRestoreState = BackupRestoreState.Idle
+    }
+
+    // ---- 备份选项 Sheet ----
+    /** 是否展示备份内容选择 Sheet */
+    var showBackupOptionsSheet by mutableStateOf(false)
+        private set
+
+    /** 备份选项（默认全选） */
+    var backupOptions by mutableStateOf(BackupOptions())
+
+    fun openBackupOptionsSheet() {
+        backupOptions = BackupOptions()
+        showBackupOptionsSheet = true
+    }
+
+    fun closeBackupOptionsSheet() {
+        showBackupOptionsSheet = false
+    }
+
+    // ---- 恢复：解析预览 + 恢复选项 Sheet ----
+    /** 已解析的备份预览，非 null 时展示恢复选项 Sheet */
+    var backupPreview by mutableStateOf<BackupPreview?>(null)
+        private set
+
+    /** 恢复选项 */
+    var restoreOptions by mutableStateOf(BackupOptions())
+
+    fun closeRestoreOptionsSheet() {
+        backupPreview = null
+    }
+
+    /** 解析备份文件（不执行写入），成功后展示恢复选项 Sheet */
+    fun parseBackupFile(inputStream: InputStream) {
         viewModelScope.launch {
             backupRestoreState = BackupRestoreState.Processing
             try {
-                backupRepository.backup(outputStream)
-                backupRestoreState =
-                    BackupRestoreState.Success(context.getString(R.string.msg_backup_exported))
+                val preview = withContext(Dispatchers.IO) {
+                    backupRepository.parseBackup(inputStream)
+                }
+                backupPreview = preview
+                // 根据备份内容默认勾选有数据的部分
+                restoreOptions = BackupOptions(
+                    includeBlockedCalls = preview.blockedCallCount > 0,
+                    includeBlackList = preview.blackListCount > 0,
+                    includeWhiteList = preview.whiteListCount > 0,
+                )
+                backupRestoreState = BackupRestoreState.Idle
             } catch (e: Exception) {
-                Log.e(TAG, "Backup failed", e)
+                Log.e(TAG, "Parse backup failed", e)
                 backupRestoreState = BackupRestoreState.Failure(
-                    context.getString(
-                        R.string.msg_backup_failed,
-                        e.message
-                    )
+                    context.getString(R.string.msg_restore_failed, e.message)
                 )
             }
         }
     }
 
-    fun performRestore(inputStream: InputStream) {
+    /** 使用选定的选项执行备份 */
+    fun performBackupWithOptions(outputStream: OutputStream) {
+        val options = backupOptions
+        showBackupOptionsSheet = false
         viewModelScope.launch {
             backupRestoreState = BackupRestoreState.Processing
             try {
-                val count = backupRepository.restore(inputStream)
+                withContext(Dispatchers.IO) { backupRepository.backup(outputStream, options) }
                 backupRestoreState = BackupRestoreState.Success(
-                    context.getString(
-                        R.string.msg_restored_count_records,
-                        count
-                    )
+                    context.getString(R.string.msg_backup_exported)
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Backup failed", e)
+                backupRestoreState = BackupRestoreState.Failure(
+                    context.getString(R.string.msg_backup_failed, e.message)
+                )
+            }
+        }
+    }
+
+    /** 使用选定的选项执行恢复 */
+    fun performRestoreWithOptions() {
+        val preview = backupPreview ?: return
+        val options = restoreOptions
+        backupPreview = null
+        viewModelScope.launch {
+            backupRestoreState = BackupRestoreState.Processing
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    backupRepository.restore(preview, options)
+                }
+                backupRestoreState = BackupRestoreState.Success(
+                    "已恢复 ${result.insertedCalls} 条拦截记录、${result.insertedBlack} 条黑名单、${result.insertedWhite} 条白名单"
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Restore failed", e)
                 backupRestoreState = BackupRestoreState.Failure(
-                    context.getString(
-                        R.string.msg_restore_failed,
-                        e.message
-                    )
+                    context.getString(R.string.msg_restore_failed, e.message)
                 )
             }
         }
-    }
-
-    fun dismissBackupRestoreResult() {
-        backupRestoreState = BackupRestoreState.Idle
     }
 
     fun deleteDatabase() {

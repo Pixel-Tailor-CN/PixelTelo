@@ -91,17 +91,17 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     ) { uri ->
         uri?.let {
             val stream = context.contentResolver.openOutputStream(it)
-            if (stream != null) viewModel.performBackup(stream)
+            if (stream != null) viewModel.performBackupWithOptions(stream)
         }
     }
 
-    // 恢复：通过系统文件选择对话框选择备份文件
+    // 恢复：通过系统文件选择对话框选择备份文件，先解析预览
     val restoreLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
             val stream = context.contentResolver.openInputStream(it)
-            if (stream != null) viewModel.performRestore(stream)
+            if (stream != null) viewModel.parseBackupFile(stream)
         }
     }
 
@@ -179,6 +179,117 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     onClick = { viewModel.dismissBackupRestoreResult() },
                     modifier = androidx.compose.ui.Modifier.fillMaxWidth()
                 ) { Text(stringResource(R.string.action_ok)) }
+            }
+        }
+    }
+
+    // 备份内容选择 Sheet
+    if (viewModel.showBackupOptionsSheet) {
+        ModalBottomSheet(onDismissRequest = { viewModel.closeBackupOptionsSheet() }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("选择备份内容", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "请选择需要包含在本次备份中的数据",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                BackupCheckboxRow(
+                    checked = viewModel.backupOptions.includeBlockedCalls,
+                    label = "拦截记录",
+                    onCheckedChange = {
+                        viewModel.backupOptions = viewModel.backupOptions.copy(includeBlockedCalls = it)
+                    }
+                )
+                BackupCheckboxRow(
+                    checked = viewModel.backupOptions.includeBlackList,
+                    label = "黑名单",
+                    onCheckedChange = {
+                        viewModel.backupOptions = viewModel.backupOptions.copy(includeBlackList = it)
+                    }
+                )
+                BackupCheckboxRow(
+                    checked = viewModel.backupOptions.includeWhiteList,
+                    label = "白名单",
+                    onCheckedChange = {
+                        viewModel.backupOptions = viewModel.backupOptions.copy(includeWhiteList = it)
+                    }
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.closeBackupOptionsSheet() },
+                        modifier = Modifier.weight(1f)
+                    ) { Text(stringResource(R.string.action_cancel)) }
+                    val opts = viewModel.backupOptions
+                    val date = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                        .format(java.util.Date())
+                    Button(
+                        onClick = { backupLauncher.launch("pixeltelo_backup_$date.zip") },
+                        enabled = opts.includeBlockedCalls || opts.includeBlackList || opts.includeWhiteList,
+                        modifier = Modifier.weight(1f)
+                    ) { Text("备份") }
+                }
+            }
+        }
+    }
+
+    // 恢复内容选择 Sheet
+    val preview = viewModel.backupPreview
+    if (preview != null) {
+        ModalBottomSheet(onDismissRequest = { viewModel.closeRestoreOptionsSheet() }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("选择恢复内容", style = MaterialTheme.typography.titleLarge)
+                BackupCheckboxRow(
+                    checked = viewModel.restoreOptions.includeBlockedCalls,
+                    label = "拦截记录（共 ${preview.blockedCallCount} 条）",
+                    enabled = preview.blockedCallCount > 0,
+                    onCheckedChange = {
+                        viewModel.restoreOptions = viewModel.restoreOptions.copy(includeBlockedCalls = it)
+                    }
+                )
+                BackupCheckboxRow(
+                    checked = viewModel.restoreOptions.includeBlackList,
+                    label = "黑名单（共 ${preview.blackListCount} 条）",
+                    enabled = preview.blackListCount > 0,
+                    onCheckedChange = {
+                        viewModel.restoreOptions = viewModel.restoreOptions.copy(includeBlackList = it)
+                    }
+                )
+                BackupCheckboxRow(
+                    checked = viewModel.restoreOptions.includeWhiteList,
+                    label = "白名单（共 ${preview.whiteListCount} 条）",
+                    enabled = preview.whiteListCount > 0,
+                    onCheckedChange = {
+                        viewModel.restoreOptions = viewModel.restoreOptions.copy(includeWhiteList = it)
+                    }
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.closeRestoreOptionsSheet() },
+                        modifier = Modifier.weight(1f)
+                    ) { Text(stringResource(R.string.action_cancel)) }
+                    Button(
+                        onClick = { viewModel.performRestoreWithOptions() },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("恢复") }
+                }
             }
         }
     }
@@ -399,12 +510,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 title = { Text(stringResource(R.string.setting_backup_records)) },
                 summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
                 icon = { Icon(Icons.Default.Save, contentDescription = null) },
-                onClick = {
-                    val date =
-                        java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-                            .format(java.util.Date())
-                    backupLauncher.launch("pixeltelo_backup_$date.zip")
-                }
+                onClick = { viewModel.openBackupOptionsSheet() }
             )
 
             Preference(
@@ -465,5 +571,35 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 )
             }
         }
+    }
+}
+
+/**
+ * 备份/恢复内容选择行：标签 + Checkbox
+ */
+@Composable
+private fun BackupCheckboxRow(
+    checked: Boolean,
+    label: String,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            modifier = Modifier.weight(1f)
+        )
+        androidx.compose.material3.Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled
+        )
     }
 }
