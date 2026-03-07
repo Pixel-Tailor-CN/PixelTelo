@@ -10,6 +10,7 @@ import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import vip.mystery0.pixel.telo.data.AppDatabase
+import vip.mystery0.pixel.telo.data.MIGRATION_1_2
 import vip.mystery0.pixel.telo.data.remote.SyncApi
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
@@ -22,10 +23,13 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "app-database"
-        ).build()
+        )
+            .addMigrations(MIGRATION_1_2)
+            .build()
     }
 
     single { get<AppDatabase>().blockedCallDao() }
+    single { get<AppDatabase>().userListDao() }
 
     single { BlockedCallRepository() }
     single { BackupRepository(get()) }
