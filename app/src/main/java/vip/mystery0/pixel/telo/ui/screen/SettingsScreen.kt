@@ -497,30 +497,6 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 }
             )
 
-            SwitchPreference(
-                value = viewModel.notifyOnly,
-                onValueChange = { viewModel.updateNotifyOnly(it) },
-                title = { Text(stringResource(R.string.setting_notify_only)) },
-                summary = { Text(stringResource(R.string.setting_notify_only_summary)) },
-                icon = { Icon(Icons.Default.NotificationsActive, contentDescription = null) }
-            )
-
-            SwitchPreference(
-                value = viewModel.noNetworkQuery,
-                onValueChange = { viewModel.updateNoNetworkQuery(it) },
-                title = { Text(stringResource(R.string.setting_no_network_query)) },
-                summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
-                icon = { Icon(Icons.Default.CloudOff, contentDescription = null) }
-            )
-
-            SwitchPreference(
-                value = viewModel.alwaysRecord,
-                onValueChange = { viewModel.updateAlwaysRecord(it) },
-                title = { Text(stringResource(R.string.setting_always_record)) },
-                summary = { Text(stringResource(R.string.setting_always_record_summary)) },
-                icon = { Icon(Icons.Default.FindInPage, contentDescription = null) }
-            )
-
             Preference(
                 title = { Text(stringResource(R.string.title_test_intercept)) },
                 summary = { Text(stringResource(R.string.summary_test_intercept)) },
@@ -548,6 +524,31 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     }
                 )
             }
+
+            PreferenceCategory(title = { Text(stringResource(R.string.category_intercept_behavior)) })
+            SwitchPreference(
+                value = viewModel.notifyOnly,
+                onValueChange = { viewModel.updateNotifyOnly(it) },
+                title = { Text(stringResource(R.string.setting_notify_only)) },
+                summary = { Text(stringResource(R.string.setting_notify_only_summary)) },
+                icon = { Icon(Icons.Default.NotificationsActive, contentDescription = null) }
+            )
+
+            SwitchPreference(
+                value = viewModel.noNetworkQuery,
+                onValueChange = { viewModel.updateNoNetworkQuery(it) },
+                title = { Text(stringResource(R.string.setting_no_network_query)) },
+                summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
+                icon = { Icon(Icons.Default.CloudOff, contentDescription = null) }
+            )
+
+            SwitchPreference(
+                value = viewModel.alwaysRecord,
+                onValueChange = { viewModel.updateAlwaysRecord(it) },
+                title = { Text(stringResource(R.string.setting_always_record)) },
+                summary = { Text(stringResource(R.string.setting_always_record_summary)) },
+                icon = { Icon(Icons.Default.FindInPage, contentDescription = null) }
+            )
 
             PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
             Preference(

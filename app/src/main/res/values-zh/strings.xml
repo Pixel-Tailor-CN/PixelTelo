@@ -83,6 +83,7 @@
     <string name="setting_restore_records">恢复拦截记录</string>
     <string name="setting_restore_records_summary">从备份文件恢复拦截记录</string>
     <string name="category_permissions">权限申请</string>
+    <string name="category_intercept_behavior">拦截行为</string>
     <string name="category_backup_restore">备份恢复</string>
     <string name="permission_read_contacts_name">联系人</string>
     <string name="permission_read_contacts_desc">用于在来电界面显示信息</string>
