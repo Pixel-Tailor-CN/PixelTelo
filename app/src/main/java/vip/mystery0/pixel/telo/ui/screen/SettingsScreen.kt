@@ -2,7 +2,6 @@ package vip.mystery0.pixel.telo.ui.screen
 
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import me.zhanghai.compose.preference.Preference
@@ -585,7 +585,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 summary = { Text(stringResource(R.string.setting_feedback_summary)) },
                 icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/PixelTelo/AppRelease/issues/new"))
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        "https://github.com/PixelTelo/AppRelease/issues/new".toUri()
+                    )
                     context.startActivity(intent)
                 }
             )
