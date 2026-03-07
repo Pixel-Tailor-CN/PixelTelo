@@ -16,6 +16,7 @@ import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
+import vip.mystery0.pixel.telo.data.repository.UserListRepository
 
 val appModule = module {
     single {
@@ -32,6 +33,7 @@ val appModule = module {
     single { get<AppDatabase>().userListDao() }
 
     single { BlockedCallRepository() }
+    single { UserListRepository(get()) }
     single { BackupRepository(get()) }
     single { SpamNumberRepository() }
 
