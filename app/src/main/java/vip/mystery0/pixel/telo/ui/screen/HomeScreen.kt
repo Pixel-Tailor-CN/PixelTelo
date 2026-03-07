@@ -3,6 +3,7 @@ package vip.mystery0.pixel.telo.ui.screen
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -10,6 +11,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +48,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.ResultType
@@ -73,6 +78,7 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val blockedCalls by viewModel.blockedCalls.collectAsState()
     val isDatabaseReady by viewModel.isDatabaseReady.collectAsState()
     val missingPermissions by viewModel.missingPermissions.collectAsState()
@@ -137,6 +143,7 @@ fun HomeScreen(
                 showDeleteDialog = true
             },
             onRetry = { call -> viewModel.retryNetworkQuery(call) },
+            onLongClick = { call -> viewModel.openQuickAdd(call.phoneNumber) },
         )
     }
 
@@ -272,6 +279,51 @@ fun HomeScreen(
             }
         )
     }
+
+    // 快捷添加黑白名单 BottomSheet
+    viewModel.quickAddPhone?.let { phone ->
+        ModalBottomSheet(onDismissRequest = { viewModel.closeQuickAdd() }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = phone,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            val success = viewModel.quickAddToBlackList(phone)
+                            val msg: String = if (success) "已加入黑名单" else "该号码已在黑名单中"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            viewModel.closeQuickAdd()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("加入黑名单") }
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            val success = viewModel.quickAddToWhiteList(phone)
+                            val msg: String = if (success) "已加入白名单" else "该号码已在白名单中"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            viewModel.closeQuickAdd()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("加入白名单") }
+                OutlinedButton(
+                    onClick = { viewModel.closeQuickAdd() },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(stringResource(R.string.action_cancel)) }
+            }
+        }
+    }
 }
 
 @Composable
@@ -341,6 +393,7 @@ private fun LazyListScope.blockedCallsList(
     calls: List<BlockedCall>,
     onDelete: (BlockedCall) -> Unit,
     onRetry: (BlockedCall) -> Unit,
+    onLongClick: (BlockedCall) -> Unit,
 ) {
     if (calls.isEmpty()) {
         item {
@@ -367,18 +420,28 @@ private fun LazyListScope.blockedCallsList(
                     onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
                         { onRetry(call) }
                     } else null,
+                    onLongClick = { onLongClick(call) },
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
+fun BlockedCallItem(
+    call: BlockedCall,
+    onRetry: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null
+) {
     Card(
         modifier = Modifier
             .padding(vertical = 4.dp)
             .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = { onLongClick?.invoke() }
+            )
     ) {
         SelectionContainer {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -421,12 +484,12 @@ fun BlockedCallItem(call: BlockedCall, onRetry: (() -> Unit)? = null) {
                     ResultType.BLACK_LIST -> stringResource(R.string.result_black_list)
                     ResultType.WHITE_LIST -> stringResource(R.string.result_white_list)
                 }
-                val resultColor = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
-                    MaterialTheme.colorScheme.error
-                } else if (call.resultType == ResultType.PASS) {
-                    MaterialTheme.colorScheme.secondary
-                } else {
-                    MaterialTheme.colorScheme.primary
+                val resultColor = when (call.resultType) {
+                    ResultType.PASS -> MaterialTheme.colorScheme.secondary
+                    ResultType.NETWORK_TIMEOUT -> MaterialTheme.colorScheme.error
+                    ResultType.BLACK_LIST -> MaterialTheme.colorScheme.error          // 黑名单拦截：红色
+                    ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary       // 白名单放行：tertiary 色
+                    else -> MaterialTheme.colorScheme.primary
                 }
                 Text(
                     text = resultText,

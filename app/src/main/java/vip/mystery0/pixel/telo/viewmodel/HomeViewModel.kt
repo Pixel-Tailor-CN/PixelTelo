@@ -3,6 +3,9 @@ package vip.mystery0.pixel.telo.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,10 +17,12 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
+import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
+import vip.mystery0.pixel.telo.data.repository.UserListRepository
 
 /** 联网重查的 UI 状态 */
 sealed interface RetryQueryState {
@@ -31,6 +36,7 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val repository: BlockedCallRepository by inject()
     private val syncRepository: SyncRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
+    private val userListRepository: UserListRepository by inject()
     private val context: Context by inject()
 
     val blockedCalls: StateFlow<List<BlockedCall>> = repository.allBlockedCalls
@@ -99,4 +105,24 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             repository.delete(blockedCall)
         }
     }
+
+    /** 长按快捷添加的目标号码（非 null 时展示 BottomSheet） */
+    var quickAddPhone by mutableStateOf<String?>(null)
+        private set
+
+    fun openQuickAdd(phoneNumber: String) {
+        quickAddPhone = phoneNumber
+    }
+
+    fun closeQuickAdd() {
+        quickAddPhone = null
+    }
+
+    /** 快捷加入黑名单。@return true=成功插入，false=已存在 */
+    suspend fun quickAddToBlackList(phone: String): Boolean =
+        userListRepository.add(phone, false, ListType.BLACK, null)
+
+    /** 快捷加入白名单。@return true=成功插入，false=已存在 */
+    suspend fun quickAddToWhiteList(phone: String): Boolean =
+        userListRepository.add(phone, false, ListType.WHITE, null)
 }
