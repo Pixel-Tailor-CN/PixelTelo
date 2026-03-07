@@ -138,7 +138,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     if (backupState is BackupRestoreState.Success) {
         ModalBottomSheet(onDismissRequest = { viewModel.dismissBackupRestoreResult() }) {
             Column(
-                modifier = androidx.compose.ui.Modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp),
@@ -155,14 +155,14 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 )
                 Button(
                     onClick = { viewModel.dismissBackupRestoreResult() },
-                    modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 ) { Text(stringResource(R.string.action_ok)) }
             }
         }
     } else if (backupState is BackupRestoreState.Failure) {
         ModalBottomSheet(onDismissRequest = { viewModel.dismissBackupRestoreResult() }) {
             Column(
-                modifier = androidx.compose.ui.Modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp),
@@ -179,7 +179,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 )
                 Button(
                     onClick = { viewModel.dismissBackupRestoreResult() },
-                    modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 ) { Text(stringResource(R.string.action_ok)) }
             }
         }
@@ -528,20 +528,6 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 onClick = { viewModel.showTestDialog() }
             )
 
-            Preference(
-                title = { Text(stringResource(R.string.setting_backup_records)) },
-                summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
-                icon = { Icon(Icons.Default.Save, contentDescription = null) },
-                onClick = { viewModel.openBackupOptionsSheet() }
-            )
-
-            Preference(
-                title = { Text(stringResource(R.string.setting_restore_records)) },
-                summary = { Text(stringResource(R.string.setting_restore_records_summary)) },
-                icon = { Icon(Icons.Default.Restore, contentDescription = null) },
-                onClick = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
-            )
-
             PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
             PermissionUtils.allPermissions.forEach { item ->
                 val isGranted = permissionsState[item.permission] == true
@@ -562,6 +548,21 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     }
                 )
             }
+
+            PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
+            Preference(
+                title = { Text(stringResource(R.string.setting_backup_records)) },
+                summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
+                icon = { Icon(Icons.Default.Save, contentDescription = null) },
+                onClick = { viewModel.openBackupOptionsSheet() }
+            )
+
+            Preference(
+                title = { Text(stringResource(R.string.setting_restore_records)) },
+                summary = { Text(stringResource(R.string.setting_restore_records_summary)) },
+                icon = { Icon(Icons.Default.Restore, contentDescription = null) },
+                onClick = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
+            )
 
             PreferenceCategory(title = { Text(stringResource(R.string.category_about)) })
             Preference(
