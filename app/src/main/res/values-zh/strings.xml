@@ -35,7 +35,7 @@
     <string name="label_duration_local">"处理耗时: 本地 %1$dms"</string>
     <string name="msg_querying">正在查询 %1$s…</string>
     <string name="action_cancel">取消</string>
-    <string name="msg_retry_spam">[重查] 骚扰, 标签: %1$s, 可信度: %2$d%%, 来源: %3$s</string>
+    <string name="msg_retry_spam">[重查] 骚扰, 标签: %1$s, 来源: %2$s</string>
     <string name="msg_retry_not_spam">[重查] 非骚扰, 来源: %1$s</string>
     <string name="title_query_result">查询结果</string>
     <string name="label_is_spam_yes">是否骚扰: 是</string>

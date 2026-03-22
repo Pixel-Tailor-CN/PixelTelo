@@ -183,7 +183,6 @@ fun HomeScreen(
                                 stringResource(
                                     R.string.msg_retry_spam,
                                     resp.tag,
-                                    resp.confidence,
                                     resp.source
                                 )
                             } else {
@@ -200,7 +199,6 @@ fun HomeScreen(
                             )
                             Text(stringResource(if (resp.isSpam) R.string.label_is_spam_yes else R.string.label_is_spam_no))
                             if (resp.isSpam) Text("${stringResource(R.string.label_tag)}${resp.tag}")
-                            Text("${stringResource(R.string.label_confidence)}${resp.confidence}%")
                             Text("${stringResource(R.string.label_source)}${resp.source}")
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
