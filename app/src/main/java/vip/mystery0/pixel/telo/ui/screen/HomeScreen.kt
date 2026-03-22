@@ -451,9 +451,16 @@ fun BlockedCallItem(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val isPass = call.resultType == ResultType.PASS || call.resultType == ResultType.WHITE_LIST || call.resultType == ResultType.PASS_BUT_NOTIFY
-                val icon = if (isPass) Icons.Default.CheckCircle else Icons.Default.Block
-                val iconColor = if (isPass) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                val icon = when (call.resultType) {
+                    ResultType.PASS_BUT_NOTIFY -> Icons.Default.Warning
+                    ResultType.PASS, ResultType.WHITE_LIST -> Icons.Default.CheckCircle
+                    else -> Icons.Default.Block
+                }
+                val iconColor = when (call.resultType) {
+                    ResultType.PASS_BUT_NOTIFY -> MaterialTheme.colorScheme.primary
+                    ResultType.PASS, ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.error
+                }
                 
                 Icon(
                     imageVector = icon,
