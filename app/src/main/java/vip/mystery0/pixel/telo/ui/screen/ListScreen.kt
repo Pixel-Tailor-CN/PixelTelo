@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -48,7 +50,6 @@ import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
-import vip.mystery0.pixel.telo.ui.components.SwipeToDeleteContainer
 import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
 
@@ -194,11 +195,15 @@ fun ListScreen(viewModel: ListViewModel) {
 
                 // 前缀匹配开关
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                    Column(modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 16.dp)) {
                         Text(
                             stringResource(R.string.label_prefix_match),
                             style = MaterialTheme.typography.bodyMedium
@@ -236,7 +241,7 @@ fun ListScreen(viewModel: ListViewModel) {
                                 viewModel.closeAddSheet()
                             },
                             modifier = Modifier.weight(1f),
-                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                            colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             ),
                             border = androidx.compose.foundation.BorderStroke(
@@ -310,7 +315,25 @@ private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(displayNumber, style = MaterialTheme.typography.titleMedium)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(displayNumber, style = MaterialTheme.typography.titleMedium)
+                    if (entry.isPrefix) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                text = stringResource(R.string.label_prefix_match),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
                 Text(
                     formatMills(entry.addedAt),
                     style = MaterialTheme.typography.bodySmall,
@@ -324,15 +347,6 @@ private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-            // 前缀匹配条目显示标签
-            if (entry.isPrefix) {
-                Text(
-                    stringResource(R.string.label_prefix_match),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
         }

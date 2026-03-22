@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -18,10 +17,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -47,14 +42,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PixelTeloTheme {
-                val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { AppDestinations.entries.size })
+                val pagerState =
+                    androidx.compose.foundation.pager.rememberPagerState(pageCount = { AppDestinations.entries.size })
                 val currentDestination = AppDestinations.entries[pagerState.currentPage]
                 val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
                         TopAppBar(title = { Text(stringResource(currentDestination.titleResId)) })
                     },
                     bottomBar = {
@@ -62,8 +57,12 @@ class MainActivity : ComponentActivity() {
                             AppDestinations.entries.forEach { destination ->
                                 NavigationBarItem(
                                     selected = currentDestination == destination,
-                                    onClick = { 
-                                        coroutineScope.launch { pagerState.animateScrollToPage(destination.ordinal) }
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(
+                                                destination.ordinal
+                                            )
+                                        }
                                     },
                                     icon = {
                                         Icon(
@@ -79,20 +78,28 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     androidx.compose.foundation.pager.HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.padding(innerPadding).fillMaxSize()
+                        modifier = Modifier
+                            .padding(innerPadding)
+                            .fillMaxSize()
                     ) { page ->
                         when (AppDestinations.entries[page]) {
                             AppDestinations.HOME -> {
                                 HomeScreen(
                                     homeViewModel,
                                     onNavigateToSettings = {
-                                        coroutineScope.launch { pagerState.animateScrollToPage(AppDestinations.SETTINGS.ordinal) }
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(
+                                                AppDestinations.SETTINGS.ordinal
+                                            )
+                                        }
                                     }
                                 )
                             }
+
                             AppDestinations.LIST -> {
                                 ListScreen(listViewModel)
                             }
+
                             AppDestinations.SETTINGS -> {
                                 SettingsScreen(settingViewModel)
                             }
