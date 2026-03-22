@@ -139,7 +139,6 @@ fun ListScreen(viewModel: ListViewModel) {
                 }
             }
 
-            // 禁用用户手势滑动（userScrollEnabled = false），防止与底部导航的左右滑动手势冲突
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()

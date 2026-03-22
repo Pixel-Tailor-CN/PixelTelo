@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.ui.screen.HomeScreen
 import vip.mystery0.pixel.telo.ui.screen.ListScreen
 import vip.mystery0.pixel.telo.ui.screen.SettingsScreen
@@ -46,11 +47,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PixelTeloTheme {
-                var currentDestination by remember { mutableStateOf(AppDestinations.HOME) }
+                val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { AppDestinations.entries.size })
+                val currentDestination = AppDestinations.entries[pagerState.currentPage]
+                val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
+                        @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
                         TopAppBar(title = { Text(stringResource(currentDestination.titleResId)) })
                     },
                     bottomBar = {
@@ -58,7 +62,9 @@ class MainActivity : ComponentActivity() {
                             AppDestinations.entries.forEach { destination ->
                                 NavigationBarItem(
                                     selected = currentDestination == destination,
-                                    onClick = { currentDestination = destination },
+                                    onClick = { 
+                                        coroutineScope.launch { pagerState.animateScrollToPage(destination.ordinal) }
+                                    },
                                     icon = {
                                         Icon(
                                             destination.icon,
@@ -71,21 +77,22 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                 ) { innerPadding ->
-                    Column(modifier = Modifier.padding(innerPadding)) {
-                        when (currentDestination) {
+                    androidx.compose.foundation.pager.HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.padding(innerPadding).fillMaxSize()
+                    ) { page ->
+                        when (AppDestinations.entries[page]) {
                             AppDestinations.HOME -> {
                                 HomeScreen(
                                     homeViewModel,
                                     onNavigateToSettings = {
-                                        currentDestination = AppDestinations.SETTINGS
+                                        coroutineScope.launch { pagerState.animateScrollToPage(AppDestinations.SETTINGS.ordinal) }
                                     }
                                 )
                             }
-
                             AppDestinations.LIST -> {
                                 ListScreen(listViewModel)
                             }
-
                             AppDestinations.SETTINGS -> {
                                 SettingsScreen(settingViewModel)
                             }
