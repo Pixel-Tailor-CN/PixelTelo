@@ -34,6 +34,10 @@ class ListViewModel : ViewModel(), KoinComponent {
     var showAddSheet by mutableStateOf(false)
         private set
 
+    /** 当前正在编辑的条目（null表示新增） */
+    var editingEntry by mutableStateOf<UserListEntry?>(null)
+        private set
+
     /** 是否展示删除确认对话框 */
     var showDeleteDialog by mutableStateOf(false)
         private set
@@ -70,9 +74,19 @@ class ListViewModel : ViewModel(), KoinComponent {
     }
 
     fun openAddSheet() {
+        editingEntry = null
         inputPhone = ""
         inputIsPrefix = false
         inputRemark = ""
+        addErrorMessage = null
+        showAddSheet = true
+    }
+
+    fun openEditSheet(entry: UserListEntry) {
+        editingEntry = entry
+        inputPhone = entry.phoneNumber
+        inputIsPrefix = entry.isPrefix
+        inputRemark = entry.remark ?: ""
         addErrorMessage = null
         showAddSheet = true
     }
@@ -92,11 +106,19 @@ class ListViewModel : ViewModel(), KoinComponent {
             return
         }
         viewModelScope.launch {
+            val oldEntry = editingEntry
+            if (oldEntry != null) {
+                userListRepository.delete(oldEntry)
+            }
             val success = userListRepository.add(phone, inputIsPrefix, currentTab, inputRemark)
             if (success) {
                 showAddSheet = false
-                toastMessage = context.getString(R.string.msg_added_to_list)
+                editingEntry = null
+                toastMessage = context.getString(if (oldEntry == null) R.string.msg_added_to_list else R.string.msg_updated_in_list)
             } else {
+                if (oldEntry != null) {
+                    userListRepository.add(oldEntry.phoneNumber, oldEntry.isPrefix, oldEntry.listType, oldEntry.remark)
+                }
                 addErrorMessage = context.getString(R.string.error_phone_already_exists)
             }
         }

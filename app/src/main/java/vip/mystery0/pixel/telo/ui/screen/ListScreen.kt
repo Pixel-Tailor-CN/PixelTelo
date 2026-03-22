@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -122,7 +125,16 @@ fun ListScreen(viewModel: ListViewModel) {
                         onClick = {
                             scope.launch { pagerState.animateScrollToPage(index) }
                         },
-                        text = { Text(tabLabels[index]) }
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(
+                                    imageVector = if (tabs[index] == ListType.BLACK) Icons.Default.Block else Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(tabLabels[index])
+                            }
+                        }
                     )
                 }
             }
@@ -154,9 +166,11 @@ fun ListScreen(viewModel: ListViewModel) {
             ) {
                 // 根据当前 Tab 显示对应标题
                 Text(
-                    if (viewModel.currentTab == ListType.BLACK) stringResource(R.string.title_add_to_blacklist) else stringResource(
-                        R.string.title_add_to_whitelist
-                    ),
+                    if (viewModel.editingEntry != null) {
+                        if (viewModel.currentTab == ListType.BLACK) stringResource(R.string.title_add_to_blacklist).replace("加入", "编辑").replace("Add to", "Edit") else stringResource(R.string.title_add_to_whitelist).replace("加入", "编辑").replace("Add to", "Edit")
+                    } else {
+                        if (viewModel.currentTab == ListType.BLACK) stringResource(R.string.title_add_to_blacklist) else stringResource(R.string.title_add_to_whitelist)
+                    },
                     style = MaterialTheme.typography.titleLarge
                 )
 
@@ -181,11 +195,11 @@ fun ListScreen(viewModel: ListViewModel) {
 
                 // 前缀匹配开关
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
                         Text(
                             stringResource(R.string.label_prefix_match),
                             style = MaterialTheme.typography.bodyMedium
@@ -211,11 +225,27 @@ fun ListScreen(viewModel: ListViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // 取消 / 确认 按钮行
+                // 取消 / 删除 / 确认 按钮行
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (viewModel.editingEntry != null) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.requestDelete(viewModel.editingEntry!!)
+                                viewModel.closeAddSheet()
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        ) { Text(stringResource(R.string.action_delete)) }
+                    }
                     OutlinedButton(
                         onClick = { viewModel.closeAddSheet() },
                         modifier = Modifier.weight(1f)
@@ -253,13 +283,10 @@ private fun UserListContent(
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(entries, key = { it.id }) { entry ->
-                // 复用 SwipeToDeleteContainer 实现左右滑动删除
-                SwipeToDeleteContainer(
-                    onDelete = { viewModel.requestDelete(entry) },
-                    contentVerticalPadding = 4.dp
-                ) {
-                    UserListEntryItem(entry)
-                }
+                UserListEntryItem(
+                    entry = entry,
+                    onClick = { viewModel.openEditSheet(entry) }
+                )
             }
         }
     }
@@ -269,11 +296,12 @@ private fun UserListContent(
  * 单条名单条目卡片：显示号码（前缀加 * 后缀）、添加时间、备注及前缀标签。
  */
 @Composable
-private fun UserListEntryItem(entry: UserListEntry) {
+private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 4.dp)
-            .fillMaxWidth()
+            .fillMaxWidth(),
+        onClick = onClick
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // 前缀匹配号码显示为 "400*"，精确匹配显示原始号码
@@ -293,7 +321,7 @@ private fun UserListEntryItem(entry: UserListEntry) {
             // 备注不为空时显示备注文字
             if (!entry.remark.isNullOrBlank()) {
                 Text(
-                    entry.remark,
+                    text = "${stringResource(R.string.label_remark)}${entry.remark}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)

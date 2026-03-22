@@ -128,7 +128,7 @@
     <string name="title_add_to_blacklist">加入黑名单</string>
     <string name="title_add_to_whitelist">加入白名单</string>
     <string name="label_prefix_match">前缀匹配</string>
-    <string name="summary_prefix_match">匹配所有以该前缀开头的号码</string>
+    <string name="summary_prefix_match">匹配所有以该前缀开头的号码（例如：400 可匹配所有 400 开头的号码）</string>
     <string name="hint_prefix_example">如：400 可匹配所有 400 开头的号码</string>
     <string name="hint_exact_example">如：13800138000</string>
     <string name="label_remark_optional">备注（可选）</string>
@@ -136,6 +136,7 @@
     <string name="error_phone_empty">号码不能为空</string>
     <string name="error_phone_already_exists">该号码已存在</string>
     <string name="msg_added_to_list">已添加</string>
+    <string name="msg_updated_in_list">已修改</string>
     <string name="title_delete_entry">删除条目</string>
     <string name="msg_delete_entry_confirm">确定要删除此条目吗？此操作无法撤销。</string>
 

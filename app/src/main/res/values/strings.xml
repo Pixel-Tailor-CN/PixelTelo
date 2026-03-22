@@ -127,7 +127,7 @@
     <string name="title_add_to_blacklist">Add to Blacklist</string>
     <string name="title_add_to_whitelist">Add to Whitelist</string>
     <string name="label_prefix_match">Prefix match</string>
-    <string name="summary_prefix_match">Match all numbers starting with this prefix</string>
+    <string name="summary_prefix_match">Match all numbers starting with this prefix (e.g. 400 matches all 400-xxx)</string>
     <string name="hint_prefix_example">e.g. 400 matches all 400-xxx numbers</string>
     <string name="hint_exact_example">e.g. 13800138000</string>
     <string name="label_remark_optional">Remark (optional)</string>
@@ -135,6 +135,7 @@
     <string name="error_phone_empty">Phone number cannot be empty</string>
     <string name="error_phone_already_exists">This number already exists in the list</string>
     <string name="msg_added_to_list">Entry added</string>
+    <string name="msg_updated_in_list">Entry updated</string>
     <string name="title_delete_entry">Delete Entry</string>
     <string name="msg_delete_entry_confirm">Are you sure you want to delete this entry? This action cannot be undone.</string>
 
