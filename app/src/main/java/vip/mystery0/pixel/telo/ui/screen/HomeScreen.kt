@@ -28,6 +28,9 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SettingsPhone
 import androidx.compose.material.icons.filled.Warning
@@ -136,12 +139,8 @@ fun HomeScreen(
         }
         blockedCallsList(
             calls = blockedCalls,
-            onDelete = { call ->
-                itemToDelete = call
-                showDeleteDialog = true
-            },
             onRetry = { call -> viewModel.retryNetworkQuery(call) },
-            onLongClick = { call -> viewModel.openQuickAdd(call.phoneNumber) },
+            onClick = { call -> viewModel.openQuickAdd(call) },
         )
     }
 
@@ -279,14 +278,15 @@ fun HomeScreen(
     }
 
     // 快捷添加黑白名单 BottomSheet
-    viewModel.quickAddPhone?.let { phone ->
+    viewModel.quickAddCall?.let { call ->
+        val phone = call.phoneNumber
         ModalBottomSheet(onDismissRequest = { viewModel.closeQuickAdd() }) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = phone,
@@ -315,6 +315,21 @@ fun HomeScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("加入白名单") }
+                OutlinedButton(
+                    onClick = {
+                        itemToDelete = call
+                        showDeleteDialog = true
+                        viewModel.closeQuickAdd()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                ) { Text(stringResource(R.string.action_delete)) }
                 OutlinedButton(
                     onClick = { viewModel.closeQuickAdd() },
                     modifier = Modifier.fillMaxWidth()
@@ -389,9 +404,8 @@ fun DatabaseWarningCard(onClick: () -> Unit) {
 
 private fun LazyListScope.blockedCallsList(
     calls: List<BlockedCall>,
-    onDelete: (BlockedCall) -> Unit,
     onRetry: (BlockedCall) -> Unit,
-    onLongClick: (BlockedCall) -> Unit,
+    onClick: (BlockedCall) -> Unit,
 ) {
     if (calls.isEmpty()) {
         item {
@@ -409,119 +423,144 @@ private fun LazyListScope.blockedCallsList(
         }
     } else {
         items(calls, key = { it.id }) { call ->
-            SwipeToDeleteContainer(
-                onDelete = { onDelete(call) },
-                contentVerticalPadding = 4.dp,
-            ) {
-                BlockedCallItem(
-                    call = call,
-                    onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
-                        { onRetry(call) }
-                    } else null,
-                    onLongClick = { onLongClick(call) },
-                )
-            }
+            BlockedCallItem(
+                call = call,
+                onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
+                    { onRetry(call) }
+                } else null,
+                onClick = { onClick(call) },
+            )
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BlockedCallItem(
     call: BlockedCall,
     onRetry: (() -> Unit)? = null,
-    onLongClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
             .padding(vertical = 4.dp)
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = {},
-                onLongClick = { onLongClick?.invoke() }
-            )
+            .fillMaxWidth(),
+        onClick = { onClick?.invoke() }
     ) {
-        SelectionContainer {
-            Column(modifier = Modifier.padding(16.dp)) {
-                // Row 1: Number + (Retry) + Time
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val isPass = call.resultType == ResultType.PASS || call.resultType == ResultType.WHITE_LIST || call.resultType == ResultType.PASS_BUT_NOTIFY
+                val icon = if (isPass) Icons.Default.CheckCircle else Icons.Default.Block
+                val iconColor = if (isPass) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+                
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(28.dp)
+                )
+
+                SelectionContainer(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 16.dp)
                 ) {
-                    Text(
-                        text = call.phoneNumber,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (onRetry != null) {
-                            IconButton(onClick = onRetry) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = stringResource(R.string.action_retry_query),
-                                    tint = MaterialTheme.colorScheme.primary
+                    Column {
+                        // Row 1: Number + (Retry) + Time
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = call.phoneNumber,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (onRetry != null) {
+                                    IconButton(onClick = onRetry) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = stringResource(R.string.action_retry_query),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                Text(
+                                    formatMills(call.blockTime),
+                                    style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
+
+                        // Row 2: Result Type
+                        val resultText = when (call.resultType) {
+                            ResultType.INTERCEPT -> stringResource(R.string.result_intercept_spam)
+                            ResultType.PASS_BUT_NOTIFY -> stringResource(R.string.result_pass_but_notify)
+                            ResultType.NETWORK_TIMEOUT -> stringResource(R.string.result_network_timeout)
+                            ResultType.PASS -> stringResource(R.string.result_pass_always_record)
+                            ResultType.BLACK_LIST -> stringResource(R.string.result_black_list)
+                            ResultType.WHITE_LIST -> stringResource(R.string.result_white_list)
+                        }
+                        val resultColor = when (call.resultType) {
+                            ResultType.PASS -> MaterialTheme.colorScheme.secondary
+                            ResultType.NETWORK_TIMEOUT -> MaterialTheme.colorScheme.error
+                            ResultType.BLACK_LIST -> MaterialTheme.colorScheme.error
+                            ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.primary
+                        }
                         Text(
-                            formatMills(call.blockTime),
-                            style = MaterialTheme.typography.bodySmall
+                            text = resultText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = resultColor,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+
+                        // Row 3: Remark
+                        if (!call.remark.isNullOrEmpty()) {
+                            Text(
+                                text = "${stringResource(R.string.label_remark)}${call.remark}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+
+                        // Row 4: Duration
+                        val durationText = if (call.networkDuration > 0) {
+                            stringResource(
+                                R.string.label_duration_with_network,
+                                call.localDuration,
+                                call.networkDuration
+                            )
+                        } else {
+                            stringResource(R.string.label_duration_local, call.localDuration)
+                        }
+                        Text(
+                            text = durationText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
-
-                // Row 2: Result Type
-                val resultText = when (call.resultType) {
-                    ResultType.INTERCEPT -> stringResource(R.string.result_intercept_spam)
-                    ResultType.PASS_BUT_NOTIFY -> stringResource(R.string.result_pass_but_notify)
-                    ResultType.NETWORK_TIMEOUT -> stringResource(R.string.result_network_timeout)
-                    ResultType.PASS -> stringResource(R.string.result_pass_always_record)
-                    ResultType.BLACK_LIST -> stringResource(R.string.result_black_list)
-                    ResultType.WHITE_LIST -> stringResource(R.string.result_white_list)
-                }
-                val resultColor = when (call.resultType) {
-                    ResultType.PASS -> MaterialTheme.colorScheme.secondary
-                    ResultType.NETWORK_TIMEOUT -> MaterialTheme.colorScheme.error
-                    ResultType.BLACK_LIST -> MaterialTheme.colorScheme.error          // 黑名单拦截：红色
-                    ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary       // 白名单放行：tertiary 色
-                    else -> MaterialTheme.colorScheme.primary
-                }
-                Text(
-                    text = resultText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = resultColor,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-
-                // Row 3: Remark
-                if (!call.remark.isNullOrEmpty()) {
-                    Text(
-                        text = "${stringResource(R.string.label_remark)}${call.remark}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-
-                // Row 4: Duration
-                val durationText = if (call.networkDuration > 0) {
-                    stringResource(
-                        R.string.label_duration_with_network,
-                        call.localDuration,
-                        call.networkDuration
-                    )
-                } else {
-                    stringResource(R.string.label_duration_local, call.localDuration)
-                }
-                Text(
-                    text = durationText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
             }
+
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(20.dp)
+            )
         }
     }
 }

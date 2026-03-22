@@ -106,16 +106,16 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         }
     }
 
-    /** 长按快捷添加的目标号码（非 null 时展示 BottomSheet） */
-    var quickAddPhone by mutableStateOf<String?>(null)
+    /** 点击记录卡片弹出的目标（非 null 时展示 BottomSheet） */
+    var quickAddCall by mutableStateOf<BlockedCall?>(null)
         private set
 
-    fun openQuickAdd(phoneNumber: String) {
-        quickAddPhone = phoneNumber
+    fun openQuickAdd(call: BlockedCall) {
+        quickAddCall = call
     }
 
     fun closeQuickAdd() {
-        quickAddPhone = null
+        quickAddCall = null
     }
 
     /** 快捷加入黑名单。@return true=成功插入，false=已存在 */
