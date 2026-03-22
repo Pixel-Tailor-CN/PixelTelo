@@ -69,10 +69,6 @@ jobs:
             ## 下载
 
             安装到手机请下载 `.apk` 文件。`.aab` 为开发者归档包。
-
-            ## 更新说明
-
-            详见私有仓库 Release 说明。
           files: |
             apk-output/PixelTelo-${{ github.ref_name }}.apk
             apk-output/PixelTelo-${{ github.ref_name }}.aab
