@@ -98,6 +98,8 @@
     <string name="setting_delete_database">Delete Database</string>
     <string name="setting_delete_database_summary">Delete the downloaded local database file.</string>
     <string name="msg_debug_mode_enabled">Debug Mode Enabled</string>
+    <string name="setting_network_timeout">Network query timeout</string>
+    <string name="setting_network_timeout_summary">Current: %1$ds</string>
 
     <!-- ViewModel Strings -->
     <string name="msg_checking">Checking…</string>

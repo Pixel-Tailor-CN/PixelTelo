@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
@@ -44,6 +45,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_NOTIFY_ONLY = "notify_only"
         const val KEY_NO_NETWORK_QUERY = "no_network_query"
         const val KEY_ALWAYS_RECORD = "always_record"
+        const val KEY_NETWORK_TIMEOUT = "network_timeout"
     }
 
     private val syncRepository: SyncRepository by inject()
@@ -102,6 +104,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun updateAlwaysRecord(enabled: Boolean) {
         alwaysRecord = enabled
         prefs.edit { putBoolean(KEY_ALWAYS_RECORD, enabled) }
+    }
+
+    var networkTimeout by mutableIntStateOf(prefs.getInt(KEY_NETWORK_TIMEOUT, 3))
+
+    fun updateNetworkTimeout(timeout: Int) {
+        networkTimeout = timeout
+        prefs.edit { putInt(KEY_NETWORK_TIMEOUT, timeout) }
     }
 
     // Sync State

@@ -99,6 +99,8 @@
     <string name="setting_delete_database">删除离线数据库</string>
     <string name="setting_delete_database_summary">删除已下载的本地数据库文件</string>
     <string name="msg_debug_mode_enabled">调试模式已开启</string>
+    <string name="setting_network_timeout">联网查询超时时间</string>
+    <string name="setting_network_timeout_summary">当前: %1$d 秒</string>
 
     <!-- ViewModel Strings -->
     <string name="msg_checking">检查中…</string>

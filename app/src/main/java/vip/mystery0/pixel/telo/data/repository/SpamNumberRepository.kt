@@ -35,8 +35,9 @@ class SpamNumberRepository : KoinComponent {
      */
     suspend fun queryNetwork(phoneNumber: String): QueryResponse {
         val phone = phoneNumber.removePrefix("+86")
+        val timeoutMs = prefs.getInt("network_timeout", 3) * 1000L
         return withContext(Dispatchers.IO) {
-            withTimeout(3000L) {
+            withTimeout(timeoutMs) {
                 syncApi.queryNumber(phone)
             }
         }
@@ -97,10 +98,11 @@ class SpamNumberRepository : KoinComponent {
 
         // 2. Online Fallback
         val networkStart = System.currentTimeMillis()
+        val timeoutMs = prefs.getInt("network_timeout", 3) * 1000L
         return withContext(Dispatchers.IO) {
             try {
-                // Total timeout 3s includes network latency
-                withTimeout(3000L) {
+                // Total timeout includes network latency
+                withTimeout(timeoutMs) {
                     val response = syncApi.queryNumber(phone)
                     networkCost = System.currentTimeMillis() - networkStart
                     Log.i(TAG, "Network hit: $phone, result: $response, cost: ${networkCost}ms")

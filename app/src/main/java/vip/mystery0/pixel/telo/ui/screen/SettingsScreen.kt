@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -531,6 +532,57 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             }
 
             PreferenceCategory(title = { Text(stringResource(R.string.category_intercept_behavior)) })
+
+            var showTimeoutDialog by remember { mutableStateOf(false) }
+            Preference(
+                title = { Text(stringResource(R.string.setting_network_timeout)) },
+                summary = {
+                    Text(
+                        stringResource(
+                            R.string.setting_network_timeout_summary,
+                            viewModel.networkTimeout
+                        )
+                    )
+                },
+                icon = { Icon(Icons.Default.Timer, contentDescription = null) },
+                onClick = { showTimeoutDialog = true }
+            )
+
+            if (showTimeoutDialog) {
+                var sliderValue by remember { androidx.compose.runtime.mutableFloatStateOf(viewModel.networkTimeout.toFloat()) }
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showTimeoutDialog = false },
+                    title = { Text(stringResource(R.string.setting_network_timeout)) },
+                    text = {
+                        Column {
+                            Text(
+                                stringResource(
+                                    R.string.setting_network_timeout_summary,
+                                    sliderValue.toInt()
+                                )
+                            )
+                            androidx.compose.material3.Slider(
+                                value = sliderValue,
+                                onValueChange = { sliderValue = it },
+                                valueRange = 1f..30f,
+                                steps = 28
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(onClick = {
+                            viewModel.updateNetworkTimeout(sliderValue.toInt())
+                            showTimeoutDialog = false
+                        }) { Text(stringResource(R.string.action_confirm)) }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { showTimeoutDialog = false }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    }
+                )
+            }
+
             SwitchPreference(
                 value = viewModel.notifyOnly,
                 onValueChange = { viewModel.updateNotifyOnly(it) },
