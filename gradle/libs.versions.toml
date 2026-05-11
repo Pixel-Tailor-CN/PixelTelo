@@ -1,25 +1,25 @@
 [versions]
-agp = "8.13.2"
-kotlin = "2.3.20"
-ksp = "2.3.4"
+agp = "9.2.1"
+kotlin = "2.3.21"
+ksp = "2.3.7"
 
 app-version = "1.1.2"
-android-compileSdk = "36"
+android-compileSdk = "37"
 android-minSdk = "29"
-android-targetSdk = "36"
+android-targetSdk = "37"
 
 coreKtx = "1.18.0"
 lifecycleRuntimeKtx = "2.10.0"
 activityCompose = "1.13.0"
-composeBom = "2026.03.01"
-material3 = "1.5.0-alpha16"
+composeBom = "2026.05.00"
+material3 = "1.5.0-alpha19"
 material-icons = "1.7.8"
-koin = "4.2.0"
+koin = "4.2.1"
 room = "2.8.4"
 compose-preference = "2.2.0"
 retrofit = "3.0.0"
 okhttp = "5.3.2"
-kotlinx-serialization = "1.10.0"
+kotlinx-serialization = "1.11.0"
 coreSplashscreen = "1.2.0"
 
 [libraries]
@@ -52,7 +52,6 @@ androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscree
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

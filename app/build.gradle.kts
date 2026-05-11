@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
@@ -46,8 +45,6 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = gitVersionCode
         versionName = appVersionName
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
         resources {
@@ -60,13 +57,11 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
-            isShrinkResources = false
             applicationIdSuffix = ".debug"
             versionNameSuffix = ".d$gitVersionCode.$gitVersionName"
         }
         release {
             isMinifyEnabled = true
-            isShrinkResources = true
             proguardFiles("proguard-rules.pro")
             versionNameSuffix = ".r$gitVersionCode.$gitVersionName"
             proguardFiles(
