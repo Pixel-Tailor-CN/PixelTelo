@@ -28,10 +28,12 @@ interface UserListDao {
 
     /** 查询是否存在匹配的条目（精确或前缀），用于拦截判断。
      *  前缀匹配使用 SUBSTR 而非 LIKE，避免 phoneNumber 中含有 '%'/'_' 等 LIKE 通配符时产生语义错误。
+     *  tagMatch=0 时按号码匹配，tagMatch=1 时忽略（标签匹配由 Repository 层处理）。
      */
     @Query("""
         SELECT * FROM user_list
         WHERE listType = :type
+        AND tagMatch = 0
         AND (
             (isPrefix = 0 AND phoneNumber = :phone) OR
             (isPrefix = 1 AND SUBSTR(:phone, 1, LENGTH(phoneNumber)) = phoneNumber)
@@ -39,4 +41,8 @@ interface UserListDao {
         LIMIT 1
     """)
     suspend fun findMatch(phone: String, type: ListType): UserListEntry?
+
+    /** 查询指定类型的所有标签匹配规则 */
+    @Query("SELECT * FROM user_list WHERE listType = :type AND tagMatch = 1")
+    suspend fun getTagRules(type: ListType): List<UserListEntry>
 }

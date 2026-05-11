@@ -180,11 +180,19 @@ fun ListScreen(viewModel: ListViewModel) {
                     onValueChange = {
                         viewModel.inputPhone = it
                     },
-                    label = { Text(stringResource(R.string.label_phone_number)) },
+                    label = {
+                        Text(
+                            if (viewModel.inputTagMatch) stringResource(R.string.label_tag_name)
+                            else stringResource(R.string.label_phone_number)
+                        )
+                    },
                     placeholder = {
                         Text(
-                            if (viewModel.inputIsPrefix) stringResource(R.string.hint_prefix_example)
-                            else stringResource(R.string.hint_exact_example)
+                            when {
+                                viewModel.inputTagMatch -> stringResource(R.string.hint_tag_example)
+                                viewModel.inputIsPrefix -> stringResource(R.string.hint_prefix_example)
+                                else -> stringResource(R.string.hint_exact_example)
+                            }
                         )
                     },
                     isError = viewModel.addErrorMessage != null,
@@ -216,8 +224,43 @@ fun ListScreen(viewModel: ListViewModel) {
                     }
                     Switch(
                         checked = viewModel.inputIsPrefix,
-                        onCheckedChange = { viewModel.inputIsPrefix = it }
+                        onCheckedChange = { viewModel.inputIsPrefix = it },
+                        enabled = !viewModel.inputTagMatch
                     )
+                }
+
+                // 标签匹配开关（仅白名单显示）
+                if (viewModel.currentTab == ListType.WHITE) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 16.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.label_tag_match),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                stringResource(R.string.summary_tag_match),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = viewModel.inputTagMatch,
+                            onCheckedChange = {
+                                viewModel.inputTagMatch = it
+                                if (it) viewModel.inputIsPrefix = false
+                            }
+                        )
+                    }
                 }
 
                 // 备注输入框（可选）
@@ -297,7 +340,7 @@ private fun UserListContent(
 }
 
 /**
- * 单条名单条目卡片：显示号码（前缀加 * 后缀）、添加时间、备注及前缀标签。
+ * 单条名单条目卡片：显示号码（前缀加 * 后缀）、添加时间、备注及前缀/标签标签。
  */
 @Composable
 private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
@@ -308,8 +351,12 @@ private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
         onClick = onClick
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // 前缀匹配号码显示为 "400*"，精确匹配显示原始号码
-            val displayNumber = if (entry.isPrefix) "${entry.phoneNumber}*" else entry.phoneNumber
+            // 标签匹配显示标签名，前缀匹配号码显示为 "400*"，精确匹配显示原始号码
+            val displayNumber = when {
+                entry.tagMatch -> entry.phoneNumber
+                entry.isPrefix -> "${entry.phoneNumber}*"
+                else -> entry.phoneNumber
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -320,7 +367,19 @@ private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(displayNumber, style = MaterialTheme.typography.titleMedium)
-                    if (entry.isPrefix) {
+                    if (entry.tagMatch) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                text = stringResource(R.string.label_tag_match),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    } else if (entry.isPrefix) {
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
                             shape = MaterialTheme.shapes.small

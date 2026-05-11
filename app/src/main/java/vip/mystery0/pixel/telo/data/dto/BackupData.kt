@@ -38,4 +38,5 @@ data class UserListEntryDto(
     @SerialName("is_prefix") val isPrefix: Boolean,
     val remark: String? = null,
     @SerialName("added_at") val addedAt: Long,
+    @SerialName("tag_match") val tagMatch: Boolean = false,
 )

@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 /**
  * 用户自定义黑白名单条目。
  * phoneNumber 可以是具体号码（精确匹配）或前缀（前缀匹配）。
+ * tagMatch 为 true 时，phoneNumber 字段存储标签名称而非号码。
  */
 @Entity(
     tableName = "user_list",
@@ -14,7 +15,7 @@ import androidx.room.PrimaryKey
 )
 data class UserListEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    /** 号码或前缀，如 "13800138000" 或 "400" */
+    /** 号码或前缀，如 "13800138000" 或 "400"；tagMatch=true 时为标签名 */
     val phoneNumber: String,
     /** true = 前缀匹配，false = 精确匹配 */
     val isPrefix: Boolean,
@@ -24,6 +25,8 @@ data class UserListEntry(
     val remark: String?,
     /** 添加时间戳，默认为当前时间 */
     val addedAt: Long = System.currentTimeMillis(),
+    /** true = 标签匹配，false = 号码匹配 */
+    val tagMatch: Boolean = false,
 )
 
 enum class ListType { BLACK, WHITE }

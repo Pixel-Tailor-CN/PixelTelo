@@ -33,9 +33,16 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+/** 从 v2 升级到 v3：user_list 表新增 tagMatch 字段 */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `user_list` ADD COLUMN `tagMatch` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

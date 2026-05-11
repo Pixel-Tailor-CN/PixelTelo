@@ -32,6 +32,16 @@ class UserListRepository(private val dao: UserListDao) {
         dao.findMatch(phone, ListType.WHITE)
 
     /**
+     * 查询标签是否命中白名单。
+     * @param tag 来电标签（如"快递送餐"）
+     * @return 匹配的条目，未命中返回 null
+     */
+    suspend fun findWhiteListTagMatch(tag: String): UserListEntry? {
+        val tagRules = dao.getTagRules(ListType.WHITE)
+        return tagRules.firstOrNull { it.phoneNumber == tag }
+    }
+
+    /**
      * 添加条目到指定名单。
      * 若 (phoneNumber, listType) 已存在则忽略并返回 false，成功插入返回 true。
      */
@@ -39,14 +49,16 @@ class UserListRepository(private val dao: UserListDao) {
         phoneNumber: String,
         isPrefix: Boolean,
         listType: ListType,
-        remark: String?
+        remark: String?,
+        tagMatch: Boolean = false
     ): Boolean {
         val entry = UserListEntry(
             phoneNumber = phoneNumber.trim(),
             isPrefix = isPrefix,
             listType = listType,
             remark = remark?.trim()?.takeIf { it.isNotBlank() },
-            addedAt = System.currentTimeMillis()
+            addedAt = System.currentTimeMillis(),
+            tagMatch = tagMatch
         )
         return dao.insert(entry) != -1L
     }

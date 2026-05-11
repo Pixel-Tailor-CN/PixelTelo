@@ -130,6 +130,10 @@
     <string name="title_add_to_whitelist">Add to Whitelist</string>
     <string name="label_prefix_match">Prefix match</string>
     <string name="summary_prefix_match">Match all numbers starting with this prefix (e.g. 400 matches all 400-xxx)</string>
+    <string name="label_tag_match">Tag match</string>
+    <string name="summary_tag_match">Match calls with specified tag (e.g. Delivery)</string>
+    <string name="label_tag_name">Tag name</string>
+    <string name="hint_tag_example">e.g. Delivery</string>
     <string name="hint_prefix_example">e.g. 400 matches all 400-xxx numbers</string>
     <string name="hint_exact_example">e.g. 13800138000</string>
     <string name="label_remark_optional">Remark (optional)</string>

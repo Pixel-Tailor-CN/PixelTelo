@@ -174,6 +174,7 @@ class BackupRepository(
         isPrefix = isPrefix,
         remark = remark,
         addedAt = addedAt,
+        tagMatch = tagMatch,
     )
 
     private fun UserListEntryDto.toEntity(listType: ListType) = UserListEntry(
@@ -182,5 +183,6 @@ class BackupRepository(
         listType = listType,
         remark = remark,
         addedAt = addedAt,
+        tagMatch = tagMatch,
     )
 }

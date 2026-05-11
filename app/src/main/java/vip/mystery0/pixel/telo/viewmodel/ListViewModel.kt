@@ -52,6 +52,9 @@ class ListViewModel : ViewModel(), KoinComponent {
     /** 添加表单：是否前缀匹配 */
     var inputIsPrefix by mutableStateOf(false)
 
+    /** 添加表单：是否标签匹配 */
+    var inputTagMatch by mutableStateOf(false)
+
     /** 添加表单：备注 */
     var inputRemark by mutableStateOf("")
 
@@ -77,6 +80,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         editingEntry = null
         inputPhone = ""
         inputIsPrefix = false
+        inputTagMatch = false
         inputRemark = ""
         addErrorMessage = null
         showAddSheet = true
@@ -86,6 +90,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         editingEntry = entry
         inputPhone = entry.phoneNumber
         inputIsPrefix = entry.isPrefix
+        inputTagMatch = entry.tagMatch
         inputRemark = entry.remark ?: ""
         addErrorMessage = null
         showAddSheet = true
@@ -110,14 +115,21 @@ class ListViewModel : ViewModel(), KoinComponent {
             if (oldEntry != null) {
                 userListRepository.delete(oldEntry)
             }
-            val success = userListRepository.add(phone, inputIsPrefix, currentTab, inputRemark)
+            val success =
+                userListRepository.add(phone, inputIsPrefix, currentTab, inputRemark, inputTagMatch)
             if (success) {
                 showAddSheet = false
                 editingEntry = null
                 toastMessage = context.getString(if (oldEntry == null) R.string.msg_added_to_list else R.string.msg_updated_in_list)
             } else {
                 if (oldEntry != null) {
-                    userListRepository.add(oldEntry.phoneNumber, oldEntry.isPrefix, oldEntry.listType, oldEntry.remark)
+                    userListRepository.add(
+                        oldEntry.phoneNumber,
+                        oldEntry.isPrefix,
+                        oldEntry.listType,
+                        oldEntry.remark,
+                        oldEntry.tagMatch
+                    )
                 }
                 addErrorMessage = context.getString(R.string.error_phone_already_exists)
             }

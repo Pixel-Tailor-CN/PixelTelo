@@ -78,6 +78,12 @@ class SpamNumberRepository : KoinComponent {
             }
             localCost = System.currentTimeMillis() - start
             if (spamNumber != null) {
+                // 检查标签白名单
+                val tagWhiteMatch = userListRepository.findWhiteListTagMatch(spamNumber.tag)
+                if (tagWhiteMatch != null) {
+                    Log.i(TAG, "White list tag hit: $phone, tag: ${spamNumber.tag}")
+                    return CheckResult(false, spamNumber.tag, ResultType.WHITE_LIST, localCost, 0)
+                }
                 Log.i(TAG, "Local hit: $phone, cost: ${localCost}ms")
                 return CheckResult(true, spamNumber.tag, ResultType.INTERCEPT, localCost, 0)
             }
@@ -102,12 +108,25 @@ class SpamNumberRepository : KoinComponent {
         return withContext(Dispatchers.IO) {
             try {
                 // Total timeout includes network latency
-                withTimeout(timeoutMs) {
-                    val response = syncApi.queryNumber(phone)
-                    networkCost = System.currentTimeMillis() - networkStart
-                    Log.i(TAG, "Network hit: $phone, result: $response, cost: ${networkCost}ms")
+                val response = withTimeout(timeoutMs) {
+                    syncApi.queryNumber(phone)
+                }
+                networkCost = System.currentTimeMillis() - networkStart
+                Log.i(TAG, "Network hit: $phone, result: $response, cost: ${networkCost}ms")
 
-                    if (response.isSpam) {
+                if (response.isSpam) {
+                    // 检查标签白名单
+                    val tagWhiteMatch = userListRepository.findWhiteListTagMatch(response.tag)
+                    if (tagWhiteMatch != null) {
+                        Log.i(TAG, "White list tag hit: $phone, tag: ${response.tag}")
+                        CheckResult(
+                            false,
+                            response.tag,
+                            ResultType.WHITE_LIST,
+                            localCost,
+                            networkCost
+                        )
+                    } else {
                         CheckResult(
                             true,
                             response.tag,
@@ -115,9 +134,9 @@ class SpamNumberRepository : KoinComponent {
                             localCost,
                             networkCost
                         )
-                    } else {
-                        CheckResult(false, "", ResultType.PASS_BUT_NOTIFY, localCost, networkCost)
                     }
+                } else {
+                    CheckResult(false, "", ResultType.PASS_BUT_NOTIFY, localCost, networkCost)
                 }
             } catch (e: Exception) {
                 networkCost = System.currentTimeMillis() - networkStart
