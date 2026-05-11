@@ -18,7 +18,8 @@ class BlockedCallRepository : KoinComponent {
         remark: String?,
         resultType: ResultType = ResultType.INTERCEPT,
         localDuration: Long = 0,
-        networkDuration: Long = 0
+        networkDuration: Long = 0,
+        label: String? = null
     ) {
         val blockedCall = BlockedCall(
             phoneNumber = phoneNumber,
@@ -26,7 +27,8 @@ class BlockedCallRepository : KoinComponent {
             remark = remark,
             resultType = resultType,
             localDuration = localDuration,
-            networkDuration = networkDuration
+            networkDuration = networkDuration,
+            label = label
         )
         blockedCallDao.insert(blockedCall)
     }

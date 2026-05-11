@@ -275,6 +275,7 @@ fun HomeScreen(
     // 快捷添加黑白名单 BottomSheet
     viewModel.quickAddCall?.let { call ->
         val phone = call.phoneNumber
+        val label = call.label?.takeIf { it.isNotBlank() }
         ModalBottomSheet(onDismissRequest = { viewModel.closeQuickAdd() }) {
             Column(
                 modifier = Modifier
@@ -310,6 +311,20 @@ fun HomeScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("加入白名单") }
+                if (label != null) {
+                    OutlinedButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                val success = viewModel.quickAddTagToWhiteList(label)
+                                val msg: String =
+                                    if (success) "已加入标签白名单" else "该标签已在白名单中"
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                viewModel.closeQuickAdd()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("加入标签白名单 ($label)") }
+                }
                 OutlinedButton(
                     onClick = {
                         itemToDelete = call

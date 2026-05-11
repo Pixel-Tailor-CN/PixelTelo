@@ -90,7 +90,9 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     /** 将重查结果写入备注并关闭对话框 */
     fun writeQueryResultToRemark(call: BlockedCall, remark: String) {
         viewModelScope.launch {
-            repository.update(call.copy(remark = remark))
+            // 从 remark 中提取标签（格式："重查：标签 (来源)"）
+            val label = remark.substringAfter("：").substringBefore(" (").takeIf { it.isNotBlank() }
+            repository.update(call.copy(remark = remark, label = label))
             _retryQueryState.value = RetryQueryState.Idle
         }
     }
@@ -125,4 +127,8 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     /** 快捷加入白名单。@return true=成功插入，false=已存在 */
     suspend fun quickAddToWhiteList(phone: String): Boolean =
         userListRepository.add(phone, false, ListType.WHITE, null)
+
+    /** 快捷加入标签白名单。@return true=成功插入，false=已存在 */
+    suspend fun quickAddTagToWhiteList(tag: String): Boolean =
+        userListRepository.add(tag, false, ListType.WHITE, null, tagMatch = true)
 }

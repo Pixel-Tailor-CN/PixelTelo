@@ -232,10 +232,11 @@ class SettingViewModel : ViewModel(), KoinComponent {
         viewModelScope.launch {
             blockedCallRepository.insert(
                 testPhoneNumber,
-                result.label.ifBlank { context.getString(R.string.label_manual_test) },
+                remark = result.label.ifBlank { context.getString(R.string.label_manual_test) },
                 result.resultType,
                 result.localCost,
-                result.networkCost
+                result.networkCost,
+                label = result.label.takeIf { it.isNotBlank() }
             )
             hideTestDialog()
             syncStatusMessage = context.getString(R.string.msg_recorded_to_intercept_list)

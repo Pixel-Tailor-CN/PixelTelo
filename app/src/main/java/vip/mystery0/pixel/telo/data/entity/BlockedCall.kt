@@ -16,6 +16,8 @@ data class BlockedCall(
     val resultType: ResultType = ResultType.INTERCEPT,
     val localDuration: Long = 0,
     val networkDuration: Long = 0,
+    /** 来电标签（如"快递送餐"），来自本地/网络查询 */
+    val label: String? = null,
 )
 
 enum class ResultType {

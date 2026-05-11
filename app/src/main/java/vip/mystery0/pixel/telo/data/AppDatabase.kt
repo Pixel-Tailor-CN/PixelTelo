@@ -40,9 +40,16 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+/** 从 v3 升级到 v4：blocked_calls 表新增 label 字段 */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `label` TEXT")
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

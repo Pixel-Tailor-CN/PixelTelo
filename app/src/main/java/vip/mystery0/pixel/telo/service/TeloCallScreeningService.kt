@@ -44,10 +44,11 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
                         blockedCallRepository.insert(
                             phoneNumber,
-                            result.label + " (仅提示)",
+                            remark = result.label + " (仅提示)",
                             ResultType.PASS_BUT_NOTIFY,
                             result.localCost,
-                            result.networkCost
+                            result.networkCost,
+                            label = result.label.takeIf { it.isNotBlank() }
                         )
                     } else {
                         // Real Block
@@ -57,10 +58,11 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
                         blockedCallRepository.insert(
                             phoneNumber,
-                            result.label,
+                            remark = result.label,
                             ResultType.INTERCEPT,
                             result.localCost,
-                            result.networkCost
+                            result.networkCost,
+                            label = result.label.takeIf { it.isNotBlank() }
                         )
                     }
                 } else {
@@ -73,18 +75,20 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                     if (result.resultType == ResultType.NETWORK_TIMEOUT) {
                         blockedCallRepository.insert(
                             phoneNumber,
-                            "Network Timeout (Allowed)",
+                            remark = "Network Timeout (Allowed)",
                             result.resultType,
                             result.localCost,
-                            result.networkCost
+                            result.networkCost,
+                            label = null
                         )
                     } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
                         blockedCallRepository.insert(
                             phoneNumber,
-                            result.label.takeIf { it.isNotBlank() } ?: "正常来电",
+                            remark = result.label.takeIf { it.isNotBlank() } ?: "正常来电",
                             ResultType.PASS,
                             result.localCost,
-                            result.networkCost
+                            result.networkCost,
+                            label = result.label.takeIf { it.isNotBlank() }
                         )
                     }
                 }

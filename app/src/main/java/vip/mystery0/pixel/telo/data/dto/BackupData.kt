@@ -26,7 +26,8 @@ data class BlockedCallDto(
     val remark: String? = null,
     @SerialName("result_type") val resultType: String,
     @SerialName("local_duration") val localDuration: Long = 0,
-    @SerialName("network_duration") val networkDuration: Long = 0
+    @SerialName("network_duration") val networkDuration: Long = 0,
+    val label: String? = null,
 )
 
 /**

@@ -157,7 +157,8 @@ class BackupRepository(
         remark = remark,
         resultType = resultType.name,
         localDuration = localDuration,
-        networkDuration = networkDuration
+        networkDuration = networkDuration,
+        label = label
     )
 
     private fun BlockedCallDto.toEntity() = BlockedCall(
@@ -166,7 +167,8 @@ class BackupRepository(
         remark = remark,
         resultType = runCatching { ResultType.valueOf(resultType) }.getOrDefault(ResultType.INTERCEPT),
         localDuration = localDuration,
-        networkDuration = networkDuration
+        networkDuration = networkDuration,
+        label = label
     )
 
     private fun UserListEntry.toDto() = UserListEntryDto(
