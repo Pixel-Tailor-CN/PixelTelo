@@ -124,6 +124,8 @@ Android 设计风格，强调隐私保护和极速响应，提供零打扰的纯
 
 - **问题反馈**: [GitHub Issues](https://github.com/Pixel-Tailor-CN/PixelTelo/issues/new)
 
+- **Telegram 频道**: [t.me/pixel_tailor_cn](https://t.me/pixel_tailor_cn)
+
 ### 📄 开源协议
 
 本项目采用 [Apache License 2.0](LICENSE) 开源协议。
