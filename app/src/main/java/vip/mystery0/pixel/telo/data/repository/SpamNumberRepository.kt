@@ -10,6 +10,7 @@ import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.remote.SyncApi
+import kotlin.time.Duration.Companion.milliseconds
 
 data class CheckResult(
     val shouldBlock: Boolean,
@@ -31,13 +32,13 @@ class SpamNumberRepository : KoinComponent {
 
     /**
      * 仅发起联网查询，跳过本地数据库检查。
-     * 用于手动重试联网查询超时的记录。超时限制同为 3s。
+     * 用于手动重试联网查询超时的记录。超时限制同为 5s。
      */
     suspend fun queryNetwork(phoneNumber: String): QueryResponse {
         val phone = phoneNumber.removePrefix("+86")
-        val timeoutMs = prefs.getInt("network_timeout", 3) * 1000L
+        val timeoutMs = prefs.getInt("network_timeout", 5) * 1000L
         return withContext(Dispatchers.IO) {
-            withTimeout(timeoutMs) {
+            withTimeout(timeoutMs.milliseconds) {
                 syncApi.queryNumber(phone)
             }
         }
@@ -104,11 +105,11 @@ class SpamNumberRepository : KoinComponent {
 
         // 2. Online Fallback
         val networkStart = System.currentTimeMillis()
-        val timeoutMs = prefs.getInt("network_timeout", 3) * 1000L
+        val timeoutMs = prefs.getInt("network_timeout", 5) * 1000L
         return withContext(Dispatchers.IO) {
             try {
                 // Total timeout includes network latency
-                val response = withTimeout(timeoutMs) {
+                val response = withTimeout(timeoutMs.milliseconds) {
                     syncApi.queryNumber(phone)
                 }
                 networkCost = System.currentTimeMillis() - networkStart
