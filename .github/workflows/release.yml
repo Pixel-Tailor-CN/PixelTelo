@@ -59,11 +59,9 @@ jobs:
           cp app/build/outputs/bundle/release/app-release.aab \
              "apk-output/PixelTelo-${GITHUB_REF_NAME}.aab"
 
-      - name: Create Release in AppRelease
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.APP_RELEASE_TOKEN }}
-          repository: PixelTelo/AppRelease
           name: Pixel Telo ${{ github.ref_name }}
           body: |
             ## 下载
