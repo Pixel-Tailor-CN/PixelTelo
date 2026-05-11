@@ -93,6 +93,10 @@
     <string name="setting_version_code">版本号</string>
     <string name="setting_feedback">问题反馈</string>
     <string name="setting_feedback_summary">报告问题或提出建议（将打开 GitHub）</string>
+    <string name="setting_pixel_tailor">Pixel Tailor</string>
+    <string name="setting_pixel_tailor_summary">为中国 Pixel 用户精心缝补纯净 Android 体验</string>
+    <string name="setting_telegram">Telegram 频道</string>
+    <string name="setting_telegram_summary">关注 Telegram 频道获取最新动态</string>
     <string name="category_debug_mode">调试模式</string>
     <string name="setting_force_download">始终下载离线数据库</string>
     <string name="setting_force_download_summary">忽略版本检查，强制下载最新库</string>
