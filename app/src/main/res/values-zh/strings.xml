@@ -87,6 +87,10 @@
     <string name="category_backup_restore">备份恢复</string>
     <string name="permission_read_contacts_name">联系人</string>
     <string name="permission_read_contacts_desc">用于在来电界面显示信息</string>
+    <string name="permission_write_contacts_name">联系人写入权限</string>
+    <string name="permission_write_contacts_desc">Android 要求授予该权限后才会转发目录查询请求，Pixel Telo 不会修改联系人</string>
+    <string name="permission_read_call_log_name">通话记录</string>
+    <string name="permission_read_call_log_desc">Android 要求授予该权限后，才能在来电界面提供号码查询标签</string>
 
     <string name="category_about">关于</string>
     <string name="setting_version_name">版本名称</string>

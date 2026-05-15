@@ -33,6 +33,13 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         runBlocking(Dispatchers.IO) {
             try {
                 val result = spamNumberRepository.checkSpam(phoneNumber)
+                Log.i(
+                    TAG,
+                    "Screen result: number=$phoneNumber, shouldBlock=${result.shouldBlock}, " +
+                        "notifyOnly=$notifyOnly, resultType=${result.resultType}, " +
+                        "label=${result.label}, localCost=${result.localCost}ms, " +
+                        "networkCost=${result.networkCost}ms"
+                )
 
                 // Decide response based on result type
                 if (result.shouldBlock) {
