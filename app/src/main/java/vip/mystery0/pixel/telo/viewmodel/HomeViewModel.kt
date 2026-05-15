@@ -88,10 +88,8 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     }
 
     /** 将重查结果写入备注并关闭对话框 */
-    fun writeQueryResultToRemark(call: BlockedCall, remark: String) {
+    fun writeQueryResultToRemark(call: BlockedCall, remark: String, label: String) {
         viewModelScope.launch {
-            // 从 remark 中提取标签（格式："重查：标签 (来源)"）
-            val label = remark.substringAfter("：").substringBefore(" (").takeIf { it.isNotBlank() }
             repository.update(call.copy(remark = remark, label = label))
             _retryQueryState.value = RetryQueryState.Idle
         }

@@ -209,7 +209,8 @@ fun HomeScreen(
                                     onClick = {
                                         viewModel.writeQueryResultToRemark(
                                             state.call,
-                                            remarkText
+                                            remarkText,
+                                            resp.tag
                                         )
                                     },
                                     modifier = Modifier.weight(1f)
