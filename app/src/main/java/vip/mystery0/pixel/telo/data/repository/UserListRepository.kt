@@ -42,6 +42,18 @@ class UserListRepository(private val dao: UserListDao) {
     }
 
     /**
+     * 查询标签是否命中黑名单。
+     * 黑名单标签规则用于强制拦截某一类已识别标签的来电。
+     *
+     * @param tag 来电标签（如"营销推广电话"）
+     * @return 匹配的条目，未命中返回 null
+     */
+    suspend fun findBlackListTagMatch(tag: String): UserListEntry? {
+        val tagRules = dao.getTagRules(ListType.BLACK)
+        return tagRules.firstOrNull { it.phoneNumber == tag }
+    }
+
+    /**
      * 添加条目到指定名单。
      * 若 (phoneNumber, listType) 已存在则忽略并返回 false，成功插入返回 true。
      */

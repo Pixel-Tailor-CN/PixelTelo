@@ -41,12 +41,26 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                     TAG,
                     "Screen result: number=$phoneNumber, shouldBlock=${result.shouldBlock}, " +
                         "notifyOnly=$notifyOnly, resultType=${result.resultType}, " +
+                            "forceBlock=${result.forceBlock}, " +
                         "label=${result.label}, localCost=${result.localCost}ms, " +
                         "networkCost=${result.networkCost}ms"
                 )
 
-                // Decide response based on result type
-                if (shouldSilenceRepeatMarkedCall(phoneNumber, callTime, result)) {
+                // 黑名单标签命中时是用户明确配置的强制拦截规则，优先于全局放行策略。
+                if (result.shouldBlock && result.forceBlock) {
+                    response.setDisallowCall(true)
+                    response.setRejectCall(true)
+                    response.setSkipCallLog(false)
+
+                    blockedCallRepository.insert(
+                        phoneNumber,
+                        remark = result.label,
+                        ResultType.BLACK_LIST,
+                        result.localCost,
+                        result.networkCost,
+                        label = result.label.takeIf { it.isNotBlank() }
+                    )
+                } else if (shouldSilenceRepeatMarkedCall(phoneNumber, callTime, result)) {
                     val repeatLabel = result.label.ifBlank { "骚扰电话" }
                     response.setDisallowCall(false)
                     response.setRejectCall(false)
@@ -135,7 +149,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         callTime: Long,
         result: CheckResult
     ): Boolean {
-        if (!result.shouldBlock || result.resultType == ResultType.BLACK_LIST) {
+        if (!result.shouldBlock || result.forceBlock || result.resultType == ResultType.BLACK_LIST) {
             return false
         }
 

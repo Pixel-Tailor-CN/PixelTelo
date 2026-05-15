@@ -145,6 +145,8 @@
     <string name="summary_prefix_match">匹配所有以该前缀开头的号码（例如：400 可匹配所有 400 开头的号码）</string>
     <string name="label_tag_match">标签匹配</string>
     <string name="summary_tag_match">匹配指定标签的来电（例如：快递送餐）</string>
+    <string name="summary_black_tag_match">强制拦截指定标签的来电，即使开启“仅提示不拦截”或“短时间重复来电”也会挂断</string>
+    <string name="msg_black_tag_match_force_block">这是黑名单标签强制拦截规则。只要查询到的号码标签命中该规则，本次来电就会被挂断，并忽略“仅提示不拦截”和“短时间重复来电”设置。</string>
     <string name="label_tag_name">标签名称</string>
     <string name="hint_tag_example">如：快递送餐</string>
     <string name="hint_prefix_example">如：400 可匹配所有 400 开头的号码</string>

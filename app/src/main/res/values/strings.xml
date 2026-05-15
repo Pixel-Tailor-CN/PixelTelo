@@ -144,6 +144,8 @@
     <string name="summary_prefix_match">Match all numbers starting with this prefix (e.g. 400 matches all 400-xxx)</string>
     <string name="label_tag_match">Tag match</string>
     <string name="summary_tag_match">Match calls with specified tag (e.g. Delivery)</string>
+    <string name="summary_black_tag_match">Force-block calls with the specified tag, even when Notify Only or short repeat call pass-through is enabled.</string>
+    <string name="msg_black_tag_match_force_block">This blacklist tag rule is a force-block rule. Any call whose queried label matches this tag will be rejected, ignoring Notify Only and short repeat call settings.</string>
     <string name="label_tag_name">Tag name</string>
     <string name="hint_tag_example">e.g. Delivery</string>
     <string name="hint_prefix_example">e.g. 400 matches all 400-xxx numbers</string>

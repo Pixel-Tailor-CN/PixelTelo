@@ -17,7 +17,9 @@ data class CheckResult(
     val label: String,
     val resultType: ResultType,
     val localCost: Long,
-    val networkCost: Long
+    val networkCost: Long,
+    /** true 表示用户规则要求强制拦截，不受“仅提示”等全局策略影响。 */
+    val forceBlock: Boolean = false
 )
 
 class SpamNumberRepository : KoinComponent {
@@ -79,6 +81,20 @@ class SpamNumberRepository : KoinComponent {
             }
             localCost = System.currentTimeMillis() - start
             if (spamNumber != null) {
+                // 黑名单标签是用户明确配置的强制拦截规则，优先于标签白名单和全局放行策略。
+                val tagBlackMatch = userListRepository.findBlackListTagMatch(spamNumber.tag)
+                if (tagBlackMatch != null) {
+                    Log.i(TAG, "Black list tag hit: $phone, tag: ${spamNumber.tag}")
+                    return CheckResult(
+                        true,
+                        spamNumber.tag,
+                        ResultType.BLACK_LIST,
+                        localCost,
+                        0,
+                        true
+                    )
+                }
+
                 // 检查标签白名单
                 val tagWhiteMatch = userListRepository.findWhiteListTagMatch(spamNumber.tag)
                 if (tagWhiteMatch != null) {
@@ -115,7 +131,23 @@ class SpamNumberRepository : KoinComponent {
                 networkCost = System.currentTimeMillis() - networkStart
                 Log.i(TAG, "Network hit: $phone, result: $response, cost: ${networkCost}ms")
 
-                if (response.isSpam) {
+                // 黑名单标签是用户明确配置的强制拦截规则，只要查询结果带有命中标签就生效。
+                val tagBlackMatch = if (response.tag.isNotBlank()) {
+                    userListRepository.findBlackListTagMatch(response.tag)
+                } else {
+                    null
+                }
+                if (tagBlackMatch != null) {
+                    Log.i(TAG, "Black list tag hit: $phone, tag: ${response.tag}")
+                    CheckResult(
+                        true,
+                        response.tag,
+                        ResultType.BLACK_LIST,
+                        localCost,
+                        networkCost,
+                        true
+                    )
+                } else if (response.isSpam) {
                     // 检查标签白名单
                     val tagWhiteMatch = userListRepository.findWhiteListTagMatch(response.tag)
                     if (tagWhiteMatch != null) {

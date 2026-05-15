@@ -265,38 +265,51 @@ fun ListScreen(viewModel: ListViewModel) {
                     )
                 }
 
-                // 标签匹配开关（仅白名单显示）
-                if (viewModel.currentTab == ListType.WHITE) {
-                    Row(
+                // 标签匹配开关：白名单用于按标签放行，黑名单用于按标签强制挂断。
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .weight(1f)
+                            .padding(end = 16.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 16.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.label_tag_match),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                stringResource(R.string.summary_tag_match),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = viewModel.inputTagMatch,
-                            onCheckedChange = {
-                                viewModel.inputTagMatch = it
-                                if (it) viewModel.inputIsPrefix = false
-                            }
+                        Text(
+                            stringResource(R.string.label_tag_match),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(
+                                if (viewModel.currentTab == ListType.BLACK) {
+                                    R.string.summary_black_tag_match
+                                } else {
+                                    R.string.summary_tag_match
+                                }
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    Switch(
+                        checked = viewModel.inputTagMatch,
+                        onCheckedChange = {
+                            viewModel.inputTagMatch = it
+                            if (it) viewModel.inputIsPrefix = false
+                        }
+                    )
+                }
+
+                if (viewModel.currentTab == ListType.BLACK && viewModel.inputTagMatch) {
+                    Text(
+                        stringResource(R.string.msg_black_tag_match_force_block),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
                 }
 
                 // 备注输入框（可选）
@@ -405,14 +418,23 @@ private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
                 ) {
                     Text(displayNumber, style = MaterialTheme.typography.titleMedium)
                     if (entry.tagMatch) {
+                        val isBlackTagRule = entry.listType == ListType.BLACK
                         Surface(
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            color = if (isBlackTagRule) {
+                                MaterialTheme.colorScheme.errorContainer
+                            } else {
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            },
                             shape = MaterialTheme.shapes.small
                         ) {
                             Text(
                                 text = stringResource(R.string.label_tag_match),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                color = if (isBlackTagRule) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                },
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
