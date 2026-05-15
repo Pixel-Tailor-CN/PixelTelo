@@ -588,6 +588,8 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 )
             }
 
+            var showRepeatWindowDialog by remember { mutableStateOf(false) }
+
             SwitchPreference(
                 value = viewModel.notifyOnly,
                 onValueChange = { viewModel.updateNotifyOnly(it) },
@@ -595,6 +597,67 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 summary = { Text(stringResource(R.string.setting_notify_only_summary)) },
                 icon = { Icon(Icons.Default.NotificationsActive, contentDescription = null) }
             )
+
+            SwitchPreference(
+                value = viewModel.allowRepeatCall,
+                onValueChange = { viewModel.updateAllowRepeatCall(it) },
+                title = { Text(stringResource(R.string.setting_allow_repeat_call)) },
+                summary = { Text(stringResource(R.string.setting_allow_repeat_call_summary)) },
+                icon = { Icon(Icons.Default.Timer, contentDescription = null) }
+            )
+
+            Preference(
+                title = { Text(stringResource(R.string.setting_repeat_call_window)) },
+                summary = {
+                    Text(
+                        stringResource(
+                            R.string.setting_repeat_call_window_summary,
+                            viewModel.repeatCallWindowMinutes
+                        )
+                    )
+                },
+                icon = { Icon(Icons.Default.Timer, contentDescription = null) },
+                onClick = { showRepeatWindowDialog = true }
+            )
+
+            if (showRepeatWindowDialog) {
+                var sliderValue by remember {
+                    androidx.compose.runtime.mutableFloatStateOf(
+                        viewModel.repeatCallWindowMinutes.toFloat()
+                    )
+                }
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showRepeatWindowDialog = false },
+                    title = { Text(stringResource(R.string.setting_repeat_call_window)) },
+                    text = {
+                        Column {
+                            Text(
+                                stringResource(
+                                    R.string.setting_repeat_call_window_summary,
+                                    sliderValue.toInt()
+                                )
+                            )
+                            androidx.compose.material3.Slider(
+                                value = sliderValue,
+                                onValueChange = { sliderValue = it },
+                                valueRange = 1f..30f,
+                                steps = 28
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(onClick = {
+                            viewModel.updateRepeatCallWindowMinutes(sliderValue.toInt())
+                            showRepeatWindowDialog = false
+                        }) { Text(stringResource(R.string.action_confirm)) }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { showRepeatWindowDialog = false }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    }
+                )
+            }
 
             SwitchPreference(
                 value = viewModel.noNetworkQuery,

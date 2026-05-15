@@ -10,12 +10,14 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
+import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     companion object {
         private const val TAG = "TeloCallScreeningService"
+        private val recentMarkedCalls = mutableMapOf<String, Long>()
     }
 
     private val blockedCallRepository: BlockedCallRepository by inject()
@@ -29,6 +31,8 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
         val response = CallResponse.Builder()
         val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, true)
+        val callTime = callDetails.creationTimeMillis.takeIf { it > 0 }
+            ?: System.currentTimeMillis()
 
         runBlocking(Dispatchers.IO) {
             try {
@@ -42,7 +46,22 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                 )
 
                 // Decide response based on result type
-                if (result.shouldBlock) {
+                if (shouldSilenceRepeatMarkedCall(phoneNumber, callTime, result)) {
+                    val repeatLabel = result.label.ifBlank { "骚扰电话" }
+                    response.setDisallowCall(false)
+                    response.setRejectCall(false)
+                    response.setSilenceCall(true)
+                    response.setSkipCallLog(false)
+
+                    blockedCallRepository.insert(
+                        phoneNumber,
+                        remark = "$repeatLabel（重复来电，静音展示）",
+                        ResultType.PASS_BUT_NOTIFY,
+                        result.localCost,
+                        result.networkCost,
+                        label = result.label.takeIf { it.isNotBlank() }
+                    )
+                } else if (result.shouldBlock) {
                     if (notifyOnly) {
                         // Pass but record as PASS_BUT_NOTIFY
                         response.setDisallowCall(false)
@@ -109,5 +128,46 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                 respondToCall(callDetails, response.build())
             }
         }
+    }
+
+    private fun shouldSilenceRepeatMarkedCall(
+        phoneNumber: String,
+        callTime: Long,
+        result: CheckResult
+    ): Boolean {
+        if (!result.shouldBlock || result.resultType == ResultType.BLACK_LIST) {
+            return false
+        }
+
+        val normalizedNumber = normalizePhoneNumber(phoneNumber)
+        val lastMarkedCallTime = synchronized(recentMarkedCalls) {
+            val previous = recentMarkedCalls[normalizedNumber] ?: 0L
+            recentMarkedCalls[normalizedNumber] = callTime
+            previous
+        }
+
+        val enabled = prefs.getBoolean(SettingViewModel.KEY_ALLOW_REPEAT_CALL, false)
+        if (!enabled || lastMarkedCallTime <= 0L || callTime < lastMarkedCallTime) {
+            return false
+        }
+
+        val windowMinutes = prefs.getInt(
+            SettingViewModel.KEY_REPEAT_CALL_WINDOW_MINUTES,
+            SettingViewModel.DEFAULT_REPEAT_CALL_WINDOW_MINUTES
+        )
+        val windowMillis = windowMinutes * 60_000L
+        val isRepeatCall = callTime - lastMarkedCallTime <= windowMillis
+        if (isRepeatCall) {
+            Log.i(
+                TAG,
+                "Repeat marked call allowed silently: number=$phoneNumber, " +
+                    "window=${windowMinutes}min, interval=${callTime - lastMarkedCallTime}ms"
+            )
+        }
+        return isRepeatCall
+    }
+
+    private fun normalizePhoneNumber(phoneNumber: String): String {
+        return phoneNumber.removePrefix("+86")
     }
 }

@@ -77,6 +77,10 @@
     <string name="summary_current_version">当前版本: </string>
     <string name="setting_notify_only">仅提示不拦截</string>
     <string name="setting_notify_only_summary">识别到骚扰电话时仅记录，不挂断</string>
+    <string name="setting_allow_repeat_call">不自动拦截短时间重复来电</string>
+    <string name="setting_allow_repeat_call_summary">已标记的骚扰号码在设定时间内再次呼入时，静音展示并交由你决定是否接听</string>
+    <string name="setting_repeat_call_window">短时间重复来电判定时间</string>
+    <string name="setting_repeat_call_window_summary">当前: %1$d 分钟</string>
     <string name="summary_test_intercept">输入号码模拟拦截检查</string>
     <string name="setting_backup_records">备份拦截记录</string>
     <string name="setting_backup_records_summary">将拦截记录导出为 ZIP 文件</string>

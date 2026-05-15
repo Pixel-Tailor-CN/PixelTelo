@@ -76,6 +76,10 @@
     <string name="summary_current_version">Current version: </string>
     <string name="setting_notify_only">Notify Only</string>
     <string name="setting_notify_only_summary">Only record spam calls, do not hang up.</string>
+    <string name="setting_allow_repeat_call">Do not auto-block short repeat calls</string>
+    <string name="setting_allow_repeat_call_summary">When an already labeled spam number calls again within the configured window, silence the call and let you decide.</string>
+    <string name="setting_repeat_call_window">Short repeat call window</string>
+    <string name="setting_repeat_call_window_summary">Current: %1$d minutes</string>
     <string name="summary_test_intercept">Enter a number to simulate intercept check.</string>
     <string name="setting_backup_records">Backup Records</string>
     <string name="setting_backup_records_summary">Export intercept records to a ZIP file.</string>
