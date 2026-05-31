@@ -8,6 +8,7 @@ import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.remote.PhoneLocationInfo
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.remote.SyncApi
 import kotlin.time.Duration.Companion.milliseconds
@@ -18,6 +19,8 @@ data class CheckResult(
     val resultType: ResultType,
     val localCost: Long,
     val networkCost: Long,
+    val locationInfo: PhoneLocationInfo? = null,
+    val locationLookupAttempted: Boolean = false,
     /** true 表示用户规则要求强制拦截，不受“仅提示”等全局策略影响。 */
     val forceBlock: Boolean = false
 )
@@ -34,7 +37,7 @@ class SpamNumberRepository : KoinComponent {
 
     /**
      * 仅发起联网查询，跳过本地数据库检查。
-     * 用于手动重试联网查询超时的记录。超时限制同为 5s。
+     * 用于手动重试联网查询超时的记录。超时限制使用用户设置。
      */
     suspend fun queryNetwork(phoneNumber: String): QueryResponse {
         val phone = phoneNumber.removePrefix("+86")
@@ -52,21 +55,18 @@ class SpamNumberRepository : KoinComponent {
         var localCost: Long
         var networkCost: Long
 
-        // 0. 用户白名单检查（最高优先级，直接放行，跳过所有后续检测）
         val whiteMatch = userListRepository.findWhiteListMatch(phone)
         if (whiteMatch != null) {
             Log.i(TAG, "White list hit: $phone, entry: ${whiteMatch.phoneNumber}")
             return CheckResult(false, whiteMatch.remark ?: "", ResultType.WHITE_LIST, 0, 0)
         }
 
-        // 0. 用户黑名单检查（最高优先级，直接拦截，跳过所有后续检测）
         val blackMatch = userListRepository.findBlackListMatch(phone)
         if (blackMatch != null) {
             Log.i(TAG, "Black list hit: $phone, entry: ${blackMatch.phoneNumber}")
             return CheckResult(true, blackMatch.remark ?: "", ResultType.BLACK_LIST, 0, 0)
         }
 
-        // 1. Local Lookup
         val db = syncRepository.getDb()
         if (db != null) {
             val spamNumber = withContext(Dispatchers.IO) {
@@ -81,21 +81,19 @@ class SpamNumberRepository : KoinComponent {
             }
             localCost = System.currentTimeMillis() - start
             if (spamNumber != null) {
-                // 黑名单标签是用户明确配置的强制拦截规则，优先于标签白名单和全局放行策略。
                 val tagBlackMatch = userListRepository.findBlackListTagMatch(spamNumber.tag)
                 if (tagBlackMatch != null) {
                     Log.i(TAG, "Black list tag hit: $phone, tag: ${spamNumber.tag}")
                     return CheckResult(
-                        true,
-                        spamNumber.tag,
-                        ResultType.BLACK_LIST,
-                        localCost,
-                        0,
-                        true
+                        shouldBlock = true,
+                        label = spamNumber.tag,
+                        resultType = ResultType.BLACK_LIST,
+                        localCost = localCost,
+                        networkCost = 0,
+                        forceBlock = true
                     )
                 }
 
-                // 检查标签白名单
                 val tagWhiteMatch = userListRepository.findWhiteListTagMatch(spamNumber.tag)
                 if (tagWhiteMatch != null) {
                     Log.i(TAG, "White list tag hit: $phone, tag: ${spamNumber.tag}")
@@ -112,80 +110,99 @@ class SpamNumberRepository : KoinComponent {
             Log.w(TAG, "Local lookup too slow: ${localCost}ms")
         }
 
-        // Check if user disabled network query
         val noNetworkQuery = prefs.getBoolean("no_network_query", false)
         if (noNetworkQuery && !forceNetworkQuery) {
             Log.i(TAG, "Offline query only enabled, skipping network query for $phone")
             return CheckResult(false, "", ResultType.PASS_BUT_NOTIFY, localCost, 0)
         }
 
-        // 2. Online Fallback
         val networkStart = System.currentTimeMillis()
         val timeoutMs = prefs.getInt("network_timeout", 5) * 1000L
         return withContext(Dispatchers.IO) {
             try {
-                // Total timeout includes network latency
                 val response = withTimeout(timeoutMs.milliseconds) {
                     syncApi.queryNumber(phone)
                 }
                 networkCost = System.currentTimeMillis() - networkStart
                 Log.i(TAG, "Network hit: $phone, result: $response, cost: ${networkCost}ms")
 
-                // 黑名单标签是用户明确配置的强制拦截规则，只要查询结果带有命中标签就生效。
-                val tagBlackMatch = if (response.tag.isNotBlank()) {
-                    userListRepository.findBlackListTagMatch(response.tag)
-                } else {
-                    null
-                }
-                if (tagBlackMatch != null) {
-                    Log.i(TAG, "Black list tag hit: $phone, tag: ${response.tag}")
-                    CheckResult(
-                        true,
-                        response.tag,
-                        ResultType.BLACK_LIST,
-                        localCost,
-                        networkCost,
-                        true
-                    )
-                } else if (response.isSpam) {
-                    // 检查标签白名单
-                    val tagWhiteMatch = userListRepository.findWhiteListTagMatch(response.tag)
-                    if (tagWhiteMatch != null) {
-                        Log.i(TAG, "White list tag hit: $phone, tag: ${response.tag}")
-                        CheckResult(
-                            false,
-                            response.tag,
-                            ResultType.WHITE_LIST,
-                            localCost,
-                            networkCost
-                        )
-                    } else {
-                        CheckResult(
-                            true,
-                            response.tag,
-                            ResultType.INTERCEPT,
-                            localCost,
-                            networkCost
-                        )
-                    }
-                } else {
-                    CheckResult(false, "", ResultType.PASS_BUT_NOTIFY, localCost, networkCost)
-                }
+                buildNetworkResult(response, localCost, networkCost, phone)
             } catch (e: Exception) {
                 networkCost = System.currentTimeMillis() - networkStart
                 Log.w(
                     TAG,
                     "checkSpam remote failed or timed out: ${e.message}, total cost: ${System.currentTimeMillis() - start}ms"
                 )
-                // Fallback to allow call on error/timeout, but mark as TIMEOUT
                 CheckResult(
-                    false,
-                    "Timeout/Error",
-                    ResultType.NETWORK_TIMEOUT,
-                    localCost,
-                    networkCost
+                    shouldBlock = false,
+                    label = "Timeout/Error",
+                    resultType = ResultType.NETWORK_TIMEOUT,
+                    localCost = localCost,
+                    networkCost = networkCost,
+                    locationLookupAttempted = true
                 )
             }
         }
+    }
+
+    private suspend fun buildNetworkResult(
+        response: QueryResponse,
+        localCost: Long,
+        networkCost: Long,
+        phone: String
+    ): CheckResult {
+        val tagBlackMatch = if (response.tag.isNotBlank()) {
+            userListRepository.findBlackListTagMatch(response.tag)
+        } else {
+            null
+        }
+        if (tagBlackMatch != null) {
+            Log.i(TAG, "Black list tag hit: $phone, tag: ${response.tag}")
+            return CheckResult(
+                shouldBlock = true,
+                label = response.tag,
+                resultType = ResultType.BLACK_LIST,
+                localCost = localCost,
+                networkCost = networkCost,
+                locationInfo = response.data,
+                locationLookupAttempted = true,
+                forceBlock = true
+            )
+        }
+
+        if (response.isSpam) {
+            val tagWhiteMatch = userListRepository.findWhiteListTagMatch(response.tag)
+            if (tagWhiteMatch != null) {
+                Log.i(TAG, "White list tag hit: $phone, tag: ${response.tag}")
+                return CheckResult(
+                    shouldBlock = false,
+                    label = response.tag,
+                    resultType = ResultType.WHITE_LIST,
+                    localCost = localCost,
+                    networkCost = networkCost,
+                    locationInfo = response.data,
+                    locationLookupAttempted = true
+                )
+            }
+            return CheckResult(
+                shouldBlock = true,
+                label = response.tag,
+                resultType = ResultType.INTERCEPT,
+                localCost = localCost,
+                networkCost = networkCost,
+                locationInfo = response.data,
+                locationLookupAttempted = true
+            )
+        }
+
+        return CheckResult(
+            shouldBlock = false,
+            label = "",
+            resultType = ResultType.PASS_BUT_NOTIFY,
+            localCost = localCost,
+            networkCost = networkCost,
+            locationInfo = response.data,
+            locationLookupAttempted = true
+        )
     }
 }

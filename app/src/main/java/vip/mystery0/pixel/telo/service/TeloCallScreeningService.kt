@@ -23,6 +23,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     private val blockedCallRepository: BlockedCallRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val prefs: SharedPreferences by inject()
+    private val incomingCallOverlay by lazy { IncomingCallOverlay(this) }
 
     override fun onScreenCall(callDetails: Call.Details) {
         val phoneNumber = callDetails.handle?.schemeSpecificPart ?: return
@@ -41,12 +42,12 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                     TAG,
                     "Screen result: number=$phoneNumber, shouldBlock=${result.shouldBlock}, " +
                         "notifyOnly=$notifyOnly, resultType=${result.resultType}, " +
-                            "forceBlock=${result.forceBlock}, " +
-                        "label=${result.label}, localCost=${result.localCost}ms, " +
-                        "networkCost=${result.networkCost}ms"
+                        "forceBlock=${result.forceBlock}, label=${result.label}, " +
+                        "localCost=${result.localCost}ms, networkCost=${result.networkCost}ms"
                 )
 
-                // 黑名单标签命中时是用户明确配置的强制拦截规则，优先于全局放行策略。
+                showLocationOverlayIfNeeded(phoneNumber, result)
+
                 if (result.shouldBlock && result.forceBlock) {
                     response.setDisallowCall(true)
                     response.setRejectCall(true)
@@ -77,7 +78,6 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                     )
                 } else if (result.shouldBlock) {
                     if (notifyOnly) {
-                        // Pass but record as PASS_BUT_NOTIFY
                         response.setDisallowCall(false)
                         response.setRejectCall(false)
                         response.setSkipCallLog(false)
@@ -91,7 +91,6 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             label = result.label.takeIf { it.isNotBlank() }
                         )
                     } else {
-                        // Real Block
                         response.setDisallowCall(true)
                         response.setRejectCall(true)
                         response.setSkipCallLog(false)
@@ -106,12 +105,10 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         )
                     }
                 } else {
-                    // Allowed
                     response.setDisallowCall(false)
                     response.setRejectCall(false)
                     response.setSkipCallLog(false)
 
-                    // If TIMEOUT, we still record it for diagnostics as requested
                     if (result.resultType == ResultType.NETWORK_TIMEOUT) {
                         blockedCallRepository.insert(
                             phoneNumber,
@@ -134,13 +131,20 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking spam, allowing call", e)
-                // Fallback
                 response.setDisallowCall(false)
                 response.setRejectCall(false)
                 response.setSkipCallLog(false)
             } finally {
                 respondToCall(callDetails, response.build())
             }
+        }
+    }
+
+    private fun showLocationOverlayIfNeeded(phoneNumber: String, result: CheckResult) {
+        val enabled = prefs.getBoolean(SettingViewModel.KEY_SHOW_LOCATION_OVERLAY, false)
+        val noNetworkQuery = prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false)
+        if (enabled && !noNetworkQuery) {
+            incomingCallOverlay.show(phoneNumber, result)
         }
     }
 

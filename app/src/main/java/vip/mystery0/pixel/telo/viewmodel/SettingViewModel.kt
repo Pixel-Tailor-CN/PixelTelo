@@ -46,6 +46,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_NO_NETWORK_QUERY = "no_network_query"
         const val KEY_ALWAYS_RECORD = "always_record"
         const val KEY_NETWORK_TIMEOUT = "network_timeout"
+        const val KEY_SHOW_LOCATION_OVERLAY = "show_location_overlay"
         const val KEY_ALLOW_REPEAT_CALL = "allow_repeat_call"
         const val KEY_REPEAT_CALL_WINDOW_MINUTES = "repeat_call_window_minutes"
         const val DEFAULT_REPEAT_CALL_WINDOW_MINUTES = 3
@@ -99,7 +100,15 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     fun updateNoNetworkQuery(enabled: Boolean) {
         noNetworkQuery = enabled
-        prefs.edit { putBoolean(KEY_NO_NETWORK_QUERY, enabled) }
+        prefs.edit {
+            putBoolean(KEY_NO_NETWORK_QUERY, enabled)
+            if (enabled) {
+                putBoolean(KEY_SHOW_LOCATION_OVERLAY, false)
+            }
+        }
+        if (enabled) {
+            showLocationOverlay = false
+        }
     }
 
     var alwaysRecord by mutableStateOf(prefs.getBoolean(KEY_ALWAYS_RECORD, false))
@@ -114,6 +123,16 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun updateNetworkTimeout(timeout: Int) {
         networkTimeout = timeout
         prefs.edit { putInt(KEY_NETWORK_TIMEOUT, timeout) }
+    }
+
+    var showLocationOverlay by mutableStateOf(
+        prefs.getBoolean(KEY_SHOW_LOCATION_OVERLAY, false) && !noNetworkQuery
+    )
+
+    fun updateShowLocationOverlay(enabled: Boolean) {
+        val effectiveEnabled = enabled && !noNetworkQuery
+        showLocationOverlay = effectiveEnabled
+        prefs.edit { putBoolean(KEY_SHOW_LOCATION_OVERLAY, effectiveEnabled) }
     }
 
     var allowRepeatCall by mutableStateOf(prefs.getBoolean(KEY_ALLOW_REPEAT_CALL, false))

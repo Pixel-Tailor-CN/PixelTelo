@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Pixel Telo</string>
+    <string name="setting_show_location_overlay">悬浮窗显示归属地信息</string>
+    <string name="setting_show_location_overlay_summary">来电时通过联网查询获取归属地，并显示到悬浮窗中。</string>
+    <string name="setting_show_location_overlay_disabled_summary">需要先关闭“不联网查询”，才能使用联网归属地展示。</string>
+    <string name="permission_overlay_name">悬浮窗权限</string>
+    <string name="permission_overlay_desc">用于在来电时将号码归属地显示到悬浮窗，请在系统设置中授予。</string>
     <string name="setting_no_network_query">不联网查询</string>
     <string name="setting_no_network_query_summary">开启后拦截检查仅匹配本地数据库，不再进行联网查询</string>
     <string name="setting_always_record">始终显示在拦截记录中</string>

@@ -2,6 +2,7 @@ package vip.mystery0.pixel.telo.ui.screen
 
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.PrivacyTip
@@ -77,6 +79,9 @@ import java.time.LocalDateTime
 @Composable
 fun SettingsScreen(viewModel: SettingViewModel) {
     val context = LocalContext.current
+    var overlayPermissionGranted by remember {
+        mutableStateOf(Settings.canDrawOverlays(context))
+    }
     var permissionsState by remember {
         mutableStateOf(
             PermissionUtils.allPermissions.associate {
@@ -96,6 +101,12 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 this[permission] = isGranted
             }
         }
+    }
+
+    val overlayPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        overlayPermissionGranted = Settings.canDrawOverlays(context)
     }
 
     // 备份：通过系统文件保存对话框选择保存位置
@@ -125,6 +136,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 it.permission
             ) == PackageManager.PERMISSION_GRANTED)
         }
+        overlayPermissionGranted = Settings.canDrawOverlays(context)
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -516,6 +528,26 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             )
 
             PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
+            Preference(
+                title = { Text(stringResource(R.string.permission_overlay_name)) },
+                summary = { Text(stringResource(R.string.permission_overlay_desc)) },
+                icon = {
+                    Icon(
+                        if (overlayPermissionGranted) Icons.Default.Check else Icons.Default.Close,
+                        contentDescription = null,
+                        tint = if (overlayPermissionGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                },
+                onClick = {
+                    if (!overlayPermissionGranted) {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            "package:${context.packageName}".toUri()
+                        )
+                        overlayPermissionLauncher.launch(intent)
+                    }
+                }
+            )
             PermissionUtils.allPermissions.forEach { item ->
                 val isGranted = permissionsState[item.permission] == true
                 Preference(
@@ -665,6 +697,25 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 title = { Text(stringResource(R.string.setting_no_network_query)) },
                 summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
                 icon = { Icon(Icons.Default.CloudOff, contentDescription = null) }
+            )
+
+            SwitchPreference(
+                value = viewModel.showLocationOverlay,
+                onValueChange = { viewModel.updateShowLocationOverlay(it) },
+                enabled = !viewModel.noNetworkQuery,
+                title = { Text(stringResource(R.string.setting_show_location_overlay)) },
+                summary = {
+                    Text(
+                        stringResource(
+                            if (viewModel.noNetworkQuery) {
+                                R.string.setting_show_location_overlay_disabled_summary
+                            } else {
+                                R.string.setting_show_location_overlay_summary
+                            }
+                        )
+                    )
+                },
+                icon = { Icon(Icons.Default.LocationOn, contentDescription = null) }
             )
 
             SwitchPreference(

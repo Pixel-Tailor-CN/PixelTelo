@@ -22,6 +22,16 @@ data class SyncResponse(
 )
 
 @Serializable
+data class PhoneLocationInfo(
+    @SerialName("cardType")
+    val cardType: String = "",
+    @SerialName("province")
+    val province: String = "",
+    @SerialName("city")
+    val city: String = ""
+)
+
+@Serializable
 data class QueryResponse(
     @SerialName("phone")
     val phone: String,
@@ -32,7 +42,9 @@ data class QueryResponse(
     @SerialName("confidence")
     val confidence: Int,
     @SerialName("source")
-    val source: String
+    val source: String,
+    @SerialName("data")
+    val data: PhoneLocationInfo? = null
 )
 
 interface SyncApi {
