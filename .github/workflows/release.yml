@@ -63,10 +63,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: Pixel Telo ${{ github.ref_name }}
-          body: |
-            ## 下载
-
-            安装到手机请下载 `.apk` 文件。`.aab` 为开发者归档包。
+          body_path: CHANGELOG.md
           files: |
             apk-output/PixelTelo-${{ github.ref_name }}.apk
             apk-output/PixelTelo-${{ github.ref_name }}.aab
