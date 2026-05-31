@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.ui.screen
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.Settings
@@ -51,6 +52,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +72,7 @@ import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
@@ -79,6 +82,12 @@ import java.time.LocalDateTime
 @Composable
 fun SettingsScreen(viewModel: SettingViewModel) {
     val context = LocalContext.current
+    val previewOverlay = remember {
+        IncomingCallOverlay(
+            context,
+            context.getSharedPreferences("pixel_telo", Context.MODE_PRIVATE)
+        )
+    }
     var overlayPermissionGranted by remember {
         mutableStateOf(Settings.canDrawOverlays(context))
     }
@@ -141,6 +150,32 @@ fun SettingsScreen(viewModel: SettingViewModel) {
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         checkPermissions()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            previewOverlay.hide()
+            viewModel.hideLocationOverlayAdjuster()
+        }
+    }
+
+    LaunchedEffect(viewModel.showLocationOverlayAdjuster) {
+        if (viewModel.showLocationOverlayAdjuster) {
+            val shown = previewOverlay.showPreview(
+                viewModel.locationOverlayOffsetDp,
+                viewModel::updateLocationOverlayOffset
+            )
+            if (!shown) {
+                viewModel.hideLocationOverlayAdjuster()
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.permission_overlay_desc),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        } else {
+            previewOverlay.hide()
+        }
     }
 
     val msgDebugModeEnabled = stringResource(R.string.msg_debug_mode_enabled)
@@ -505,20 +540,21 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     }
 
     ProvidePreferenceLocals {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-            PreferenceCategory(title = { Text(stringResource(R.string.category_app_features)) })
-            Preference(
-                title = { Text(stringResource(R.string.setting_update_offline_data)) },
-                summary = { Text(stringResource(R.string.summary_current_version) + viewModel.offlineDbVersion) },
-                icon = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
-                onClick = {
-                    viewModel.checkUpdate()
-                }
-            )
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                PreferenceCategory(title = { Text(stringResource(R.string.category_app_features)) })
+                Preference(
+                    title = { Text(stringResource(R.string.setting_update_offline_data)) },
+                    summary = { Text(stringResource(R.string.summary_current_version) + viewModel.offlineDbVersion) },
+                    icon = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
+                    onClick = {
+                        viewModel.checkUpdate()
+                    }
+                )
 
             Preference(
                 title = { Text(stringResource(R.string.title_test_intercept)) },
@@ -718,6 +754,23 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 icon = { Icon(Icons.Default.LocationOn, contentDescription = null) }
             )
 
+            Preference(
+                title = { Text(stringResource(R.string.setting_adjust_location_overlay)) },
+                summary = {
+                    Text(
+                        stringResource(
+                            if (viewModel.showLocationOverlayAdjuster) {
+                                R.string.setting_adjust_location_overlay_active_summary
+                            } else {
+                                R.string.setting_adjust_location_overlay_summary
+                            }
+                        )
+                    )
+                },
+                icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                onClick = { viewModel.toggleLocationOverlayAdjuster() }
+            )
+
             SwitchPreference(
                 value = viewModel.alwaysRecord,
                 onValueChange = { viewModel.updateAlwaysRecord(it) },
@@ -815,6 +868,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     icon = { Icon(Icons.Default.DeleteForever, contentDescription = null) },
                     onClick = { viewModel.deleteDatabase() }
                 )
+            }
             }
         }
     }

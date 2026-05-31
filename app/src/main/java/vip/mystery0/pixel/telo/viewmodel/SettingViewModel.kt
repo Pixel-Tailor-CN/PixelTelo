@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
@@ -47,9 +48,11 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_ALWAYS_RECORD = "always_record"
         const val KEY_NETWORK_TIMEOUT = "network_timeout"
         const val KEY_SHOW_LOCATION_OVERLAY = "show_location_overlay"
+        const val KEY_LOCATION_OVERLAY_OFFSET_DP = "location_overlay_offset_dp"
         const val KEY_ALLOW_REPEAT_CALL = "allow_repeat_call"
         const val KEY_REPEAT_CALL_WINDOW_MINUTES = "repeat_call_window_minutes"
         const val DEFAULT_REPEAT_CALL_WINDOW_MINUTES = 3
+        const val DEFAULT_LOCATION_OVERLAY_OFFSET_DP = 56
     }
 
     private val syncRepository: SyncRepository by inject()
@@ -135,6 +138,27 @@ class SettingViewModel : ViewModel(), KoinComponent {
         prefs.edit { putBoolean(KEY_SHOW_LOCATION_OVERLAY, effectiveEnabled) }
     }
 
+    var locationOverlayOffsetDp by mutableIntStateOf(
+        prefs.getInt(KEY_LOCATION_OVERLAY_OFFSET_DP, DEFAULT_LOCATION_OVERLAY_OFFSET_DP)
+    )
+        private set
+
+    var showLocationOverlayAdjuster by mutableStateOf(false)
+        private set
+
+    fun toggleLocationOverlayAdjuster() {
+        showLocationOverlayAdjuster = !showLocationOverlayAdjuster
+    }
+
+    fun hideLocationOverlayAdjuster() {
+        showLocationOverlayAdjuster = false
+    }
+
+    fun updateLocationOverlayOffset(offsetDp: Int) {
+        locationOverlayOffsetDp = offsetDp.coerceAtLeast(0)
+        prefs.edit { putInt(KEY_LOCATION_OVERLAY_OFFSET_DP, locationOverlayOffsetDp) }
+    }
+
     var allowRepeatCall by mutableStateOf(prefs.getBoolean(KEY_ALLOW_REPEAT_CALL, false))
 
     fun updateAllowRepeatCall(enabled: Boolean) {
@@ -156,7 +180,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         private set
     var showUpdateDialog by mutableStateOf<SyncResponse?>(null)
         private set
-    var localRowCount by mutableStateOf(0L)
+    var localRowCount by mutableLongStateOf(0L)
         private set
     var syncStatusMessage by mutableStateOf<String?>(null)
         private set

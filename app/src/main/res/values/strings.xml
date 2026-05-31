@@ -8,6 +8,11 @@
     <string name="setting_show_location_overlay">Show location in floating window</string>
     <string name="setting_show_location_overlay_summary">Show phone attribution returned by online query in a floating window during incoming calls.</string>
     <string name="setting_show_location_overlay_disabled_summary">Disable No Network Query before using online attribution display.</string>
+    <string name="setting_adjust_location_overlay">Adjust floating window position</string>
+    <string name="setting_adjust_location_overlay_summary">Show a simulated incoming-call attribution window and drag it vertically to save its position.</string>
+    <string name="setting_adjust_location_overlay_active_summary">Drag the simulated floating window vertically. Tap again to hide it.</string>
+    <string name="location_overlay_preview_phone" translatable="false">13245678901</string>
+    <string name="location_overlay_preview_location" translatable="false">浙江 宁波</string>
 
     <!-- Navigation -->
     <string name="nav_home">Intercepts</string>
