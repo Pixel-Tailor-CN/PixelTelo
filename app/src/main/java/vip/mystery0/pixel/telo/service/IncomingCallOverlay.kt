@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -184,7 +185,7 @@ class IncomingCallOverlay(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.86f))
+                            .background(MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.76f))
                             .then(dragModifier)
                             .padding(horizontal = 20.dp, vertical = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -193,6 +194,7 @@ class IncomingCallOverlay(
                             text = phoneNumber,
                             color = MaterialTheme.colorScheme.inverseOnSurface,
                             style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
                             maxLines = 1
                         )
                         Text(
