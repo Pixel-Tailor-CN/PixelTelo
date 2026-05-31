@@ -1,6 +1,7 @@
 package vip.mystery0.pixel.telo.viewmodel
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +26,7 @@ class ListViewModel : ViewModel(), KoinComponent {
 
     private val userListRepository: UserListRepository by inject()
     private val context: Context by inject()
+    private val prefs: SharedPreferences by inject()
 
     /** 当前选中的 Tab：BLACK 或 WHITE */
     var currentTab by mutableStateOf(ListType.BLACK)
@@ -55,6 +57,13 @@ class ListViewModel : ViewModel(), KoinComponent {
     /** 添加表单：是否标签匹配 */
     var inputTagMatch by mutableStateOf(false)
 
+    /** 添加表单：是否归属地匹配 */
+    var inputLocationMatch by mutableStateOf(false)
+
+    /** 当前是否启用了不联网查询，用于提示归属地规则是否失效 */
+    var noNetworkQuery by mutableStateOf(prefs.getBoolean("no_network_query", false))
+        private set
+
     /** 添加表单：备注 */
     var inputRemark by mutableStateOf("")
 
@@ -81,6 +90,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         inputPhone = ""
         inputIsPrefix = false
         inputTagMatch = false
+        inputLocationMatch = false
         inputRemark = ""
         addErrorMessage = null
         showAddSheet = true
@@ -91,6 +101,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         inputPhone = entry.phoneNumber
         inputIsPrefix = entry.isPrefix
         inputTagMatch = entry.tagMatch
+        inputLocationMatch = entry.locationMatch
         inputRemark = entry.remark ?: ""
         addErrorMessage = null
         showAddSheet = true
@@ -102,6 +113,26 @@ class ListViewModel : ViewModel(), KoinComponent {
 
     fun clearToast() {
         toastMessage = null
+    }
+
+    fun refreshNoNetworkQuery() {
+        noNetworkQuery = prefs.getBoolean("no_network_query", false)
+    }
+
+    fun updateTagMatch(enabled: Boolean) {
+        inputTagMatch = enabled
+        if (enabled) {
+            inputIsPrefix = false
+            inputLocationMatch = false
+        }
+    }
+
+    fun updateLocationMatch(enabled: Boolean) {
+        inputLocationMatch = enabled
+        if (enabled) {
+            inputIsPrefix = false
+            inputTagMatch = false
+        }
     }
 
     fun confirmAdd() {
@@ -116,7 +147,14 @@ class ListViewModel : ViewModel(), KoinComponent {
                 userListRepository.delete(oldEntry)
             }
             val success =
-                userListRepository.add(phone, inputIsPrefix, currentTab, inputRemark, inputTagMatch)
+                userListRepository.add(
+                    phone,
+                    inputIsPrefix,
+                    currentTab,
+                    inputRemark,
+                    inputTagMatch,
+                    inputLocationMatch
+                )
             if (success) {
                 showAddSheet = false
                 editingEntry = null
@@ -128,7 +166,8 @@ class ListViewModel : ViewModel(), KoinComponent {
                         oldEntry.isPrefix,
                         oldEntry.listType,
                         oldEntry.remark,
-                        oldEntry.tagMatch
+                        oldEntry.tagMatch,
+                        oldEntry.locationMatch
                     )
                 }
                 addErrorMessage = context.getString(R.string.error_phone_already_exists)

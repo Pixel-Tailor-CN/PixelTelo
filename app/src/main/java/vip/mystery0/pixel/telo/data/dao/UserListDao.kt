@@ -34,6 +34,7 @@ interface UserListDao {
         SELECT * FROM user_list
         WHERE listType = :type
         AND tagMatch = 0
+        AND locationMatch = 0
         AND (
             (isPrefix = 0 AND phoneNumber = :phone) OR
             (isPrefix = 1 AND SUBSTR(:phone, 1, LENGTH(phoneNumber)) = phoneNumber)
@@ -43,6 +44,10 @@ interface UserListDao {
     suspend fun findMatch(phone: String, type: ListType): UserListEntry?
 
     /** 查询指定类型的所有标签匹配规则 */
-    @Query("SELECT * FROM user_list WHERE listType = :type AND tagMatch = 1")
+    @Query("SELECT * FROM user_list WHERE listType = :type AND tagMatch = 1 AND locationMatch = 0")
     suspend fun getTagRules(type: ListType): List<UserListEntry>
+
+    /** 查询指定类型的所有归属地匹配规则 */
+    @Query("SELECT * FROM user_list WHERE listType = :type AND locationMatch = 1")
+    suspend fun getLocationRules(type: ListType): List<UserListEntry>
 }

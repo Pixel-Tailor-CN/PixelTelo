@@ -40,4 +40,5 @@ data class UserListEntryDto(
     val remark: String? = null,
     @SerialName("added_at") val addedAt: Long,
     @SerialName("tag_match") val tagMatch: Boolean = false,
+    @SerialName("location_match") val locationMatch: Boolean = false,
 )

@@ -47,9 +47,23 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/** 从 v4 升级到 v5：user_list 表新增 locationMatch 字段 */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `user_list` ADD COLUMN `locationMatch` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("DROP INDEX IF EXISTS `index_user_list_phoneNumber_listType`")
+        db.execSQL(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS `index_user_list_phoneNumber_listType_tagMatch_locationMatch`
+            ON `user_list` (`phoneNumber`, `listType`, `tagMatch`, `locationMatch`)
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -52,6 +53,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
@@ -120,6 +123,10 @@ fun ListScreen(viewModel: ListViewModel) {
         viewModel.selectTab(tabs[pagerState.currentPage])
     }
 
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshNoNetworkQuery()
+    }
+
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.openAddSheet() }) {
@@ -168,7 +175,8 @@ fun ListScreen(viewModel: ListViewModel) {
                 val list = if (page == 0) blackList else whiteList
                 UserListContent(
                     entries = list,
-                    viewModel = viewModel
+                    viewModel = viewModel,
+                    noNetworkQuery = viewModel.noNetworkQuery
                 )
             }
         }
@@ -217,6 +225,7 @@ fun ListScreen(viewModel: ListViewModel) {
                     label = {
                         Text(
                             if (viewModel.inputTagMatch) stringResource(R.string.label_tag_name)
+                            else if (viewModel.inputLocationMatch) stringResource(R.string.label_location_name)
                             else stringResource(R.string.label_phone_number)
                         )
                     },
@@ -224,6 +233,7 @@ fun ListScreen(viewModel: ListViewModel) {
                         Text(
                             when {
                                 viewModel.inputTagMatch -> stringResource(R.string.hint_tag_example)
+                                viewModel.inputLocationMatch -> stringResource(R.string.hint_location_example)
                                 viewModel.inputIsPrefix -> stringResource(R.string.hint_prefix_example)
                                 else -> stringResource(R.string.hint_exact_example)
                             }
@@ -261,7 +271,7 @@ fun ListScreen(viewModel: ListViewModel) {
                     Switch(
                         checked = viewModel.inputIsPrefix,
                         onCheckedChange = { viewModel.inputIsPrefix = it },
-                        enabled = !viewModel.inputTagMatch
+                        enabled = !viewModel.inputTagMatch && !viewModel.inputLocationMatch
                     )
                 }
 
@@ -296,16 +306,56 @@ fun ListScreen(viewModel: ListViewModel) {
                     }
                     Switch(
                         checked = viewModel.inputTagMatch,
-                        onCheckedChange = {
-                            viewModel.inputTagMatch = it
-                            if (it) viewModel.inputIsPrefix = false
-                        }
+                        onCheckedChange = { viewModel.updateTagMatch(it) }
                     )
                 }
 
                 if (viewModel.currentTab == ListType.BLACK && viewModel.inputTagMatch) {
                     Text(
                         stringResource(R.string.msg_black_tag_match_force_block),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 16.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.label_location_match),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(
+                                if (viewModel.currentTab == ListType.BLACK) {
+                                    R.string.summary_black_location_match
+                                } else {
+                                    R.string.summary_location_match
+                                }
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = viewModel.inputLocationMatch,
+                        onCheckedChange = { viewModel.updateLocationMatch(it) }
+                    )
+                }
+
+                if (viewModel.inputLocationMatch) {
+                    Text(
+                        stringResource(R.string.msg_location_match_requires_network),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(top = 2.dp)
@@ -364,6 +414,7 @@ fun ListScreen(viewModel: ListViewModel) {
 private fun UserListContent(
     entries: List<UserListEntry>,
     viewModel: ListViewModel,
+    noNetworkQuery: Boolean,
 ) {
     if (entries.isEmpty()) {
         Box(
@@ -382,6 +433,7 @@ private fun UserListContent(
             items(entries, key = { it.id }) { entry ->
                 UserListEntryItem(
                     entry = entry,
+                    invalid = entry.locationMatch && noNetworkQuery,
                     onClick = { viewModel.openEditSheet(entry) }
                 )
             }
@@ -393,7 +445,7 @@ private fun UserListContent(
  * 单条名单条目卡片：显示号码（前缀加 * 后缀）、添加时间、备注及前缀/标签标签。
  */
 @Composable
-private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
+private fun UserListEntryItem(entry: UserListEntry, invalid: Boolean, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 4.dp)
@@ -403,6 +455,7 @@ private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
         Column(modifier = Modifier.padding(16.dp)) {
             // 标签匹配显示标签名，前缀匹配号码显示为 "400*"，精确匹配显示原始号码
             val displayNumber = when {
+                entry.locationMatch -> entry.phoneNumber
                 entry.tagMatch -> entry.phoneNumber
                 entry.isPrefix -> "${entry.phoneNumber}*"
                 else -> entry.phoneNumber
@@ -417,7 +470,30 @@ private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(displayNumber, style = MaterialTheme.typography.titleMedium)
-                    if (entry.tagMatch) {
+                    if (entry.locationMatch) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    text = stringResource(R.string.label_location_match),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                    } else if (entry.tagMatch) {
                         val isBlackTagRule = entry.listType == ListType.BLACK
                         Surface(
                             color = if (isBlackTagRule) {
@@ -447,6 +523,19 @@ private fun UserListEntryItem(entry: UserListEntry, onClick: () -> Unit) {
                                 text = stringResource(R.string.label_prefix_match),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    if (invalid) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                text = stringResource(R.string.label_rule_invalid),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }

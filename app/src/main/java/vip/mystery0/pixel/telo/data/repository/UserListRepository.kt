@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import vip.mystery0.pixel.telo.data.dao.UserListDao
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
+import vip.mystery0.pixel.telo.data.remote.PhoneLocationInfo
 
 /**
  * 用户自定义黑白名单的数据仓库。
@@ -53,6 +54,39 @@ class UserListRepository(private val dao: UserListDao) {
         return tagRules.firstOrNull { it.phoneNumber == tag }
     }
 
+    suspend fun findWhiteListLocationMatch(locationInfo: PhoneLocationInfo?): UserListEntry? {
+        return findLocationMatch(locationInfo, ListType.WHITE)
+    }
+
+    suspend fun findBlackListLocationMatch(locationInfo: PhoneLocationInfo?): UserListEntry? {
+        return findLocationMatch(locationInfo, ListType.BLACK)
+    }
+
+    private suspend fun findLocationMatch(
+        locationInfo: PhoneLocationInfo?,
+        type: ListType
+    ): UserListEntry? {
+        val normalizedLocation = normalizeLocation(locationInfo)
+        if (normalizedLocation.isBlank()) return null
+        val rules = dao.getLocationRules(type)
+        return rules.firstOrNull { rule ->
+            val keyword = rule.phoneNumber.trim().lowercase()
+            keyword.isNotEmpty() && normalizedLocation.contains(keyword)
+        }
+    }
+
+    private fun normalizeLocation(locationInfo: PhoneLocationInfo?): String {
+        if (locationInfo == null) return ""
+        return listOf(
+            locationInfo.province,
+            locationInfo.city,
+            "${locationInfo.province}${locationInfo.city}",
+            "${locationInfo.province} ${locationInfo.city}"
+        )
+            .joinToString(" ")
+            .lowercase()
+    }
+
     /**
      * 添加条目到指定名单。
      * 若 (phoneNumber, listType) 已存在则忽略并返回 false，成功插入返回 true。
@@ -62,15 +96,17 @@ class UserListRepository(private val dao: UserListDao) {
         isPrefix: Boolean,
         listType: ListType,
         remark: String?,
-        tagMatch: Boolean = false
+        tagMatch: Boolean = false,
+        locationMatch: Boolean = false
     ): Boolean {
         val entry = UserListEntry(
             phoneNumber = phoneNumber.trim(),
-            isPrefix = isPrefix,
+            isPrefix = isPrefix && !tagMatch && !locationMatch,
             listType = listType,
             remark = remark?.trim()?.takeIf { it.isNotBlank() },
             addedAt = System.currentTimeMillis(),
-            tagMatch = tagMatch
+            tagMatch = tagMatch,
+            locationMatch = locationMatch
         )
         return dao.insert(entry) != -1L
     }

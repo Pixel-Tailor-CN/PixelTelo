@@ -11,7 +11,10 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "user_list",
-    indices = [Index(value = ["phoneNumber", "listType"], unique = true)]
+    indices = [Index(
+        value = ["phoneNumber", "listType", "tagMatch", "locationMatch"],
+        unique = true
+    )]
 )
 data class UserListEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -27,6 +30,8 @@ data class UserListEntry(
     val addedAt: Long = System.currentTimeMillis(),
     /** true = 标签匹配，false = 号码匹配 */
     val tagMatch: Boolean = false,
+    /** true = 归属地匹配，依赖联网查询结果 */
+    val locationMatch: Boolean = false,
 )
 
 enum class ListType { BLACK, WHITE }

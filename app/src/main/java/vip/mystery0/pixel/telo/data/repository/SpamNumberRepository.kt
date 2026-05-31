@@ -151,6 +151,45 @@ class SpamNumberRepository : KoinComponent {
         networkCost: Long,
         phone: String
     ): CheckResult {
+        val locationWhiteMatch = userListRepository.findWhiteListLocationMatch(response.data)
+        if (locationWhiteMatch != null) {
+            val label = locationWhiteMatch.remark
+                ?: locationRuleLabel(locationWhiteMatch.phoneNumber)
+            Log.i(
+                TAG,
+                "White list location hit: $phone, location: ${locationWhiteMatch.phoneNumber}"
+            )
+            return CheckResult(
+                shouldBlock = false,
+                label = label,
+                resultType = ResultType.WHITE_LIST,
+                localCost = localCost,
+                networkCost = networkCost,
+                locationInfo = response.data,
+                locationLookupAttempted = true
+            )
+        }
+
+        val locationBlackMatch = userListRepository.findBlackListLocationMatch(response.data)
+        if (locationBlackMatch != null) {
+            val label = locationBlackMatch.remark
+                ?: locationRuleLabel(locationBlackMatch.phoneNumber)
+            Log.i(
+                TAG,
+                "Black list location hit: $phone, location: ${locationBlackMatch.phoneNumber}"
+            )
+            return CheckResult(
+                shouldBlock = true,
+                label = label,
+                resultType = ResultType.BLACK_LIST,
+                localCost = localCost,
+                networkCost = networkCost,
+                locationInfo = response.data,
+                locationLookupAttempted = true,
+                forceBlock = true
+            )
+        }
+
         val tagBlackMatch = if (response.tag.isNotBlank()) {
             userListRepository.findBlackListTagMatch(response.tag)
         } else {
@@ -204,5 +243,9 @@ class SpamNumberRepository : KoinComponent {
             locationInfo = response.data,
             locationLookupAttempted = true
         )
+    }
+
+    private fun locationRuleLabel(value: String): String {
+        return "Location: $value"
     }
 }

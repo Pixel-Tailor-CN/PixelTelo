@@ -34,6 +34,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, true)
         val callTime = callDetails.creationTimeMillis.takeIf { it > 0 }
             ?: System.currentTimeMillis()
+        var callRejected = false
 
         runBlocking(Dispatchers.IO) {
             try {
@@ -46,9 +47,8 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         "localCost=${result.localCost}ms, networkCost=${result.networkCost}ms"
                 )
 
-                showLocationOverlayIfNeeded(phoneNumber, result)
-
                 if (result.shouldBlock && result.forceBlock) {
+                    callRejected = true
                     response.setDisallowCall(true)
                     response.setRejectCall(true)
                     response.setSkipCallLog(false)
@@ -91,6 +91,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             label = result.label.takeIf { it.isNotBlank() }
                         )
                     } else {
+                        callRejected = true
                         response.setDisallowCall(true)
                         response.setRejectCall(true)
                         response.setSkipCallLog(false)
@@ -129,6 +130,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         )
                     }
                 }
+                showLocationOverlayIfNeeded(phoneNumber, result, callRejected)
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking spam, allowing call", e)
                 response.setDisallowCall(false)
@@ -140,10 +142,14 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         }
     }
 
-    private fun showLocationOverlayIfNeeded(phoneNumber: String, result: CheckResult) {
+    private fun showLocationOverlayIfNeeded(
+        phoneNumber: String,
+        result: CheckResult,
+        callRejected: Boolean
+    ) {
         val enabled = prefs.getBoolean(SettingViewModel.KEY_SHOW_LOCATION_OVERLAY, false)
         val noNetworkQuery = prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false)
-        if (enabled && !noNetworkQuery) {
+        if (enabled && !noNetworkQuery && !callRejected) {
             incomingCallOverlay.show(phoneNumber, result)
         }
     }

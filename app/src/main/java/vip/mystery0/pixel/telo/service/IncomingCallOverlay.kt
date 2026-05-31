@@ -61,6 +61,7 @@ class IncomingCallOverlay(
         if (!Settings.canDrawOverlays(appContext) || !result.locationLookupAttempted) return
 
         val locationText = IncomingCallOverlayFormatter.formatLocation(
+            appContext,
             result.locationInfo,
             result.resultType == ResultType.NETWORK_TIMEOUT
         )
