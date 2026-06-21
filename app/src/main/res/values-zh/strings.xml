@@ -102,10 +102,10 @@
     <string name="setting_repeat_call_window">短时间重复来电判定时间</string>
     <string name="setting_repeat_call_window_summary">当前: %1$d 分钟</string>
     <string name="summary_test_intercept">输入号码模拟拦截检查</string>
-    <string name="setting_backup_records">备份拦截记录</string>
-    <string name="setting_backup_records_summary">将拦截记录导出为 ZIP 文件</string>
-    <string name="setting_restore_records">恢复拦截记录</string>
-    <string name="setting_restore_records_summary">从备份文件恢复拦截记录</string>
+    <string name="setting_backup_records">备份应用数据</string>
+    <string name="setting_backup_records_summary">将拦截记录、黑名单和白名单导出为 ZIP 文件</string>
+    <string name="setting_restore_records">恢复应用数据</string>
+    <string name="setting_restore_records_summary">从备份文件恢复拦截记录、黑名单和白名单</string>
     <string name="category_permissions">权限申请</string>
     <string name="category_intercept_behavior">拦截行为</string>
     <string name="category_backup_restore">备份恢复</string>

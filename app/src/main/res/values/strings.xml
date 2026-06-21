@@ -95,10 +95,10 @@
     <string name="setting_repeat_call_window">Short repeat call window</string>
     <string name="setting_repeat_call_window_summary">Current: %1$d minutes</string>
     <string name="summary_test_intercept">Enter a number to simulate intercept check.</string>
-    <string name="setting_backup_records">Backup Records</string>
-    <string name="setting_backup_records_summary">Export intercept records to a ZIP file.</string>
-    <string name="setting_restore_records">Restore Records</string>
-    <string name="setting_restore_records_summary">Restore intercept records from a ZIP file.</string>
+    <string name="setting_backup_records">Backup App Data</string>
+    <string name="setting_backup_records_summary">Export intercept records, blacklist, and whitelist to a ZIP file.</string>
+    <string name="setting_restore_records">Restore App Data</string>
+    <string name="setting_restore_records_summary">Restore intercept records, blacklist, and whitelist from a backup file.</string>
     <string name="category_permissions">Permissions</string>
     <string name="category_intercept_behavior">Intercept Behavior</string>
     <string name="category_backup_restore">Backup &amp; Restore</string>
