@@ -47,6 +47,9 @@
     <string name="result_pass_always_record">记录原因: 始终显示记录</string>
     <string name="result_black_list">拦截原因: 用户黑名单</string>
     <string name="result_white_list">放行原因: 用户白名单</string>
+    <string name="current_list_black">当前状态: 已在黑名单中</string>
+    <string name="current_list_white">当前状态: 已在白名单中</string>
+    <string name="current_list_both">当前状态: 同时在黑名单和白名单中</string>
     <string name="label_remark">"备注: "</string>
     <string name="label_duration_with_network">"处理耗时: 本地 %1$dms | 网络 %2$dms"</string>
     <string name="label_duration_local">"处理耗时: 本地 %1$dms"</string>

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -18,6 +19,7 @@ import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.ListType
+import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
@@ -32,6 +34,18 @@ sealed interface RetryQueryState {
     data class Failure(val call: BlockedCall, val message: String) : RetryQueryState
 }
 
+enum class CurrentListState {
+    NONE,
+    BLACK,
+    WHITE,
+    BOTH,
+}
+
+data class BlockedCallListItem(
+    val call: BlockedCall,
+    val currentListState: CurrentListState,
+)
+
 class HomeViewModel() : ViewModel(), KoinComponent {
     private val repository: BlockedCallRepository by inject()
     private val syncRepository: SyncRepository by inject()
@@ -45,6 +59,18 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             started = SharingStarted.Companion.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val blockedCallItems: StateFlow<List<BlockedCallListItem>> = combine(
+        repository.allBlockedCalls,
+        userListRepository.observeBlackList(),
+        userListRepository.observeWhiteList()
+    ) { calls, blackList, whiteList ->
+        buildBlockedCallListItems(calls, blackList, whiteList)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     val isDatabaseReady: StateFlow<Boolean> = syncRepository.versionFlow
         .map { it.isNotBlank() }
@@ -129,4 +155,34 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     /** 快捷加入标签白名单。@return true=成功插入，false=已存在 */
     suspend fun quickAddTagToWhiteList(tag: String): Boolean =
         userListRepository.add(tag, false, ListType.WHITE, null, tagMatch = true)
+}
+
+fun buildBlockedCallListItems(
+    calls: List<BlockedCall>,
+    blackList: List<UserListEntry>,
+    whiteList: List<UserListEntry>,
+): List<BlockedCallListItem> {
+    return calls.map { call ->
+        val inBlackList = blackList.any { it.matchesPhone(call.phoneNumber) }
+        val inWhiteList = whiteList.any { it.matchesPhone(call.phoneNumber) }
+        val currentListState = when {
+            inBlackList && inWhiteList -> CurrentListState.BOTH
+            inBlackList -> CurrentListState.BLACK
+            inWhiteList -> CurrentListState.WHITE
+            else -> CurrentListState.NONE
+        }
+        BlockedCallListItem(call, currentListState)
+    }
+}
+
+private fun UserListEntry.matchesPhone(phoneNumber: String): Boolean {
+    if (tagMatch || locationMatch) return false
+    val rule = this.phoneNumber.trim()
+    val phone = phoneNumber.trim()
+    if (rule.isBlank() || phone.isBlank()) return false
+    return if (isPrefix) {
+        phone.startsWith(rule)
+    } else {
+        phone == rule
+    }
 }

@@ -67,6 +67,8 @@ import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.formatMills
+import vip.mystery0.pixel.telo.viewmodel.BlockedCallListItem
+import vip.mystery0.pixel.telo.viewmodel.CurrentListState
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
 
@@ -77,7 +79,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val blockedCalls by viewModel.blockedCalls.collectAsState()
+    val blockedCallItems by viewModel.blockedCallItems.collectAsState()
     val isDatabaseReady by viewModel.isDatabaseReady.collectAsState()
     val missingPermissions by viewModel.missingPermissions.collectAsState()
     val isDefaultApp by viewModel.isDefaultApp.collectAsState()
@@ -135,7 +137,7 @@ fun HomeScreen(
             }
         }
         blockedCallsList(
-            calls = blockedCalls,
+            callItems = blockedCallItems,
             onRetry = { call -> viewModel.retryNetworkQuery(call) },
             onClick = { call -> viewModel.openQuickAdd(call) },
         )
@@ -414,11 +416,11 @@ fun DatabaseWarningCard(onClick: () -> Unit) {
 }
 
 private fun LazyListScope.blockedCallsList(
-    calls: List<BlockedCall>,
+    callItems: List<BlockedCallListItem>,
     onRetry: (BlockedCall) -> Unit,
     onClick: (BlockedCall) -> Unit,
 ) {
-    if (calls.isEmpty()) {
+    if (callItems.isEmpty()) {
         item {
             Box(
                 modifier = Modifier
@@ -433,9 +435,11 @@ private fun LazyListScope.blockedCallsList(
             }
         }
     } else {
-        items(calls, key = { it.id }) { call ->
+        items(callItems, key = { it.call.id }) { item ->
+            val call = item.call
             BlockedCallItem(
                 call = call,
+                currentListState = item.currentListState,
                 onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
                     { onRetry(call) }
                 } else null,
@@ -448,6 +452,7 @@ private fun LazyListScope.blockedCallsList(
 @Composable
 fun BlockedCallItem(
     call: BlockedCall,
+    currentListState: CurrentListState = CurrentListState.NONE,
     onRetry: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
@@ -474,7 +479,7 @@ fun BlockedCallItem(
                     ResultType.PASS, ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary
                     else -> MaterialTheme.colorScheme.error
                 }
-                
+
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
@@ -537,6 +542,24 @@ fun BlockedCallItem(
                             color = resultColor,
                             modifier = Modifier.padding(top = 4.dp)
                         )
+
+                        if (currentListState != CurrentListState.NONE) {
+                            val currentListText = when (currentListState) {
+                                CurrentListState.BLACK -> stringResource(R.string.current_list_black)
+                                CurrentListState.WHITE -> stringResource(R.string.current_list_white)
+                                CurrentListState.BOTH -> stringResource(R.string.current_list_both)
+                            }
+                            val currentListColor = when (currentListState) {
+                                CurrentListState.BLACK, CurrentListState.BOTH -> MaterialTheme.colorScheme.error
+                                CurrentListState.WHITE -> MaterialTheme.colorScheme.tertiary
+                            }
+                            Text(
+                                text = currentListText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = currentListColor,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
 
                         // Row 3: Remark
                         if (!call.remark.isNullOrEmpty()) {
