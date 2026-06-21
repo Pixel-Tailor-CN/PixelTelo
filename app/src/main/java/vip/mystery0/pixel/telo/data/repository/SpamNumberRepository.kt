@@ -11,6 +11,7 @@ import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.remote.PhoneLocationInfo
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.remote.SyncApi
+import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 import kotlin.time.Duration.Companion.milliseconds
 
 data class CheckResult(
@@ -41,7 +42,10 @@ class SpamNumberRepository : KoinComponent {
      */
     suspend fun queryNetwork(phoneNumber: String): QueryResponse {
         val phone = phoneNumber.removePrefix("+86")
-        val timeoutMs = prefs.getInt("network_timeout", 5) * 1000L
+        val timeoutMs = prefs.getInt(
+            "network_timeout",
+            SettingViewModel.DEFAULT_NETWORK_TIMEOUT_SECONDS
+        ) * 1000L
         return withContext(Dispatchers.IO) {
             withTimeout(timeoutMs.milliseconds) {
                 syncApi.queryNumber(phone)
@@ -117,7 +121,10 @@ class SpamNumberRepository : KoinComponent {
         }
 
         val networkStart = System.currentTimeMillis()
-        val timeoutMs = prefs.getInt("network_timeout", 5) * 1000L
+        val timeoutMs = prefs.getInt(
+            "network_timeout",
+            SettingViewModel.DEFAULT_NETWORK_TIMEOUT_SECONDS
+        ) * 1000L
         return withContext(Dispatchers.IO) {
             try {
                 val response = withTimeout(timeoutMs.milliseconds) {
