@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.Home
@@ -26,6 +28,7 @@ import vip.mystery0.pixel.telo.ui.screen.HomeScreen
 import vip.mystery0.pixel.telo.ui.screen.ListScreen
 import vip.mystery0.pixel.telo.ui.screen.SettingsScreen
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
+import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
@@ -42,8 +45,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PixelTeloTheme {
-                val pagerState =
-                    androidx.compose.foundation.pager.rememberPagerState(pageCount = { AppDestinations.entries.size })
+                val pagerState = rememberPagerState(pageCount = { AppDestinations.entries.size })
                 val currentDestination = AppDestinations.entries[pagerState.currentPage]
                 val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
@@ -76,11 +78,12 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                 ) { innerPadding ->
-                    androidx.compose.foundation.pager.HorizontalPager(
+                    HorizontalPager(
                         state = pagerState,
                         modifier = Modifier
                             .padding(innerPadding)
-                            .fillMaxSize()
+                            .fillMaxSize(),
+                        pageNestedScrollConnection = EmptyPagerNestedScrollConnection
                     ) { page ->
                         when (AppDestinations.entries[page]) {
                             AppDestinations.HOME -> {
@@ -97,7 +100,10 @@ class MainActivity : ComponentActivity() {
                             }
 
                             AppDestinations.LIST -> {
-                                ListScreen(listViewModel)
+                                ListScreen(
+                                    viewModel = listViewModel,
+                                    parentPagerState = pagerState
+                                )
                             }
 
                             AppDestinations.SETTINGS -> {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -50,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -59,7 +61,9 @@ import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
+import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.ui.util.formatMills
+import vip.mystery0.pixel.telo.ui.util.rememberPagerBoundaryHandoffConnection
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
 
 /**
@@ -68,7 +72,10 @@ import vip.mystery0.pixel.telo.viewmodel.ListViewModel
  * FAB 弹出 BottomSheet 添加条目，支持精确匹配与前缀匹配。
  */
 @Composable
-fun ListScreen(viewModel: ListViewModel) {
+fun ListScreen(
+    viewModel: ListViewModel,
+    parentPagerState: PagerState,
+) {
     val context = LocalContext.current
     val blackList by viewModel.blackList.collectAsState()
     val whiteList by viewModel.whiteList.collectAsState()
@@ -170,7 +177,15 @@ fun ListScreen(viewModel: ListViewModel) {
 
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(
+                        rememberPagerBoundaryHandoffConnection(
+                            parentState = parentPagerState,
+                            childState = pagerState
+                        )
+                    ),
+                pageNestedScrollConnection = EmptyPagerNestedScrollConnection
             ) { page ->
                 val list = if (page == 0) blackList else whiteList
                 UserListContent(
