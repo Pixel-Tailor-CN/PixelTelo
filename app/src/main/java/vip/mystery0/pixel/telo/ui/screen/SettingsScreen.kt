@@ -24,23 +24,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.FindInPage
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.PhonelinkSetup
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.NetworkCheck
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.OpenWith
+import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RestorePage
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -51,8 +54,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -550,7 +553,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 Preference(
                     title = { Text(stringResource(R.string.setting_update_offline_data)) },
                     summary = { Text(stringResource(R.string.summary_current_version) + viewModel.offlineDbVersion) },
-                    icon = { Icon(Icons.Default.SystemUpdate, contentDescription = null) },
+                    icon = { Icon(Icons.Default.Update, contentDescription = null) },
                     onClick = {
                         viewModel.checkUpdate()
                     }
@@ -559,7 +562,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             Preference(
                 title = { Text(stringResource(R.string.title_test_intercept)) },
                 summary = { Text(stringResource(R.string.summary_test_intercept)) },
-                icon = { Icon(Icons.Default.PhonelinkSetup, contentDescription = null) },
+                icon = { Icon(Icons.Default.PhoneInTalk, contentDescription = null) },
                 onClick = { viewModel.showTestDialog() }
             )
 
@@ -617,7 +620,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                         )
                     )
                 },
-                icon = { Icon(Icons.Default.Timer, contentDescription = null) },
+                icon = { Icon(Icons.Default.NetworkCheck, contentDescription = null) },
                 onClick = { showTimeoutDialog = true }
             )
 
@@ -663,7 +666,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 onValueChange = { viewModel.updateNotifyOnly(it) },
                 title = { Text(stringResource(R.string.setting_notify_only)) },
                 summary = { Text(stringResource(R.string.setting_notify_only_summary)) },
-                icon = { Icon(Icons.Default.NotificationsActive, contentDescription = null) }
+                icon = { Icon(Icons.Default.NotificationsNone, contentDescription = null) }
             )
 
             SwitchPreference(
@@ -671,7 +674,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 onValueChange = { viewModel.updateAllowRepeatCall(it) },
                 title = { Text(stringResource(R.string.setting_allow_repeat_call)) },
                 summary = { Text(stringResource(R.string.setting_allow_repeat_call_summary)) },
-                icon = { Icon(Icons.Default.Timer, contentDescription = null) }
+                icon = { Icon(Icons.Default.Repeat, contentDescription = null) }
             )
 
             Preference(
@@ -684,7 +687,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                         )
                     )
                 },
-                icon = { Icon(Icons.Default.Timer, contentDescription = null) },
+                icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
                 onClick = { showRepeatWindowDialog = true }
             )
 
@@ -732,7 +735,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 onValueChange = { viewModel.updateNoNetworkQuery(it) },
                 title = { Text(stringResource(R.string.setting_no_network_query)) },
                 summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
-                icon = { Icon(Icons.Default.CloudOff, contentDescription = null) }
+                icon = { Icon(Icons.Default.WifiOff, contentDescription = null) }
             )
 
             SwitchPreference(
@@ -751,7 +754,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                         )
                     )
                 },
-                icon = { Icon(Icons.Default.LocationOn, contentDescription = null) }
+                icon = { Icon(Icons.Default.Map, contentDescription = null) }
             )
 
             Preference(
@@ -767,7 +770,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                         )
                     )
                 },
-                icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                icon = { Icon(Icons.Default.OpenWith, contentDescription = null) },
                 onClick = { viewModel.toggleLocationOverlayAdjuster() }
             )
 
@@ -776,21 +779,21 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 onValueChange = { viewModel.updateAlwaysRecord(it) },
                 title = { Text(stringResource(R.string.setting_always_record)) },
                 summary = { Text(stringResource(R.string.setting_always_record_summary)) },
-                icon = { Icon(Icons.Default.FindInPage, contentDescription = null) }
+                icon = { Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null) }
             )
 
             PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
             Preference(
                 title = { Text(stringResource(R.string.setting_backup_records)) },
                 summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
-                icon = { Icon(Icons.Default.Save, contentDescription = null) },
+                icon = { Icon(Icons.Default.Backup, contentDescription = null) },
                 onClick = { viewModel.openBackupOptionsSheet() }
             )
 
             Preference(
                 title = { Text(stringResource(R.string.setting_restore_records)) },
                 summary = { Text(stringResource(R.string.setting_restore_records_summary)) },
-                icon = { Icon(Icons.Default.Restore, contentDescription = null) },
+                icon = { Icon(Icons.Default.RestorePage, contentDescription = null) },
                 onClick = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
             )
 
@@ -860,12 +863,12 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     onValueChange = { viewModel.forceDownload = it },
                     title = { Text(stringResource(R.string.setting_force_download)) },
                     summary = { Text(stringResource(R.string.setting_force_download_summary)) },
-                    icon = { Icon(Icons.Default.CloudDownload, contentDescription = null) }
+                    icon = { Icon(Icons.Default.DownloadForOffline, contentDescription = null) }
                 )
                 Preference(
                     title = { Text(stringResource(R.string.setting_delete_database)) },
                     summary = { Text(stringResource(R.string.setting_delete_database_summary)) },
-                    icon = { Icon(Icons.Default.DeleteForever, contentDescription = null) },
+                    icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
                     onClick = { viewModel.deleteDatabase() }
                 )
             }
