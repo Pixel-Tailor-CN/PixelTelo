@@ -10,19 +10,34 @@ import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LocalPhone
+import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -65,13 +80,19 @@ class IncomingCallOverlay(
             result.locationInfo,
             result.resultType == ResultType.NETWORK_TIMEOUT
         )
+        val content = IncomingCallOverlayFormatter.buildContent(
+            phoneNumber = phoneNumber,
+            locationText = locationText,
+            label = result.label.takeUnless {
+                result.resultType == ResultType.NETWORK_TIMEOUT
+            }
+        )
         val offsetDp = prefs.getInt(
             SettingViewModel.KEY_LOCATION_OVERLAY_OFFSET_DP,
             SettingViewModel.DEFAULT_LOCATION_OVERLAY_OFFSET_DP
         )
         showOverlay(
-            phoneNumber = phoneNumber,
-            locationText = locationText,
+            content = content,
             offsetDp = offsetDp,
             draggable = false,
             autoDismiss = true,
@@ -83,8 +104,11 @@ class IncomingCallOverlay(
         if (!Settings.canDrawOverlays(appContext)) return false
 
         showOverlay(
-            phoneNumber = appContext.getString(R.string.location_overlay_preview_phone),
-            locationText = appContext.getString(R.string.location_overlay_preview_location),
+            content = IncomingCallOverlayFormatter.buildContent(
+                phoneNumber = appContext.getString(R.string.location_overlay_preview_phone),
+                locationText = appContext.getString(R.string.location_overlay_preview_location),
+                label = "快递外卖"
+            ),
             offsetDp = offsetDp,
             draggable = true,
             autoDismiss = false,
@@ -98,8 +122,7 @@ class IncomingCallOverlay(
     }
 
     private fun showOverlay(
-        phoneNumber: String,
-        locationText: String,
+        content: IncomingCallOverlayContent,
         offsetDp: Int,
         draggable: Boolean,
         autoDismiss: Boolean,
@@ -107,10 +130,9 @@ class IncomingCallOverlay(
     ) {
         mainHandler.post {
             removeCurrentView()
-            val params = createLayoutParams(offsetDp)
+            val params = createLayoutParams(offsetDp, draggable)
             val view = createView(
-                phoneNumber = phoneNumber,
-                locationText = locationText,
+                content = content,
                 draggable = draggable,
                 onDragDelta = { deltaY ->
                     val targetView = currentView ?: return@createView
@@ -148,14 +170,20 @@ class IncomingCallOverlay(
         }
     }
 
-    private fun createLayoutParams(offsetDp: Int): WindowManager.LayoutParams {
+    private fun createLayoutParams(offsetDp: Int, draggable: Boolean): WindowManager.LayoutParams {
+        val touchFlag = if (draggable) {
+            0
+        } else {
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                touchFlag,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
@@ -164,8 +192,7 @@ class IncomingCallOverlay(
     }
 
     private fun createView(
-        phoneNumber: String,
-        locationText: String,
+        content: IncomingCallOverlayContent,
         draggable: Boolean,
         onDragDelta: (Float) -> Unit
     ): View {
@@ -183,27 +210,99 @@ class IncomingCallOverlay(
                     } else {
                         Modifier
                     }
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.76f))
                             .then(dragModifier)
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.TopCenter
                     ) {
-                        Text(
-                            text = phoneNumber,
-                            color = MaterialTheme.colorScheme.inverseOnSurface,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = locationText,
-                            color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.9f),
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1
-                        )
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth(0.94f)
+                                .widthIn(max = 420.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.96f),
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp,
+                            border = BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(44.dp),
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.LocalPhone,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Text(
+                                        text = content.phoneNumber,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Place,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            text = content.locationText,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    content.labelText?.let { label ->
+                                        Surface(
+                                            shape = RoundedCornerShape(50.dp),
+                                            color = MaterialTheme.colorScheme.secondaryContainer.copy(
+                                                alpha = 0.86f
+                                            )
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(
+                                                    horizontal = 10.dp,
+                                                    vertical = 4.dp
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
