@@ -15,10 +15,10 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -137,8 +137,9 @@ class IncomingCallOverlay(
                 onDragDelta = { deltaY ->
                     val targetView = currentView ?: return@createView
                     val targetParams = currentParams ?: return@createView
-                    val maxY = (appContext.resources.displayMetrics.heightPixels - targetView.height)
-                        .coerceAtLeast(0)
+                    val maxY =
+                        (appContext.resources.displayMetrics.heightPixels - targetView.height)
+                            .coerceAtLeast(0)
                     val nextY = (targetParams.y + deltaY.roundToInt()).coerceIn(0, maxY)
                     targetParams.y = nextY
                     runCatching {
@@ -222,7 +223,7 @@ class IncomingCallOverlay(
                                 .fillMaxWidth(0.94f)
                                 .widthIn(max = 420.dp),
                             shape = RoundedCornerShape(28.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.96f),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.88f),
                             tonalElevation = 0.dp,
                             shadowElevation = 0.dp,
                             border = BorderStroke(
