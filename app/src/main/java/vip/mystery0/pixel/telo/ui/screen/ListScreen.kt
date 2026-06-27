@@ -149,7 +149,9 @@ fun ListScreen(
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             // Tab 行：点击时通过动画滚动 Pager
             SecondaryTabRow(

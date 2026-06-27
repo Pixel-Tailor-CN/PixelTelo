@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.ui.screen
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
@@ -65,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -80,11 +83,15 @@ import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
+import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 import java.time.LocalDateTime
 
 @Composable
 fun SettingsScreen(viewModel: SettingViewModel) {
     val context = LocalContext.current
+    val autoCheckPermissionDeniedMessage = stringResource(
+        R.string.msg_auto_check_update_requires_notification_permission
+    )
     val previewOverlay = remember {
         IncomingCallOverlay(
             context,
@@ -121,6 +128,24 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         overlayPermissionGranted = Settings.canDrawOverlays(context)
     }
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        permissionsState = permissionsState.toMutableMap().apply {
+            this[Manifest.permission.POST_NOTIFICATIONS] = isGranted
+        }
+        if (isGranted) {
+            viewModel.updateAutoCheckUpdate(true)
+        } else {
+            viewModel.updateAutoCheckUpdate(false)
+            Toast.makeText(
+                context,
+                autoCheckPermissionDeniedMessage,
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     // 备份：通过系统文件保存对话框选择保存位置
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
@@ -149,6 +174,12 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             ) == PackageManager.PERMISSION_GRANTED)
         }
         overlayPermissionGranted = Settings.canDrawOverlays(context)
+        if (
+            viewModel.autoCheckUpdate &&
+            !OfflineDatabaseUpdateScheduler.hasNotificationPermission(context)
+        ) {
+            viewModel.updateAutoCheckUpdate(false)
+        }
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -162,6 +193,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         }
     }
 
+    val permissionOverlayDesc = stringResource(R.string.permission_overlay_desc)
     LaunchedEffect(viewModel.showLocationOverlayAdjuster) {
         if (viewModel.showLocationOverlayAdjuster) {
             val shown = previewOverlay.showPreview(
@@ -172,7 +204,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 viewModel.hideLocationOverlayAdjuster()
                 Toast.makeText(
                     context,
-                    context.getString(R.string.permission_overlay_desc),
+                    permissionOverlayDesc,
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -549,6 +581,8 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
+                var showAutoCheckIntervalDialog by remember { mutableStateOf(false) }
+
                 PreferenceCategory(title = { Text(stringResource(R.string.category_app_features)) })
                 Preference(
                     title = { Text(stringResource(R.string.setting_update_offline_data)) },
@@ -559,12 +593,106 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     }
                 )
 
-            Preference(
-                title = { Text(stringResource(R.string.title_test_intercept)) },
-                summary = { Text(stringResource(R.string.summary_test_intercept)) },
-                icon = { Icon(Icons.Default.PhoneInTalk, contentDescription = null) },
-                onClick = { viewModel.showTestDialog() }
-            )
+                SwitchPreference(
+                    value = viewModel.autoCheckUpdate,
+                    onValueChange = { enabled ->
+                        if (!enabled) {
+                            viewModel.updateAutoCheckUpdate(false)
+                        } else if (OfflineDatabaseUpdateScheduler.hasNotificationPermission(context)) {
+                            viewModel.updateAutoCheckUpdate(true)
+                        } else {
+                            notificationPermissionLauncher.launch(
+                                Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        }
+                    },
+                    title = { Text(stringResource(R.string.setting_auto_check_update)) },
+                    summary = { Text(stringResource(R.string.setting_auto_check_update_summary)) },
+                    icon = { Icon(Icons.Default.NotificationsNone, contentDescription = null) }
+                )
+
+                Preference(
+                    enabled = viewModel.autoCheckUpdate,
+                    title = { Text(stringResource(R.string.setting_auto_check_update_interval)) },
+                    summary = {
+                        Text(
+                            stringResource(
+                                R.string.setting_auto_check_update_interval_summary,
+                                viewModel.autoCheckUpdateIntervalHours
+                            )
+                        )
+                    },
+                    icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
+                    onClick = {
+                        if (viewModel.autoCheckUpdate) {
+                            showAutoCheckIntervalDialog = true
+                        }
+                    }
+                )
+
+                if (showAutoCheckIntervalDialog) {
+                    var intervalText by remember(showAutoCheckIntervalDialog) {
+                        mutableStateOf(viewModel.autoCheckUpdateIntervalHours.toString())
+                    }
+                    val intervalHours = intervalText.toIntOrNull()
+                    val minInterval = OfflineDatabaseUpdateScheduler.MIN_UPDATE_INTERVAL_HOURS
+                    val maxInterval = OfflineDatabaseUpdateScheduler.MAX_UPDATE_INTERVAL_HOURS
+                    val intervalValid = intervalHours != null &&
+                        intervalHours in minInterval..maxInterval
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showAutoCheckIntervalDialog = false },
+                        title = { Text(stringResource(R.string.title_auto_check_update_interval)) },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = intervalText,
+                                    onValueChange = { value ->
+                                        intervalText = value.filter { it.isDigit() }.take(3)
+                                    },
+                                    label = {
+                                        Text(stringResource(R.string.hint_auto_check_update_interval))
+                                    },
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Number
+                                    ),
+                                    singleLine = true,
+                                    isError = intervalText.isNotBlank() && !intervalValid,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                if (intervalText.isNotBlank() && !intervalValid) {
+                                    Text(
+                                        stringResource(R.string.error_auto_check_update_interval),
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                enabled = intervalValid,
+                                onClick = {
+                                    viewModel.updateAutoCheckUpdateIntervalHours(intervalHours!!)
+                                    showAutoCheckIntervalDialog = false
+                                }
+                            ) {
+                                Text(stringResource(R.string.action_confirm))
+                            }
+                        },
+                        dismissButton = {
+                            OutlinedButton(onClick = { showAutoCheckIntervalDialog = false }) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        }
+                    )
+                }
+
+                Preference(
+                    title = { Text(stringResource(R.string.title_test_intercept)) },
+                    summary = { Text(stringResource(R.string.summary_test_intercept)) },
+                    icon = { Icon(Icons.Default.PhoneInTalk, contentDescription = null) },
+                    onClick = { viewModel.showTestDialog() }
+                )
 
             PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
             Preference(

@@ -103,6 +103,7 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.compose.preference)
 
     implementation(libs.androidx.room.runtime)

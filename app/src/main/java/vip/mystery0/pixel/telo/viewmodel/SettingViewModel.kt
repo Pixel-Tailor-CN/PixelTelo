@@ -27,6 +27,7 @@ import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
+import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -129,6 +130,54 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun updateNetworkTimeout(timeout: Int) {
         networkTimeout = timeout
         prefs.edit { putInt(KEY_NETWORK_TIMEOUT, timeout) }
+    }
+
+    var autoCheckUpdate by mutableStateOf(
+        prefs.getBoolean(OfflineDatabaseUpdateScheduler.KEY_AUTO_CHECK_UPDATE, false)
+    )
+
+    fun updateAutoCheckUpdate(enabled: Boolean) {
+        if (enabled && !OfflineDatabaseUpdateScheduler.hasNotificationPermission(context)) {
+            autoCheckUpdate = false
+            prefs.edit {
+                putBoolean(OfflineDatabaseUpdateScheduler.KEY_AUTO_CHECK_UPDATE, false)
+            }
+            OfflineDatabaseUpdateScheduler.cancel(context)
+            return
+        }
+        autoCheckUpdate = enabled
+        prefs.edit {
+            putBoolean(OfflineDatabaseUpdateScheduler.KEY_AUTO_CHECK_UPDATE, enabled)
+        }
+        if (enabled) {
+            OfflineDatabaseUpdateScheduler.scheduleFromNow(
+                context,
+                autoCheckUpdateIntervalHours
+            )
+        } else {
+            OfflineDatabaseUpdateScheduler.cancel(context)
+        }
+    }
+
+    var autoCheckUpdateIntervalHours by mutableIntStateOf(
+        OfflineDatabaseUpdateScheduler.normalizeIntervalHours(
+            prefs.getInt(
+                OfflineDatabaseUpdateScheduler.KEY_AUTO_CHECK_UPDATE_INTERVAL_HOURS,
+                OfflineDatabaseUpdateScheduler.DEFAULT_UPDATE_INTERVAL_HOURS
+            )
+        )
+    )
+        private set
+
+    fun updateAutoCheckUpdateIntervalHours(hours: Int) {
+        val safeHours = OfflineDatabaseUpdateScheduler.normalizeIntervalHours(hours)
+        autoCheckUpdateIntervalHours = safeHours
+        prefs.edit {
+            putInt(OfflineDatabaseUpdateScheduler.KEY_AUTO_CHECK_UPDATE_INTERVAL_HOURS, safeHours)
+        }
+        if (autoCheckUpdate) {
+            OfflineDatabaseUpdateScheduler.scheduleFromNow(context, safeHours)
+        }
     }
 
     var showLocationOverlay by mutableStateOf(

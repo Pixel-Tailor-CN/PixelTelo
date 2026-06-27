@@ -1,6 +1,7 @@
 package vip.mystery0.pixel.telo.ui.util
 
 import android.Manifest
+import android.os.Build
 
 import vip.mystery0.pixel.telo.R
 
@@ -34,6 +35,14 @@ object PermissionUtils {
                     true
                 )
             )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                list += PermissionItem(
+                    Manifest.permission.POST_NOTIFICATIONS,
+                    R.string.permission_post_notifications_name,
+                    R.string.permission_post_notifications_desc,
+                    false
+                )
+            }
             return list
         }
 }

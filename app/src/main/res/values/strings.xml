@@ -88,6 +88,13 @@
     <string name="category_app_features">App Features</string>
     <string name="setting_update_offline_data">Update Offline Data</string>
     <string name="summary_current_version">Current version: </string>
+    <string name="setting_auto_check_update">Automatically check updates</string>
+    <string name="setting_auto_check_update_summary">Check offline database updates in the background and notify when a new version is available. Disabled by default.</string>
+    <string name="setting_auto_check_update_interval">Auto-check interval</string>
+    <string name="setting_auto_check_update_interval_summary">Current: %1$d h</string>
+    <string name="title_auto_check_update_interval">Auto-check interval</string>
+    <string name="hint_auto_check_update_interval">Hours</string>
+    <string name="error_auto_check_update_interval">Enter a whole number from 1 to 720.</string>
     <string name="setting_notify_only">Notify Only</string>
     <string name="setting_notify_only_summary">Only record spam calls, do not hang up.</string>
     <string name="setting_allow_repeat_call">Do not auto-block short repeat calls</string>
@@ -108,6 +115,8 @@
     <string name="permission_write_contacts_desc">Required by Android to forward directory lookup requests. Pixel Telo does not modify your contacts.</string>
     <string name="permission_read_call_log_name">Call log</string>
     <string name="permission_read_call_log_desc">Required by Android to provide phone lookup labels on the incoming call screen.</string>
+    <string name="permission_post_notifications_name">Notifications</string>
+    <string name="permission_post_notifications_desc">Used to remind you when an offline database update is available.</string>
     <string name="permission_overlay_name">Floating window</string>
     <string name="permission_overlay_desc">Required to show phone attribution above the incoming call screen.</string>
 
@@ -137,6 +146,7 @@
     <string name="msg_check_update_failed">Check update failed: %1$s</string>
     <string name="msg_update_success">Update successful!</string>
     <string name="msg_update_failed">Offline data update failed.</string>
+    <string name="msg_auto_check_update_requires_notification_permission">Notification permission is required to enable automatic update checks.</string>
     <string name="msg_test_failed">Test failed: %1$s</string>
     <string name="label_manual_test">Manual Test</string>
     <string name="msg_recorded_to_intercept_list">Recorded to intercept list.</string>
@@ -145,6 +155,9 @@
     <string name="msg_restored_count_records">Restored %1$d records.</string>
     <string name="msg_restore_failed">Restore failed: %1$s</string>
     <string name="msg_database_deleted">Offline database deleted.</string>
+    <string name="notification_offline_update_channel_name">Offline data updates</string>
+    <string name="notification_offline_update_title">Offline data update available</string>
+    <string name="notification_offline_update_text">Version %1$s is available. Open Pixel Telo to download it.</string>
 
     <!-- Navigation - Custom Rules -->
     <string name="nav_list">Custom</string>

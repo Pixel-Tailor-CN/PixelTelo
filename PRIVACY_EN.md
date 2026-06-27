@@ -24,6 +24,7 @@ requests are minimized.
 | `WRITE_CONTACTS` | Required for Android Directory Provider compatibility. The app does not create, modify, or delete contacts.                                                     |
 | `READ_CALL_LOG`  | Required for Android SDK 37+ Directory Provider phone lookup compatibility, so the app can receive incoming-call `phone_lookup` queries from the system Dialer. |
 | `INTERNET`       | Used to query number information when the local database has no match, and to update the local spam number database.                                            |
+| `POST_NOTIFICATIONS` | Used to notify the user when an offline database update is available after the user enables automatic update checks. Denying this permission prevents automatic update checks from being enabled, but does not affect manual updates, caller ID, or call blocking. |
 
 Contact and call log related permissions are used so Android can forward incoming-call or phone
 number lookup requests to the app. Pixel Telo
@@ -115,6 +116,13 @@ Each lookup request is **stateless**. The server does not set cookies or persist
 When the user manually checks for updates, the app sends the current local database version to the
 server so the server can determine whether a
 new version is available. This request does not contain phone numbers or personal information.
+
+The user can also enable **automatic update checks** in Settings. This feature is disabled by
+default. When enabled, the app uses WorkManager to check the offline database version in the
+background at the user-configured interval, which defaults to 24 hours. Automatic checks only send
+the current local database version and do not include phone numbers or personal information. When a
+new version is found, the app only sends a reminder notification and does not automatically download
+or install the database update.
 
 ---
 
