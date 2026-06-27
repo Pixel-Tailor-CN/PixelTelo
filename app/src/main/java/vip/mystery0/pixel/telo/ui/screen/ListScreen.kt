@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.ui.screen
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -138,6 +139,7 @@ fun ListScreen(
         viewModel.refreshNoNetworkQuery()
     }
 
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = { viewModel.openAddSheet() }) {
@@ -147,12 +149,8 @@ fun ListScreen(
                 )
             }
         }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
+    ) { _ ->
+        Column {
             // Tab 行：点击时通过动画滚动 Pager
             SecondaryTabRow(
                 selectedTabIndex = pagerState.currentPage,
