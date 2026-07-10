@@ -16,6 +16,7 @@ import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import vip.mystery0.pixel.telo.data.remote.FeedbackRequest
 import vip.mystery0.pixel.telo.data.remote.QueryApi
+import vip.mystery0.pixel.telo.data.remote.QueryErrorResponse
 import vip.mystery0.pixel.telo.data.remote.QueryRequest
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.remote.QuerySource
@@ -44,6 +45,9 @@ sealed interface FeedbackSubmitResult {
     data object Invalid : FeedbackSubmitResult
     data class RetryableFailure(val message: String?) : FeedbackSubmitResult
 }
+
+/** v2 接口返回的 HTTP 错误，message 优先携带服务端响应体中的错误说明 */
+class QueryApiException(val code: Int, message: String) : Exception(message)
 
 @Serializable
 private data class StoredSourceConfig(
@@ -126,7 +130,15 @@ class QueryRepository(
                 config.orderedIds.filter { it in config.enabledIds && it in config.availableIds }
             }
         }
-        val response = queryApi.queryNumber(QueryRequest(phone, sources))
+        val response = try {
+            queryApi.queryNumber(QueryRequest(phone, sources))
+        } catch (exception: HttpException) {
+            // 解析服务端错误响应体（{"error": "..."}），把可读的错误说明带给上层展示
+            throw QueryApiException(
+                exception.code(),
+                serverErrorMessage(exception) ?: exception.message()
+            )
+        }
         updateInvalidSources(response)
         return response
     }
@@ -140,7 +152,9 @@ class QueryRepository(
                 409 -> FeedbackSubmitResult.AlreadySubmitted
                 410 -> FeedbackSubmitResult.Expired
                 400 -> FeedbackSubmitResult.Invalid
-                else -> FeedbackSubmitResult.RetryableFailure(exception.message())
+                else -> FeedbackSubmitResult.RetryableFailure(
+                    serverErrorMessage(exception) ?: exception.message()
+                )
             }
         } catch (exception: CancellationException) {
             throw exception
@@ -195,6 +209,18 @@ class QueryRepository(
             defaultSources = defaultSources,
             availableIds = remoteIds,
         )
+    }
+
+    /** 从 HTTP 错误响应体中解析服务端错误说明，响应体缺失或格式不符时返回 null */
+    private fun serverErrorMessage(exception: HttpException): String? {
+        return runCatching {
+            val body = exception.response()?.errorBody()?.string()
+            if (body.isNullOrBlank()) {
+                null
+            } else {
+                json.decodeFromString<QueryErrorResponse>(body).error.takeIf { it.isNotBlank() }
+            }
+        }.getOrNull()
     }
 
     private suspend fun updateInvalidSources(response: QueryResponse) {

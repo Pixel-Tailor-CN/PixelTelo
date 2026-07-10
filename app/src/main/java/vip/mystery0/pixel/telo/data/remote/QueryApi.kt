@@ -64,6 +64,12 @@ data class QuerySourcesResponse(
     val availableSources: List<QuerySource> = emptyList(),
 )
 
+/** v2 接口出错时的响应体，error 为服务端提供的错误说明 */
+@Serializable
+data class QueryErrorResponse(
+    val error: String = ""
+)
+
 @Serializable
 data class FeedbackRequest(
     val token: String,
