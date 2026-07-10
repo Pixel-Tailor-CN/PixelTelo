@@ -266,14 +266,6 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 }
             }
         }
-        viewModelScope.launch {
-            // BottomSheet 打开期间刷新成功时，把首次取得的清单填入空草稿
-            queryRepository.sourceState.collect { state ->
-                if (showQuerySourceSheet && querySourceDraft.isEmpty() && state.items.isNotEmpty()) {
-                    querySourceDraft = state.items
-                }
-            }
-        }
     }
 
     fun checkUpdate() {
@@ -450,10 +442,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
         return saved
     }
 
-    /** 手动重试拉取 source 清单 */
+    /** 重试拉取 source 清单；刷新成功且 BottomSheet 仍打开时把清单填入空草稿 */
     fun retryQuerySourceRefresh() {
         viewModelScope.launch {
-            queryRepository.refreshSources()
+            val result = queryRepository.refreshSources()
+            if (result.isSuccess && showQuerySourceSheet && querySourceDraft.isEmpty()) {
+                querySourceDraft = queryRepository.sourceState.value.items
+            }
         }
     }
 
