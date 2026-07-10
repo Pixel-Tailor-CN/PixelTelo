@@ -1,6 +1,7 @@
 package vip.mystery0.pixel.telo.data.repository
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -214,7 +215,7 @@ class QueryRepository(
         refreshing: Boolean = _sourceState.value.refreshing,
         refreshFailed: Boolean = _sourceState.value.refreshFailed,
     ) {
-        preferences.edit().putString(SOURCE_CONFIG_KEY, json.encodeToString(config)).apply()
+        preferences.edit { putString(SOURCE_CONFIG_KEY, json.encodeToString(config)) }
         _sourceState.value = config.toState(refreshing, refreshFailed)
     }
 
