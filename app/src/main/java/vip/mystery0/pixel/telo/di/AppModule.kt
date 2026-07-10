@@ -14,9 +14,11 @@ import vip.mystery0.pixel.telo.data.MIGRATION_1_2
 import vip.mystery0.pixel.telo.data.MIGRATION_2_3
 import vip.mystery0.pixel.telo.data.MIGRATION_3_4
 import vip.mystery0.pixel.telo.data.MIGRATION_4_5
+import vip.mystery0.pixel.telo.data.remote.QueryApi
 import vip.mystery0.pixel.telo.data.remote.SyncApi
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
+import vip.mystery0.pixel.telo.data.repository.QueryRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
@@ -45,15 +47,19 @@ val appModule = module {
             .build()
     }
 
+    single { Json { ignoreUnknownKeys = true } }
+
     single {
-        val json = Json { ignoreUnknownKeys = true }
         Retrofit.Builder()
             .baseUrl("https://pixeltelo.api.mystery0.vip/")
             .client(get())
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .addConverterFactory(get<Json>().asConverterFactory("application/json".toMediaType()))
             .build()
-            .create(SyncApi::class.java)
     }
+
+    single { get<Retrofit>().create(SyncApi::class.java) }
+    single { get<Retrofit>().create(QueryApi::class.java) }
+    single { QueryRepository(get(), get()) }
 
     single { SyncRepository(androidContext(), get(), get()) }
 

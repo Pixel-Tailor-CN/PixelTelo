@@ -21,36 +21,7 @@ data class SyncResponse(
     val rowCount: Long = 0
 )
 
-@Serializable
-data class PhoneLocationInfo(
-    @SerialName("cardType")
-    val cardType: String = "",
-    @SerialName("province")
-    val province: String = "",
-    @SerialName("city")
-    val city: String = ""
-)
-
-@Serializable
-data class QueryResponse(
-    @SerialName("phone")
-    val phone: String,
-    @SerialName("is_spam")
-    val isSpam: Boolean,
-    @SerialName("tag")
-    val tag: String = "",
-    @SerialName("confidence")
-    val confidence: Int,
-    @SerialName("source")
-    val source: String,
-    @SerialName("data")
-    val data: PhoneLocationInfo? = null
-)
-
 interface SyncApi {
     @GET("api/v1/sync/check")
     suspend fun checkUpdate(@Query("current_version") currentVersion: String): SyncResponse
-
-    @GET("api/v1/query")
-    suspend fun queryNumber(@Query("number") number: String): QueryResponse
 }
