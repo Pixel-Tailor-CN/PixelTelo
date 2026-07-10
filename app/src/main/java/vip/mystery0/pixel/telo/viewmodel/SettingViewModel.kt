@@ -57,6 +57,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_LOCATION_OVERLAY_OFFSET_DP = "location_overlay_offset_dp"
         const val KEY_ALLOW_REPEAT_CALL = "allow_repeat_call"
         const val KEY_REPEAT_CALL_WINDOW_MINUTES = "repeat_call_window_minutes"
+        const val KEY_FEEDBACK_NOTIFICATION = "feedback_notification"
         const val DEFAULT_NETWORK_TIMEOUT_SECONDS = 3
         const val DEFAULT_REPEAT_CALL_WINDOW_MINUTES = 3
         const val DEFAULT_LOCATION_OVERLAY_OFFSET_DP = 56
@@ -226,6 +227,13 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun updateLocationOverlayOffset(offsetDp: Int) {
         locationOverlayOffsetDp = offsetDp.coerceAtLeast(0)
         prefs.edit { putInt(KEY_LOCATION_OVERLAY_OFFSET_DP, locationOverlayOffsetDp) }
+    }
+
+    var feedbackNotification by mutableStateOf(prefs.getBoolean(KEY_FEEDBACK_NOTIFICATION, true))
+
+    fun updateFeedbackNotification(enabled: Boolean) {
+        feedbackNotification = enabled
+        prefs.edit { putBoolean(KEY_FEEDBACK_NOTIFICATION, enabled) }
     }
 
     var allowRepeatCall by mutableStateOf(prefs.getBoolean(KEY_ALLOW_REPEAT_CALL, false))

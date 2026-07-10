@@ -15,6 +15,7 @@ class BlockedCallRepository : KoinComponent {
 
     val allBlockedCalls: Flow<List<BlockedCall>> = blockedCallDao.getAll()
 
+    /** 插入拦截记录，返回新记录的自增 id */
     suspend fun insert(
         phoneNumber: String,
         remark: String?,
@@ -24,7 +25,7 @@ class BlockedCallRepository : KoinComponent {
         label: String? = null,
         querySource: String? = null,
         feedbackToken: String? = null,
-    ) {
+    ): Long {
         val token = feedbackToken?.takeIf { it.isNotBlank() }
         val blockedCall = BlockedCall(
             phoneNumber = phoneNumber,
@@ -38,7 +39,11 @@ class BlockedCallRepository : KoinComponent {
             feedbackToken = token,
             feedbackStatus = if (token != null) FeedbackStatus.PENDING else FeedbackStatus.UNAVAILABLE,
         )
-        blockedCallDao.insert(blockedCall)
+        return blockedCallDao.insert(blockedCall)
+    }
+
+    suspend fun findById(id: Long): BlockedCall? {
+        return blockedCallDao.findById(id)
     }
 
     /**

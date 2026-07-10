@@ -244,4 +244,16 @@
     <string name="feedback_status_already_submitted">该结果已提交过反馈</string>
     <string name="feedback_status_expired">反馈已过期</string>
     <string name="feedback_status_invalid">反馈凭证无效</string>
+
+    <!-- Feedback Notification -->
+    <string name="permission_read_phone_state_name">电话状态</string>
+    <string name="permission_read_phone_state_desc">用于识别通话结束时机，以便在通话结束后提醒你反馈查询结果</string>
+    <string name="setting_feedback_notification">通话结束后提醒反馈</string>
+    <string name="setting_feedback_notification_summary">带有联网查询结果的来电结束后，弹出通知让你反馈本次识别是否准确</string>
+    <string name="notification_feedback_channel_name">查询结果反馈</string>
+    <string name="notification_feedback_title">本次来电识别准确吗？</string>
+    <string name="notification_feedback_text_marked">%1$s 被标记为 %2$s（数据源: %3$s）</string>
+    <string name="notification_feedback_text_not_marked">%1$s 未被识别为骚扰电话（数据源: %2$s）</string>
+    <string name="notification_feedback_submitting">正在提交反馈…</string>
+    <string name="notification_feedback_failed">反馈提交失败，可稍后在拦截记录详情中重试。</string>
 </resources>

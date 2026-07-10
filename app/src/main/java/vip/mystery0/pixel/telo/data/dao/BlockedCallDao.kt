@@ -28,6 +28,9 @@ interface BlockedCallDao {
     @Query("SELECT * FROM blocked_calls WHERE phoneNumber = :phoneNumber AND blockTime = :blockTime LIMIT 1")
     suspend fun findByKey(phoneNumber: String, blockTime: Long): BlockedCall?
 
+    @Query("SELECT * FROM blocked_calls WHERE id = :id LIMIT 1")
+    suspend fun findById(id: Long): BlockedCall?
+
     /** 按 source 统计自 since 以来联网命中的去重号码数与指定反馈状态的记录数 */
     @Query(
         """
@@ -42,7 +45,7 @@ interface BlockedCallDao {
     suspend fun getSourceQualityStats(since: Long, negativeStatus: String): List<QuerySourceQuality>
 
     @Insert
-    suspend fun insert(blockedCall: BlockedCall)
+    suspend fun insert(blockedCall: BlockedCall): Long
 
     @Update
     suspend fun update(blockedCall: BlockedCall)

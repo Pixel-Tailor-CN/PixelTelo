@@ -246,4 +246,16 @@
     <string name="feedback_status_already_submitted">Feedback was already submitted for this result</string>
     <string name="feedback_status_expired">Feedback expired</string>
     <string name="feedback_status_invalid">Feedback credential invalid</string>
+
+    <!-- Feedback Notification -->
+    <string name="permission_read_phone_state_name">Phone state</string>
+    <string name="permission_read_phone_state_desc">Used to detect when a call ends so we can remind you to rate the query result.</string>
+    <string name="setting_feedback_notification">Feedback reminder after calls</string>
+    <string name="setting_feedback_notification_summary">After a call with an online query result ends, show a notification to rate whether the result was accurate.</string>
+    <string name="notification_feedback_channel_name">Query result feedback</string>
+    <string name="notification_feedback_title">Was this call identified correctly?</string>
+    <string name="notification_feedback_text_marked">%1$s was marked as %2$s (source: %3$s).</string>
+    <string name="notification_feedback_text_not_marked">%1$s was not identified as spam (source: %2$s).</string>
+    <string name="notification_feedback_submitting">Submitting feedback…</string>
+    <string name="notification_feedback_failed">Feedback failed. You can retry later from the record detail.</string>
 </resources>

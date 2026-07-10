@@ -33,6 +33,12 @@ object PermissionUtils {
                     R.string.permission_read_call_log_name,
                     R.string.permission_read_call_log_desc,
                     true
+                ),
+                PermissionItem(
+                    Manifest.permission.READ_PHONE_STATE,
+                    R.string.permission_read_phone_state_name,
+                    R.string.permission_read_phone_state_desc,
+                    false
                 )
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

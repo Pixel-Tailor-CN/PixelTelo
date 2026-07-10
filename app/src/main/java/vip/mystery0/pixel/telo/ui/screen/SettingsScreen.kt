@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RestorePage
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ThumbsUpDown
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
@@ -843,6 +844,14 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 summary = { Text(stringResource(R.string.setting_query_sources_summary)) },
                 icon = { Icon(Icons.Default.Dns, contentDescription = null) },
                 onClick = { viewModel.openQuerySourceSettings() }
+            )
+
+            SwitchPreference(
+                value = viewModel.feedbackNotification,
+                onValueChange = { viewModel.updateFeedbackNotification(it) },
+                title = { Text(stringResource(R.string.setting_feedback_notification)) },
+                summary = { Text(stringResource(R.string.setting_feedback_notification_summary)) },
+                icon = { Icon(Icons.Default.ThumbsUpDown, contentDescription = null) }
             )
 
             var showTimeoutDialog by remember { mutableStateOf(false) }

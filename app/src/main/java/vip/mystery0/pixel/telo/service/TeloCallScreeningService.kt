@@ -12,6 +12,7 @@ import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
+import vip.mystery0.pixel.telo.receiver.QueryFeedbackNotifier
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 class TeloCallScreeningService : CallScreeningService(), KoinComponent {
@@ -70,7 +71,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                     response.setSilenceCall(true)
                     response.setSkipCallLog(false)
 
-                    blockedCallRepository.insert(
+                    val recordId = blockedCallRepository.insert(
                         phoneNumber,
                         remark = "$repeatLabel（重复来电，静音展示）",
                         ResultType.PASS_BUT_NOTIFY,
@@ -80,13 +81,14 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         querySource = result.querySource,
                         feedbackToken = result.feedbackToken
                     )
+                    markFeedbackPromptIfEligible(recordId, result)
                 } else if (result.shouldBlock) {
                     if (notifyOnly) {
                         response.setDisallowCall(false)
                         response.setRejectCall(false)
                         response.setSkipCallLog(false)
 
-                        blockedCallRepository.insert(
+                        val recordId = blockedCallRepository.insert(
                             phoneNumber,
                             remark = result.label + " (仅提示)",
                             ResultType.PASS_BUT_NOTIFY,
@@ -96,6 +98,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             querySource = result.querySource,
                             feedbackToken = result.feedbackToken
                         )
+                        markFeedbackPromptIfEligible(recordId, result)
                     } else {
                         callRejected = true
                         response.setDisallowCall(true)
@@ -128,7 +131,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             label = null
                         )
                     } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
-                        blockedCallRepository.insert(
+                        val recordId = blockedCallRepository.insert(
                             phoneNumber,
                             remark = result.label.takeIf { it.isNotBlank() } ?: "正常来电",
                             ResultType.PASS,
@@ -138,6 +141,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             querySource = result.querySource,
                             feedbackToken = result.feedbackToken
                         )
+                        markFeedbackPromptIfEligible(recordId, result)
                     }
                 }
                 showLocationOverlayIfNeeded(phoneNumber, result, callRejected)
@@ -150,6 +154,16 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                 respondToCall(callDetails, response.build())
             }
         }
+    }
+
+    /**
+     * 放行且记录持有反馈 token 时写入待提醒标记，
+     * 通话结束（回到 IDLE）后由 CallStateReceiver 兑现为反馈询问通知。
+     * 被拒接的来电不响铃，不进入此路径。
+     */
+    private fun markFeedbackPromptIfEligible(recordId: Long, result: CheckResult) {
+        if (result.feedbackToken.isNullOrBlank()) return
+        QueryFeedbackNotifier.markPendingFeedback(prefs, recordId)
     }
 
     private fun showLocationOverlayIfNeeded(
