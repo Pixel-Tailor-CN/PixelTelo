@@ -1,12 +1,15 @@
 package vip.mystery0.pixel.telo.data.repository
 
 import android.content.SharedPreferences
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
@@ -78,6 +81,11 @@ class QueryRepository(
                 persistAndPublish(refreshed, refreshing = false, refreshFailed = false)
             }
             Result.success(Unit)
+        } catch (exception: CancellationException) {
+            withContext(NonCancellable) {
+                updateState { it.copy(refreshing = false) }
+            }
+            throw exception
         } catch (exception: Exception) {
             updateState { it.copy(refreshing = false, refreshFailed = true) }
             Result.failure(exception)
@@ -128,6 +136,8 @@ class QueryRepository(
                 400 -> FeedbackSubmitResult.Invalid
                 else -> FeedbackSubmitResult.RetryableFailure(exception.message())
             }
+        } catch (exception: CancellationException) {
+            throw exception
         } catch (exception: Exception) {
             FeedbackSubmitResult.RetryableFailure(exception.message)
         }
@@ -196,8 +206,8 @@ class QueryRepository(
 
     private fun persistAndPublish(
         config: StoredSourceConfig,
-        refreshing: Boolean = false,
-        refreshFailed: Boolean = false,
+        refreshing: Boolean = _sourceState.value.refreshing,
+        refreshFailed: Boolean = _sourceState.value.refreshFailed,
     ) {
         preferences.edit().putString(SOURCE_CONFIG_KEY, json.encodeToString(config)).apply()
         _sourceState.value = config.toState(refreshing, refreshFailed)
