@@ -172,6 +172,7 @@ git commit -m "feat: add configurable v2 query repository"
 
 **Files:**
 - Modify: `app/src/main/java/vip/mystery0/pixel/telo/data/repository/SpamNumberRepository.kt`
+- Modify: `app/src/main/java/vip/mystery0/pixel/telo/data/remote/SyncApi.kt`
 - Modify: `app/src/main/java/vip/mystery0/pixel/telo/viewmodel/SettingViewModel.kt`
 - Modify: `app/src/main/java/vip/mystery0/pixel/telo/ui/screen/SettingsScreen.kt`
 
