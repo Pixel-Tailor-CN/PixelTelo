@@ -57,12 +57,31 @@ data class QueryResponse(
     val confidence: Int,
     val source: String,
     val data: PhoneLocationInfo? = null,
-    @SerialName("feedback_token") val feedbackToken: String,
-    @SerialName("query_mode") val queryMode: String,
+    @SerialName("feedback_token") val feedbackToken: String = "",
+    @SerialName("query_mode") val queryMode: String = "v1",
     @SerialName("requested_sources") val requestedSources: List<String> = emptyList(),
     @SerialName("effective_sources") val effectiveSources: List<String> = emptyList(),
     val warnings: List<QueryWarning> = emptyList(),
 )
+
+@Serializable
+data class QueryWarning(
+    val code: String,
+    val message: String = "",
+    @SerialName("invalid_sources") val invalidSources: List<String> = emptyList(),
+)
+
+@Serializable
+data class QuerySourcesResponse(
+    @SerialName("default_sources") val defaultSources: List<String> = emptyList(),
+    @SerialName("available_sources") val availableSources: List<QuerySource> = emptyList(),
+)
+
+@Serializable
+data class FeedbackRequest(val token: String, val positive: Boolean)
+
+@Serializable
+data class FeedbackResponse(val status: String)
 
 interface QueryApi {
     @GET("api/v2/sources")
@@ -76,7 +95,7 @@ interface QueryApi {
 }
 ```
 
-`SyncApi.kt` 只保留 `SyncResponse` 与 `checkUpdate()`。
+为保证 Task 1 独立可编译，`SyncApi.kt` 暂时保留现有 v1 `queryNumber()` 方法并返回已移动到 `QueryApi.kt` 的 `QueryResponse`；Task 2 完成调用替换后再删除该兼容方法。
 
 - [ ] **Step 2: 定义 source 状态和反馈结果**
 
@@ -111,13 +130,13 @@ sealed interface FeedbackSubmitResult {
 
 - [ ] **Step 3: 实现 source 首次初始化与增量合并**
 
-实现 `refreshSources()`：按 priority 排序并去重；首次启用 `default_sources`；后续保留已有顺序和启用状态；新 source 追加且关闭；旧 source 保留但 `available=false`。只有请求成功时写入 `SharedPreferences`。
+实现 `refreshSources()`：先按 priority 对 `available_sources` 排序并去重；首次排序严格使用服务端 `default_sources` 的原始顺序，再追加不在默认列表中的可用 source，且只启用 `default_sources`；后续保留已有顺序和启用状态；新 source 追加且关闭；旧 source 保留但 `available=false`。只有请求成功时写入 `SharedPreferences`。
 
 持久化结构使用 `@Serializable StoredSourceConfig`，至少保存 `initialized`、`orderedIds`、`enabledIds`、`defaultSources`、`availableIds`。所有读写通过一个 `Mutex` 串行化。
 
 - [ ] **Step 4: 实现保存配置、v2 查询与反馈映射**
 
-`saveSourceSelection()` 必须验证至少一个 `available && enabled` 项；`queryNumber()` 仅发送本地启用且可用的有序 ID，未初始化或全部失效时发送空列表。收到 warning 的 `invalid_sources` 后把对应 source 标记为不可用并持久化。
+`saveSourceSelection()` 必须验证至少一个 `available && enabled` 项；`queryNumber()` 仅发送本地启用且可用的有序 ID，未初始化或全部失效时发送空列表。收到任意 warning 的 `invalid_sources` 后把对应 source 标记为不可用并持久化。
 
 `submitFeedback()` 捕获 `HttpException` 并映射：`409 -> AlreadySubmitted`、`410 -> Expired`、`400 -> Invalid`，其他 HTTP/IO 错误返回 `RetryableFailure`。
 
@@ -174,7 +193,7 @@ data class CheckResult(
 
 - [ ] **Step 2: 替换 v1 查询调用**
 
-移除 `SyncApi` 注入，改为注入 `QueryRepository`。`queryNetwork()` 和 `checkSpam()` 的联网阶段统一调用 `queryRepository.queryNumber(phone)`。日志只记录 source 与耗时，不输出完整响应、token 或完整号码。
+移除 `SyncApi` 注入，改为注入 `QueryRepository`。`queryNetwork()` 和 `checkSpam()` 的联网阶段统一调用 `queryRepository.queryNumber(phone)`，随后从 `SyncApi` 删除临时保留的 v1 `queryNumber()`。日志只记录 source 与耗时，不输出完整响应、token 或完整号码。
 
 - [ ] **Step 3: 收紧超时设置**
 
