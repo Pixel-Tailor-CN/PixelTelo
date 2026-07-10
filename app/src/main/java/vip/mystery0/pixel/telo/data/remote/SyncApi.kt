@@ -24,7 +24,4 @@ data class SyncResponse(
 interface SyncApi {
     @GET("api/v1/sync/check")
     suspend fun checkUpdate(@Query("current_version") currentVersion: String): SyncResponse
-
-    @GET("api/v1/query")
-    suspend fun queryNumber(@Query("number") number: String): QueryResponse
 }

@@ -52,7 +52,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_LOCATION_OVERLAY_OFFSET_DP = "location_overlay_offset_dp"
         const val KEY_ALLOW_REPEAT_CALL = "allow_repeat_call"
         const val KEY_REPEAT_CALL_WINDOW_MINUTES = "repeat_call_window_minutes"
-        const val DEFAULT_NETWORK_TIMEOUT_SECONDS = 5
+        const val DEFAULT_NETWORK_TIMEOUT_SECONDS = 3
         const val DEFAULT_REPEAT_CALL_WINDOW_MINUTES = 3
         const val DEFAULT_LOCATION_OVERLAY_OFFSET_DP = 56
     }
@@ -123,13 +123,21 @@ class SettingViewModel : ViewModel(), KoinComponent {
         prefs.edit { putBoolean(KEY_ALWAYS_RECORD, enabled) }
     }
 
-    var networkTimeout by mutableIntStateOf(
-        prefs.getInt(KEY_NETWORK_TIMEOUT, DEFAULT_NETWORK_TIMEOUT_SECONDS)
-    )
+    var networkTimeout by mutableIntStateOf(readNetworkTimeout())
 
     fun updateNetworkTimeout(timeout: Int) {
-        networkTimeout = timeout
-        prefs.edit { putInt(KEY_NETWORK_TIMEOUT, timeout) }
+        val safeTimeout = timeout.coerceIn(1, 3)
+        networkTimeout = safeTimeout
+        prefs.edit { putInt(KEY_NETWORK_TIMEOUT, safeTimeout) }
+    }
+
+    private fun readNetworkTimeout(): Int {
+        val storedTimeout = prefs.getInt(KEY_NETWORK_TIMEOUT, DEFAULT_NETWORK_TIMEOUT_SECONDS)
+        val safeTimeout = storedTimeout.coerceIn(1, 3)
+        if (storedTimeout != safeTimeout) {
+            prefs.edit { putInt(KEY_NETWORK_TIMEOUT, safeTimeout) }
+        }
+        return safeTimeout
     }
 
     var autoCheckUpdate by mutableStateOf(
