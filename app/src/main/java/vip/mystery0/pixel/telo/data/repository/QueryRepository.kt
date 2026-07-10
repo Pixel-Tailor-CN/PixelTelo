@@ -12,7 +12,9 @@ import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import vip.mystery0.pixel.telo.data.remote.FeedbackRequest
 import vip.mystery0.pixel.telo.data.remote.QueryApi
+import vip.mystery0.pixel.telo.data.remote.QueryRequest
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
+import vip.mystery0.pixel.telo.data.remote.QuerySource
 
 data class QuerySourceItem(
     val id: String,
@@ -68,7 +70,11 @@ class QueryRepository(
             val response = queryApi.getSources()
             configMutex.withLock {
                 val current = readStoredConfig()
-                val refreshed = mergeSourceConfig(current, response.sources, response.defaultSources)
+                val refreshed = mergeSourceConfig(
+                    current,
+                    response.availableSources,
+                    response.defaultSources
+                )
                 persistAndPublish(refreshed, refreshing = false, refreshFailed = false)
             }
             Result.success(Unit)
@@ -106,9 +112,7 @@ class QueryRepository(
                 config.orderedIds.filter { it in config.enabledIds && it in config.availableIds }
             }
         }
-        val response = queryApi.queryNumber(
-            vip.mystery0.pixel.telo.data.remote.QueryRequest(phone, sources)
-        )
+        val response = queryApi.queryNumber(QueryRequest(phone, sources))
         updateInvalidSources(response)
         return response
     }
@@ -149,7 +153,7 @@ class QueryRepository(
 
     private fun mergeSourceConfig(
         current: StoredSourceConfig,
-        remoteSources: List<vip.mystery0.pixel.telo.data.remote.QuerySource>,
+        remoteSources: List<QuerySource>,
         remoteDefaults: List<String>,
     ): StoredSourceConfig {
         val remoteIds = remoteSources
@@ -179,8 +183,7 @@ class QueryRepository(
 
     private suspend fun updateInvalidSources(response: QueryResponse) {
         val invalidIds = response.warnings
-            .filter { it.code == "invalid_sources" }
-            .flatMap { it.sources }
+            .flatMap { it.invalidSources }
             .toSet()
         if (invalidIds.isEmpty()) return
 

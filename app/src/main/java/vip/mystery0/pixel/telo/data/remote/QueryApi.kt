@@ -32,9 +32,9 @@ data class QueryResponse(
     val source: String,
     val data: PhoneLocationInfo? = null,
     @SerialName("feedback_token")
-    val feedbackToken: String,
+    val feedbackToken: String = "",
     @SerialName("query_mode")
-    val queryMode: String,
+    val queryMode: String = "v1",
     @SerialName("requested_sources")
     val requestedSources: List<String> = emptyList(),
     @SerialName("effective_sources")
@@ -45,7 +45,9 @@ data class QueryResponse(
 @Serializable
 data class QueryWarning(
     val code: String,
-    val sources: List<String> = emptyList()
+    val message: String = "",
+    @SerialName("invalid_sources")
+    val invalidSources: List<String> = emptyList(),
 )
 
 @Serializable
@@ -56,21 +58,21 @@ data class QuerySource(
 
 @Serializable
 data class QuerySourcesResponse(
-    val sources: List<QuerySource> = emptyList(),
     @SerialName("default_sources")
-    val defaultSources: List<String> = emptyList()
+    val defaultSources: List<String> = emptyList(),
+    @SerialName("available_sources")
+    val availableSources: List<QuerySource> = emptyList(),
 )
 
 @Serializable
 data class FeedbackRequest(
-    @SerialName("feedback_token")
-    val feedbackToken: String,
-    val positive: Boolean
+    val token: String,
+    val positive: Boolean,
 )
 
 @Serializable
 data class FeedbackResponse(
-    val accepted: Boolean = true
+    val status: String
 )
 
 interface QueryApi {
