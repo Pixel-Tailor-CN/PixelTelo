@@ -62,11 +62,16 @@ class QueryRepository(
     }
 
     private val configMutex = Mutex()
+    private val refreshMutex = Mutex()
     private val json = Json { ignoreUnknownKeys = true }
     private val _sourceState = MutableStateFlow(readInitialState())
     val sourceState: StateFlow<QuerySourceState> = _sourceState.asStateFlow()
 
-    suspend fun refreshSources(): Result<Unit> {
+    suspend fun refreshSources(): Result<Unit> = refreshMutex.withLock {
+        refreshSourcesLocked()
+    }
+
+    private suspend fun refreshSourcesLocked(): Result<Unit> {
         updateState { it.copy(refreshing = true, refreshFailed = false) }
 
         return try {
