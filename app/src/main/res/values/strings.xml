@@ -223,6 +223,7 @@
     <string name="title_query_sources">Online Query Sources</string>
     <string name="msg_query_sources_hint">Queries follow the order below. At least one available source must stay enabled.</string>
     <string name="label_source_unavailable">Offline (no longer provided by the server)</string>
+    <string name="label_source_quality_stats">Last 7 days: %1$d numbers · %2$d marked inaccurate</string>
     <string name="action_move_up">Move up</string>
     <string name="action_move_down">Move down</string>
     <string name="action_restore_default_sources">Restore server defaults</string>

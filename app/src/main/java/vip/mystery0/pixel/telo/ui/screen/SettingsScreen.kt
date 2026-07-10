@@ -86,6 +86,7 @@ import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
 import vip.mystery0.pixel.telo.data.repository.QuerySourceItem
 import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
@@ -609,6 +610,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                         draft.forEachIndexed { index, item ->
                             QuerySourceRow(
                                 item = item,
+                                quality = viewModel.querySourceQuality[item.id],
                                 canMoveUp = index > 0,
                                 canMoveDown = index < draft.lastIndex,
                                 onMoveUp = { viewModel.moveQuerySource(item.id, -1) },
@@ -1112,12 +1114,13 @@ fun SettingsScreen(viewModel: SettingViewModel) {
 }
 
 /**
- * source 设置行：source ID + 可用状态 + 上下移动按钮 + 启停开关。
+ * source 设置行：source ID + 近 7 天质量统计 + 可用状态 + 上下移动按钮 + 启停开关。
  * 不可用 source 保留展示，但开关只允许从启用改为停用。
  */
 @Composable
 private fun QuerySourceRow(
     item: QuerySourceItem,
+    quality: QuerySourceQuality?,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onMoveUp: () -> Unit,
@@ -1130,6 +1133,15 @@ private fun QuerySourceRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(item.id, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(
+                    R.string.label_source_quality_stats,
+                    quality?.phoneCount ?: 0,
+                    quality?.negativeCount ?: 0
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             if (!item.available) {
                 Text(
                     stringResource(R.string.label_source_unavailable),

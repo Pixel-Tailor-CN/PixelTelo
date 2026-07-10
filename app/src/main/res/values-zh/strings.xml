@@ -221,6 +221,7 @@
     <string name="title_query_sources">联网查询数据源</string>
     <string name="msg_query_sources_hint">查询按以下顺序依次进行，至少需要启用一个当前可用的数据源。</string>
     <string name="label_source_unavailable">已下线（服务端不再提供）</string>
+    <string name="label_source_quality_stats">近7天: %1$d 个号码 · %2$d 条标记不准确</string>
     <string name="action_move_up">上移</string>
     <string name="action_move_down">下移</string>
     <string name="action_restore_default_sources">恢复服务端默认</string>

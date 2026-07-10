@@ -20,6 +20,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
 import vip.mystery0.pixel.telo.data.remote.SyncResponse
 import vip.mystery0.pixel.telo.data.repository.BackupOptions
 import vip.mystery0.pixel.telo.data.repository.BackupPreview
@@ -59,6 +60,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val DEFAULT_NETWORK_TIMEOUT_SECONDS = 3
         const val DEFAULT_REPEAT_CALL_WINDOW_MINUTES = 3
         const val DEFAULT_LOCATION_OVERLAY_OFFSET_DP = 56
+
+        /** source 质量统计窗口：近 7 天 */
+        const val QUALITY_STATS_WINDOW_MILLIS = 7L * 24 * 60 * 60 * 1000
     }
 
     private val syncRepository: SyncRepository by inject()
@@ -384,12 +388,25 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var querySourceDraft by mutableStateOf<List<QuerySourceItem>>(emptyList())
         private set
 
+    /** 各 source 近 7 天的查询质量统计，key 为 source ID */
+    var querySourceQuality by mutableStateOf<Map<String, QuerySourceQuality>>(emptyMap())
+        private set
+
     /** 打开 source 设置 BottomSheet，无缓存时触发一次刷新 */
     fun openQuerySourceSettings() {
         querySourceDraft = queryRepository.sourceState.value.items
         showQuerySourceSheet = true
+        loadQuerySourceQuality()
         if (querySourceDraft.isEmpty()) {
             retryQuerySourceRefresh()
+        }
+    }
+
+    /** 加载近 7 天各 source 的号码数与“结果不准确”标记数 */
+    private fun loadQuerySourceQuality() {
+        viewModelScope.launch {
+            val since = System.currentTimeMillis() - QUALITY_STATS_WINDOW_MILLIS
+            querySourceQuality = blockedCallRepository.getSourceQualityStats(since)
         }
     }
 

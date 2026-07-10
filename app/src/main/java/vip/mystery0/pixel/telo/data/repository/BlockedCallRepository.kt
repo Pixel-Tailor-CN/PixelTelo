@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.dao.BlockedCallDao
+import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ResultType
@@ -63,6 +64,12 @@ class BlockedCallRepository : KoinComponent {
         val updated = call.copy(feedbackStatus = status)
         blockedCallDao.update(updated)
         return updated
+    }
+
+    /** 按 source 统计自 since 以来的查询质量数据，key 为 source ID */
+    suspend fun getSourceQualityStats(since: Long): Map<String, QuerySourceQuality> {
+        return blockedCallDao.getSourceQualityStats(since, FeedbackStatus.NEGATIVE.name)
+            .associateBy { it.source }
     }
 
     suspend fun update(blockedCall: BlockedCall) {
