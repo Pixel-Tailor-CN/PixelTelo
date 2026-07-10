@@ -885,8 +885,8 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                             androidx.compose.material3.Slider(
                                 value = sliderValue,
                                 onValueChange = { sliderValue = it },
-                                valueRange = 1f..3f,
-                                steps = 1
+                                valueRange = 1f..10f,
+                                steps = 8
                             )
                         }
                     },

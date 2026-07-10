@@ -58,7 +58,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_ALLOW_REPEAT_CALL = "allow_repeat_call"
         const val KEY_REPEAT_CALL_WINDOW_MINUTES = "repeat_call_window_minutes"
         const val KEY_FEEDBACK_NOTIFICATION = "feedback_notification"
-        const val DEFAULT_NETWORK_TIMEOUT_SECONDS = 3
+        const val DEFAULT_NETWORK_TIMEOUT_SECONDS = 5
+        const val MIN_NETWORK_TIMEOUT_SECONDS = 1
+        const val MAX_NETWORK_TIMEOUT_SECONDS = 10
         const val DEFAULT_REPEAT_CALL_WINDOW_MINUTES = 3
         const val DEFAULT_LOCATION_OVERLAY_OFFSET_DP = 56
 
@@ -136,14 +138,21 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var networkTimeout by mutableIntStateOf(readNetworkTimeout())
 
     fun updateNetworkTimeout(timeout: Int) {
-        val safeTimeout = timeout.coerceIn(1, 3)
+        val safeTimeout = timeout.coerceIn(
+            MIN_NETWORK_TIMEOUT_SECONDS,
+            MAX_NETWORK_TIMEOUT_SECONDS
+        )
         networkTimeout = safeTimeout
         prefs.edit { putInt(KEY_NETWORK_TIMEOUT, safeTimeout) }
     }
 
+    /** 读取超时配置并夹紧到允许范围，旧版本保存的超范围值会被自动修正 */
     private fun readNetworkTimeout(): Int {
         val storedTimeout = prefs.getInt(KEY_NETWORK_TIMEOUT, DEFAULT_NETWORK_TIMEOUT_SECONDS)
-        val safeTimeout = storedTimeout.coerceIn(1, 3)
+        val safeTimeout = storedTimeout.coerceIn(
+            MIN_NETWORK_TIMEOUT_SECONDS,
+            MAX_NETWORK_TIMEOUT_SECONDS
+        )
         if (storedTimeout != safeTimeout) {
             prefs.edit { putInt(KEY_NETWORK_TIMEOUT, safeTimeout) }
         }

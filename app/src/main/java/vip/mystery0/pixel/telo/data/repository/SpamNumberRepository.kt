@@ -269,7 +269,10 @@ class SpamNumberRepository : KoinComponent {
         return prefs.getInt(
             SettingViewModel.KEY_NETWORK_TIMEOUT,
             SettingViewModel.DEFAULT_NETWORK_TIMEOUT_SECONDS
-        ).coerceIn(1, 3) * 1000L
+        ).coerceIn(
+            SettingViewModel.MIN_NETWORK_TIMEOUT_SECONDS,
+            SettingViewModel.MAX_NETWORK_TIMEOUT_SECONDS
+        ) * 1000L
     }
 
     private fun locationRuleLabel(value: String): String {
