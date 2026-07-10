@@ -423,19 +423,49 @@ private fun RuleFormContent(viewModel: ListViewModel, ruleType: RuleType) {
             }
         }
 
-        RuleType.TAG -> {
-            if (isBlack) {
-                Text(
-                    stringResource(R.string.msg_black_tag_match_force_block),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
+        RuleType.TAG -> Unit
 
         RuleType.LOCATION -> {
             Text(
                 stringResource(R.string.msg_location_match_requires_network),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+
+    // 强制拦截开关：仅黑名单规则可配置，决定是否忽略“仅提示不拦截”
+    if (isBlack) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp)
+            ) {
+                Text(
+                    stringResource(R.string.label_force_block),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    stringResource(R.string.summary_force_block),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = viewModel.inputForceBlock,
+                onCheckedChange = { viewModel.inputForceBlock = it }
+            )
+        }
+        if (viewModel.inputForceBlock) {
+            Text(
+                stringResource(R.string.msg_force_block_warning),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )
@@ -570,23 +600,14 @@ private fun UserListEntryItem(entry: UserListEntry, invalid: Boolean, onClick: (
                             }
                         }
                     } else if (entry.tagMatch) {
-                        val isBlackTagRule = entry.listType == ListType.BLACK
                         Surface(
-                            color = if (isBlackTagRule) {
-                                MaterialTheme.colorScheme.errorContainer
-                            } else {
-                                MaterialTheme.colorScheme.tertiaryContainer
-                            },
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
                             shape = MaterialTheme.shapes.small
                         ) {
                             Text(
                                 text = stringResource(R.string.label_tag_match),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (isBlackTagRule) {
-                                    MaterialTheme.colorScheme.onErrorContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onTertiaryContainer
-                                },
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -599,6 +620,19 @@ private fun UserListEntryItem(entry: UserListEntry, invalid: Boolean, onClick: (
                                 text = stringResource(R.string.label_prefix_match),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    if (entry.forceBlock) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Text(
+                                text = stringResource(R.string.label_force_block_chip),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }

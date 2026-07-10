@@ -73,6 +73,9 @@ class ListViewModel : ViewModel(), KoinComponent {
     /** 添加表单：是否前缀匹配（仅号码类型有效） */
     var inputIsPrefix by mutableStateOf(false)
 
+    /** 添加表单：是否忽略“仅提示不拦截”强制挂断（仅黑名单有效，新建默认开启） */
+    var inputForceBlock by mutableStateOf(true)
+
     /** 当前是否启用了不联网查询，用于提示归属地规则是否失效 */
     var noNetworkQuery by mutableStateOf(prefs.getBoolean("no_network_query", false))
         private set
@@ -104,6 +107,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         inputRuleType = null
         inputPhone = ""
         inputIsPrefix = false
+        inputForceBlock = true
         inputRemark = ""
         addErrorMessage = null
         showAddSheet = true
@@ -119,6 +123,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         }
         inputPhone = entry.phoneNumber
         inputIsPrefix = entry.isPrefix
+        inputForceBlock = entry.forceBlock
         inputRemark = entry.remark ?: ""
         addErrorMessage = null
         showAddSheet = true
@@ -174,7 +179,8 @@ class ListViewModel : ViewModel(), KoinComponent {
                     currentTab,
                     inputRemark,
                     type == RuleType.TAG,
-                    type == RuleType.LOCATION
+                    type == RuleType.LOCATION,
+                    forceBlock = currentTab == ListType.BLACK && inputForceBlock
                 )
             if (success) {
                 showAddSheet = false
@@ -188,7 +194,8 @@ class ListViewModel : ViewModel(), KoinComponent {
                         oldEntry.listType,
                         oldEntry.remark,
                         oldEntry.tagMatch,
-                        oldEntry.locationMatch
+                        oldEntry.locationMatch,
+                        forceBlock = oldEntry.forceBlock
                     )
                 }
                 addErrorMessage = context.getString(R.string.error_phone_already_exists)

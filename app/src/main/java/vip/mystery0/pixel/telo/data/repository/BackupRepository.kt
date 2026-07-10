@@ -121,7 +121,13 @@ class BackupRepository(
 
         if (options.includeBlackList) {
             for (dto in preview.data.blackList) {
-                if (userListDao.insert(dto.toEntity(ListType.BLACK)) != -1L) {
+                var entry = dto.toEntity(ListType.BLACK)
+                // v3 之前的备份没有 force_block 字段：标签/归属地黑名单当时始终强制拦截，
+                // 恢复时补齐以保持行为一致
+                if (preview.data.version < 3 && (entry.tagMatch || entry.locationMatch)) {
+                    entry = entry.copy(forceBlock = true)
+                }
+                if (userListDao.insert(entry) != -1L) {
                     insertedBlack++
                 }
             }
@@ -178,6 +184,7 @@ class BackupRepository(
         addedAt = addedAt,
         tagMatch = tagMatch,
         locationMatch = locationMatch,
+        forceBlock = forceBlock,
     )
 
     private fun UserListEntryDto.toEntity(listType: ListType) = UserListEntry(
@@ -188,5 +195,6 @@ class BackupRepository(
         addedAt = addedAt,
         tagMatch = tagMatch,
         locationMatch = locationMatch,
+        forceBlock = forceBlock && listType == ListType.BLACK,
     )
 }

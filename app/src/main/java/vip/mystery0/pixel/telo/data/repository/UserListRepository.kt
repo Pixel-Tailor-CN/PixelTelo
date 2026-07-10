@@ -97,7 +97,8 @@ class UserListRepository(private val dao: UserListDao) {
         listType: ListType,
         remark: String?,
         tagMatch: Boolean = false,
-        locationMatch: Boolean = false
+        locationMatch: Boolean = false,
+        forceBlock: Boolean = false
     ): Boolean {
         val entry = UserListEntry(
             phoneNumber = phoneNumber.trim(),
@@ -106,7 +107,8 @@ class UserListRepository(private val dao: UserListDao) {
             remark = remark?.trim()?.takeIf { it.isNotBlank() },
             addedAt = System.currentTimeMillis(),
             tagMatch = tagMatch,
-            locationMatch = locationMatch
+            locationMatch = locationMatch,
+            forceBlock = forceBlock && listType == ListType.BLACK
         )
         return dao.insert(entry) != -1L
     }

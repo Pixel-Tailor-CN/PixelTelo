@@ -15,6 +15,7 @@ import vip.mystery0.pixel.telo.data.MIGRATION_2_3
 import vip.mystery0.pixel.telo.data.MIGRATION_3_4
 import vip.mystery0.pixel.telo.data.MIGRATION_4_5
 import vip.mystery0.pixel.telo.data.MIGRATION_5_6
+import vip.mystery0.pixel.telo.data.MIGRATION_6_7
 import vip.mystery0.pixel.telo.data.remote.QueryApi
 import vip.mystery0.pixel.telo.data.remote.SyncApi
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
@@ -31,7 +32,14 @@ val appModule = module {
             AppDatabase::class.java,
             "app-database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7
+            )
             .build()
     }
 

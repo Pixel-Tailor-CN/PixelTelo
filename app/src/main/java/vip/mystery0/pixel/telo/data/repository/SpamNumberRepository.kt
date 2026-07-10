@@ -67,7 +67,14 @@ class SpamNumberRepository : KoinComponent {
         val blackMatch = userListRepository.findBlackListMatch(phone)
         if (blackMatch != null) {
             Log.i(TAG, "Black list hit")
-            return CheckResult(true, blackMatch.remark ?: "", ResultType.BLACK_LIST, 0, 0)
+            return CheckResult(
+                shouldBlock = true,
+                label = blackMatch.remark ?: "",
+                resultType = ResultType.BLACK_LIST,
+                localCost = 0,
+                networkCost = 0,
+                forceBlock = blackMatch.forceBlock
+            )
         }
 
         val db = syncRepository.getDb()
@@ -93,7 +100,7 @@ class SpamNumberRepository : KoinComponent {
                         resultType = ResultType.BLACK_LIST,
                         localCost = localCost,
                         networkCost = 0,
-                        forceBlock = true
+                        forceBlock = tagBlackMatch.forceBlock
                     )
                 }
 
@@ -196,7 +203,7 @@ class SpamNumberRepository : KoinComponent {
                 networkCost = networkCost,
                 locationInfo = response.data,
                 locationLookupAttempted = true,
-                forceBlock = true,
+                forceBlock = locationBlackMatch.forceBlock,
                 querySource = response.source,
                 feedbackToken = response.feedbackToken,
             )
@@ -217,7 +224,7 @@ class SpamNumberRepository : KoinComponent {
                 networkCost = networkCost,
                 locationInfo = response.data,
                 locationLookupAttempted = true,
-                forceBlock = true,
+                forceBlock = tagBlackMatch.forceBlock,
                 querySource = response.source,
                 feedbackToken = response.feedbackToken,
             )

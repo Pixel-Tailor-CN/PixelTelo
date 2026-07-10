@@ -73,9 +73,24 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/**
+ * 从 v6 升级到 v7：user_list 表新增 forceBlock 字段。
+ * 既有标签/归属地黑名单规则此前始终强制拦截，迁移为 true 保持行为不变；
+ * 既有号码黑名单规则此前遵循“仅提示不拦截”，保持 false 不改变行为。
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `user_list` ADD COLUMN `forceBlock` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL(
+            "UPDATE `user_list` SET `forceBlock` = 1 " +
+                "WHERE `listType` = 'BLACK' AND (`tagMatch` = 1 OR `locationMatch` = 1)"
+        )
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -105,10 +105,11 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         response.setRejectCall(true)
                         response.setSkipCallLog(false)
 
+                        // 记录类型沿用检查结果，号码黑名单拒接时忠实记为 BLACK_LIST
                         blockedCallRepository.insert(
                             phoneNumber,
                             remark = result.label,
-                            ResultType.INTERCEPT,
+                            result.resultType,
                             result.localCost,
                             result.networkCost,
                             label = result.label.takeIf { it.isNotBlank() },

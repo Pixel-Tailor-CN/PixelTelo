@@ -3,7 +3,7 @@
     <string name="app_name">Pixel Telo</string>
     <string name="label_location_match">归属地匹配</string>
     <string name="summary_location_match">联网查询到的归属地包含该关键词时放行。</string>
-    <string name="summary_black_location_match">联网查询到的归属地包含该关键词时强制拦截。</string>
+    <string name="summary_black_location_match">联网查询到的归属地包含该关键词时拦截。</string>
     <string name="msg_location_match_requires_network">该规则必须开启“联网查询”才会生效；开启“不联网查询”时不会生效。</string>
     <string name="label_location_name">归属地关键词</string>
     <string name="hint_location_example">例如：浙江、宁波</string>
@@ -178,8 +178,11 @@
     <string name="summary_prefix_match">匹配所有以该前缀开头的号码（例如：400 可匹配所有 400 开头的号码）</string>
     <string name="label_tag_match">标签匹配</string>
     <string name="summary_tag_match">匹配指定标签的来电（例如：快递送餐）</string>
-    <string name="summary_black_tag_match">强制拦截指定标签的来电，即使开启“仅提示不拦截”或“短时间重复来电”也会挂断</string>
-    <string name="msg_black_tag_match_force_block">这是黑名单标签强制拦截规则。只要查询到的号码标签命中该规则，本次来电就会被挂断，并忽略“仅提示不拦截”和“短时间重复来电”设置。</string>
+    <string name="summary_black_tag_match">按查询到的号码标签拦截来电（例如：快递送餐）</string>
+    <string name="label_force_block">忽略“仅提示不拦截”</string>
+    <string name="summary_force_block">开启后，即使全局开启“仅提示不拦截”，该规则命中时也会直接挂断</string>
+    <string name="msg_force_block_warning">该规则命中时将直接挂断来电，忽略“仅提示不拦截”和“短时间重复来电”设置。</string>
+    <string name="label_force_block_chip">强制拦截</string>
     <string name="label_tag_name">标签名称</string>
     <string name="hint_tag_example">如：快递送餐</string>
     <string name="hint_prefix_example">如：400 可匹配所有 400 开头的号码</string>
