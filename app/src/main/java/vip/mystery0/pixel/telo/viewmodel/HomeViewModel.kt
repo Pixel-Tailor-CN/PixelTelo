@@ -18,10 +18,12 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
+import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
+import vip.mystery0.pixel.telo.data.repository.FeedbackSubmitResult
 import vip.mystery0.pixel.telo.data.repository.QueryRepository
 import vip.mystery0.pixel.telo.data.repository.QuerySourceState
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
@@ -34,6 +36,13 @@ sealed interface RetryQueryState {
     data class Loading(val call: BlockedCall) : RetryQueryState
     data class Success(val call: BlockedCall, val response: QueryResponse) : RetryQueryState
     data class Failure(val call: BlockedCall, val message: String) : RetryQueryState
+}
+
+/** 查询结果反馈提交的 UI 状态 */
+sealed interface FeedbackSubmissionState {
+    data object Idle : FeedbackSubmissionState
+    data class Submitting(val callId: Long) : FeedbackSubmissionState
+    data class Failure(val callId: Long, val message: String) : FeedbackSubmissionState
 }
 
 enum class CurrentListState {
@@ -153,10 +162,52 @@ class HomeViewModel() : ViewModel(), KoinComponent {
 
     fun openQuickAdd(call: BlockedCall) {
         quickAddCall = call
+        feedbackSubmissionState = FeedbackSubmissionState.Idle
     }
 
     fun closeQuickAdd() {
         quickAddCall = null
+        feedbackSubmissionState = FeedbackSubmissionState.Idle
+    }
+
+    /** 反馈提交状态，驱动记录详情中的反馈按钮 */
+    var feedbackSubmissionState by mutableStateOf<FeedbackSubmissionState>(
+        FeedbackSubmissionState.Idle
+    )
+        private set
+
+    /**
+     * 提交查询结果反馈；positive=true 表示“结果准确”。
+     * 终态写入 Room；网络异常等可重试错误只更新 UI 状态，保持 PENDING 允许重试。
+     */
+    fun submitFeedback(call: BlockedCall, positive: Boolean) {
+        val token = call.feedbackToken ?: return
+        if (feedbackSubmissionState is FeedbackSubmissionState.Submitting) return
+        viewModelScope.launch {
+            feedbackSubmissionState = FeedbackSubmissionState.Submitting(call.id)
+            val result = queryRepository.submitFeedback(token, positive)
+            val newStatus = when (result) {
+                FeedbackSubmitResult.Accepted ->
+                    if (positive) FeedbackStatus.POSITIVE else FeedbackStatus.NEGATIVE
+
+                FeedbackSubmitResult.AlreadySubmitted -> FeedbackStatus.ALREADY_SUBMITTED
+                FeedbackSubmitResult.Expired -> FeedbackStatus.EXPIRED
+                FeedbackSubmitResult.Invalid -> FeedbackStatus.INVALID
+                is FeedbackSubmitResult.RetryableFailure -> {
+                    feedbackSubmissionState = FeedbackSubmissionState.Failure(
+                        call.id,
+                        result.message ?: context.getString(R.string.msg_feedback_failed_retry)
+                    )
+                    return@launch
+                }
+            }
+            val updated = repository.updateFeedbackStatus(call, newStatus)
+            // 详情 BottomSheet 正展示同一条记录时同步替换，避免旧对象覆盖新状态
+            if (quickAddCall?.id == updated.id) {
+                quickAddCall = updated
+            }
+            feedbackSubmissionState = FeedbackSubmissionState.Idle
+        }
     }
 
     /** 快捷加入黑名单。@return true=成功插入，false=已存在 */

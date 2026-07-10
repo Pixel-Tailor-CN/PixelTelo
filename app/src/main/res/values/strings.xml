@@ -233,4 +233,16 @@
     <string name="warning_source_unavailable_title">Query Source Unavailable</string>
     <string name="warning_source_unavailable_message">Enabled sources no longer provided by the server: %1$s. Please adjust your query sources.</string>
     <string name="action_adjust_sources">Adjust sources</string>
+
+    <!-- Query Feedback -->
+    <string name="label_query_source">"Query source: %1$s"</string>
+    <string name="action_feedback_positive">Result accurate</string>
+    <string name="action_feedback_negative">Result inaccurate</string>
+    <string name="msg_feedback_failed">Feedback failed: %1$s</string>
+    <string name="msg_feedback_failed_retry">Network error, please retry later.</string>
+    <string name="feedback_status_positive">Feedback submitted: result accurate</string>
+    <string name="feedback_status_negative">Feedback submitted: result inaccurate</string>
+    <string name="feedback_status_already_submitted">Feedback was already submitted for this result</string>
+    <string name="feedback_status_expired">Feedback expired</string>
+    <string name="feedback_status_invalid">Feedback credential invalid</string>
 </resources>

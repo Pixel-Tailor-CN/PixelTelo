@@ -63,12 +63,14 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
+import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.viewmodel.BlockedCallListItem
 import vip.mystery0.pixel.telo.viewmodel.CurrentListState
+import vip.mystery0.pixel.telo.viewmodel.FeedbackSubmissionState
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
 
@@ -302,6 +304,18 @@ fun HomeScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (call.querySource != null) {
+                    Text(
+                        text = stringResource(R.string.label_query_source, call.querySource),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                FeedbackSection(
+                    call = call,
+                    submissionState = viewModel.feedbackSubmissionState,
+                    onSubmit = { positive -> viewModel.submitFeedback(call, positive) }
+                )
                 Button(
                     onClick = {
                         coroutineScope.launch {
@@ -430,6 +444,69 @@ fun SourceUnavailableWarningCard(sources: List<String>, onClick: () -> Unit) {
             Text(stringResource(R.string.action_adjust_sources))
         }
     }
+}
+
+/**
+ * 记录详情中的反馈区域。
+ * PENDING 时提供“结果准确/结果不准确”操作，提交中禁用；
+ * 终态只展示状态文字；UNAVAILABLE 不展示任何内容。
+ */
+@Composable
+private fun FeedbackSection(
+    call: BlockedCall,
+    submissionState: FeedbackSubmissionState,
+    onSubmit: (Boolean) -> Unit,
+) {
+    when (call.feedbackStatus) {
+        FeedbackStatus.UNAVAILABLE -> Unit
+
+        FeedbackStatus.PENDING -> {
+            if (submissionState is FeedbackSubmissionState.Failure &&
+                submissionState.callId == call.id
+            ) {
+                Text(
+                    stringResource(R.string.msg_feedback_failed, submissionState.message),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            val submitting = submissionState is FeedbackSubmissionState.Submitting &&
+                submissionState.callId == call.id
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { onSubmit(true) },
+                    enabled = !submitting,
+                    modifier = Modifier.weight(1f)
+                ) { Text(stringResource(R.string.action_feedback_positive)) }
+                OutlinedButton(
+                    onClick = { onSubmit(false) },
+                    enabled = !submitting,
+                    modifier = Modifier.weight(1f)
+                ) { Text(stringResource(R.string.action_feedback_negative)) }
+            }
+        }
+
+        FeedbackStatus.POSITIVE -> FeedbackStatusText(R.string.feedback_status_positive)
+        FeedbackStatus.NEGATIVE -> FeedbackStatusText(R.string.feedback_status_negative)
+        FeedbackStatus.ALREADY_SUBMITTED ->
+            FeedbackStatusText(R.string.feedback_status_already_submitted)
+
+        FeedbackStatus.EXPIRED -> FeedbackStatusText(R.string.feedback_status_expired)
+        FeedbackStatus.INVALID -> FeedbackStatusText(R.string.feedback_status_invalid)
+    }
+}
+
+/** 反馈终态的状态文字 */
+@Composable
+private fun FeedbackStatusText(textResId: Int) {
+    Text(
+        stringResource(textResId),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
