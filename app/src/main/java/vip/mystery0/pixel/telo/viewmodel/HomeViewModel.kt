@@ -103,7 +103,9 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             _retryQueryState.value = RetryQueryState.Loading(call)
             try {
                 val response = spamNumberRepository.queryNetwork(call.phoneNumber)
-                _retryQueryState.value = RetryQueryState.Success(call, response)
+                // 查询成功后立即写回 source 与反馈 token，用户不写备注也不丢失反馈凭证
+                val updated = repository.attachQueryResult(call, response)
+                _retryQueryState.value = RetryQueryState.Success(updated, response)
             } catch (e: Exception) {
                 _retryQueryState.value = RetryQueryState.Failure(
                     call,

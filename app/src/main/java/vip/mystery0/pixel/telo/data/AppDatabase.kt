@@ -61,9 +61,21 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+/** 从 v5 升级到 v6：blocked_calls 表新增联网查询反馈字段 */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `querySource` TEXT")
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `feedbackToken` TEXT")
+        db.execSQL(
+            "ALTER TABLE `blocked_calls` " +
+                "ADD COLUMN `feedbackStatus` TEXT NOT NULL DEFAULT 'UNAVAILABLE'"
+        )
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

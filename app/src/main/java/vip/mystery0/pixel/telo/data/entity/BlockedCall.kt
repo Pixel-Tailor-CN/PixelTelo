@@ -18,7 +18,39 @@ data class BlockedCall(
     val networkDuration: Long = 0,
     /** 来电标签（如"快递送餐"），来自本地/网络查询 */
     val label: String? = null,
+    /** 联网查询最终命中的服务端 source，纯本地结果为 null */
+    val querySource: String? = null,
+    /** 服务端签发的一次性反馈 token，不写入备份与日志 */
+    val feedbackToken: String? = null,
+    /** 本地反馈状态 */
+    val feedbackStatus: FeedbackStatus = FeedbackStatus.UNAVAILABLE,
 )
+
+/**
+ * 查询结果反馈状态
+ */
+enum class FeedbackStatus {
+    /** 没有可用 token，不能反馈 */
+    UNAVAILABLE,
+
+    /** 持有有效 token，可提交反馈 */
+    PENDING,
+
+    /** 已提交“结果准确” */
+    POSITIVE,
+
+    /** 已提交“结果不准确” */
+    NEGATIVE,
+
+    /** 服务端返回 token 已消费，原反馈方向未知 */
+    ALREADY_SUBMITTED,
+
+    /** token 已过期 */
+    EXPIRED,
+
+    /** token 无效 */
+    INVALID,
+}
 
 enum class ResultType {
     INTERCEPT, // 拦截

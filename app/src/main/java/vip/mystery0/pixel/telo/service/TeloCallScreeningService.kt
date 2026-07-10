@@ -59,7 +59,9 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         ResultType.BLACK_LIST,
                         result.localCost,
                         result.networkCost,
-                        label = result.label.takeIf { it.isNotBlank() }
+                        label = result.label.takeIf { it.isNotBlank() },
+                        querySource = result.querySource,
+                        feedbackToken = result.feedbackToken
                     )
                 } else if (shouldSilenceRepeatMarkedCall(phoneNumber, callTime, result)) {
                     val repeatLabel = result.label.ifBlank { "骚扰电话" }
@@ -74,7 +76,9 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         ResultType.PASS_BUT_NOTIFY,
                         result.localCost,
                         result.networkCost,
-                        label = result.label.takeIf { it.isNotBlank() }
+                        label = result.label.takeIf { it.isNotBlank() },
+                        querySource = result.querySource,
+                        feedbackToken = result.feedbackToken
                     )
                 } else if (result.shouldBlock) {
                     if (notifyOnly) {
@@ -88,7 +92,9 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             ResultType.PASS_BUT_NOTIFY,
                             result.localCost,
                             result.networkCost,
-                            label = result.label.takeIf { it.isNotBlank() }
+                            label = result.label.takeIf { it.isNotBlank() },
+                            querySource = result.querySource,
+                            feedbackToken = result.feedbackToken
                         )
                     } else {
                         callRejected = true
@@ -102,7 +108,9 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             ResultType.INTERCEPT,
                             result.localCost,
                             result.networkCost,
-                            label = result.label.takeIf { it.isNotBlank() }
+                            label = result.label.takeIf { it.isNotBlank() },
+                            querySource = result.querySource,
+                            feedbackToken = result.feedbackToken
                         )
                     }
                 } else {
@@ -126,7 +134,9 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             ResultType.PASS,
                             result.localCost,
                             result.networkCost,
-                            label = result.label.takeIf { it.isNotBlank() }
+                            label = result.label.takeIf { it.isNotBlank() },
+                            querySource = result.querySource,
+                            feedbackToken = result.feedbackToken
                         )
                     }
                 }

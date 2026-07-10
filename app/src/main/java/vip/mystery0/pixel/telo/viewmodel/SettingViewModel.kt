@@ -358,7 +358,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 result.resultType,
                 result.localCost,
                 result.networkCost,
-                label = result.label.takeIf { it.isNotBlank() }
+                label = result.label.takeIf { it.isNotBlank() },
+                querySource = result.querySource,
+                feedbackToken = result.feedbackToken
             )
             hideTestDialog()
             syncStatusMessage = context.getString(R.string.msg_recorded_to_intercept_list)
