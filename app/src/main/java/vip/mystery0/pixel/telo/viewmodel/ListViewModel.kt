@@ -19,6 +19,21 @@ import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
 
+/**
+ * 添加/编辑名单规则时的类型。
+ * UI 层的单选概念，保存时映射回 UserListEntry 的互斥布尔字段。
+ */
+enum class RuleType {
+    /** 号码匹配（精确或前缀） */
+    NUMBER,
+
+    /** 标签匹配 */
+    TAG,
+
+    /** 归属地匹配 */
+    LOCATION,
+}
+
 class ListViewModel : ViewModel(), KoinComponent {
     companion object {
         private const val TAG = "ListViewModel"
@@ -48,17 +63,15 @@ class ListViewModel : ViewModel(), KoinComponent {
     var pendingDeleteEntry by mutableStateOf<UserListEntry?>(null)
         private set
 
-    /** 添加表单：号码输入 */
+    /** 添加表单：规则类型；null 表示尚未选择，BottomSheet 停留在类型选择步骤 */
+    var inputRuleType by mutableStateOf<RuleType?>(null)
+        private set
+
+    /** 添加表单：号码 / 标签名 / 归属地关键词输入 */
     var inputPhone by mutableStateOf("")
 
-    /** 添加表单：是否前缀匹配 */
+    /** 添加表单：是否前缀匹配（仅号码类型有效） */
     var inputIsPrefix by mutableStateOf(false)
-
-    /** 添加表单：是否标签匹配 */
-    var inputTagMatch by mutableStateOf(false)
-
-    /** 添加表单：是否归属地匹配 */
-    var inputLocationMatch by mutableStateOf(false)
 
     /** 当前是否启用了不联网查询，用于提示归属地规则是否失效 */
     var noNetworkQuery by mutableStateOf(prefs.getBoolean("no_network_query", false))
@@ -85,26 +98,43 @@ class ListViewModel : ViewModel(), KoinComponent {
         currentTab = type
     }
 
+    /** 打开新增流程：从类型选择步骤开始 */
     fun openAddSheet() {
         editingEntry = null
+        inputRuleType = null
         inputPhone = ""
         inputIsPrefix = false
-        inputTagMatch = false
-        inputLocationMatch = false
         inputRemark = ""
         addErrorMessage = null
         showAddSheet = true
     }
 
+    /** 打开编辑流程：类型由条目推导，直接进入对应表单，不允许更换类型 */
     fun openEditSheet(entry: UserListEntry) {
         editingEntry = entry
+        inputRuleType = when {
+            entry.tagMatch -> RuleType.TAG
+            entry.locationMatch -> RuleType.LOCATION
+            else -> RuleType.NUMBER
+        }
         inputPhone = entry.phoneNumber
         inputIsPrefix = entry.isPrefix
-        inputTagMatch = entry.tagMatch
-        inputLocationMatch = entry.locationMatch
         inputRemark = entry.remark ?: ""
         addErrorMessage = null
         showAddSheet = true
+    }
+
+    /** 类型选择步骤中选定规则类型，进入对应表单 */
+    fun selectRuleType(type: RuleType) {
+        inputRuleType = type
+        addErrorMessage = null
+    }
+
+    /** 从表单返回类型选择步骤（仅新增流程可用） */
+    fun backToRuleTypePicker() {
+        if (editingEntry != null) return
+        inputRuleType = null
+        addErrorMessage = null
     }
 
     fun closeAddSheet() {
@@ -119,26 +149,17 @@ class ListViewModel : ViewModel(), KoinComponent {
         noNetworkQuery = prefs.getBoolean("no_network_query", false)
     }
 
-    fun updateTagMatch(enabled: Boolean) {
-        inputTagMatch = enabled
-        if (enabled) {
-            inputIsPrefix = false
-            inputLocationMatch = false
-        }
-    }
-
-    fun updateLocationMatch(enabled: Boolean) {
-        inputLocationMatch = enabled
-        if (enabled) {
-            inputIsPrefix = false
-            inputTagMatch = false
-        }
-    }
-
     fun confirmAdd() {
+        val type = inputRuleType ?: return
         val phone = inputPhone.trim()
         if (phone.isBlank()) {
-            addErrorMessage = context.getString(R.string.error_phone_empty)
+            addErrorMessage = context.getString(
+                when (type) {
+                    RuleType.NUMBER -> R.string.error_phone_empty
+                    RuleType.TAG -> R.string.error_tag_empty
+                    RuleType.LOCATION -> R.string.error_location_empty
+                }
+            )
             return
         }
         viewModelScope.launch {
@@ -149,11 +170,11 @@ class ListViewModel : ViewModel(), KoinComponent {
             val success =
                 userListRepository.add(
                     phone,
-                    inputIsPrefix,
+                    type == RuleType.NUMBER && inputIsPrefix,
                     currentTab,
                     inputRemark,
-                    inputTagMatch,
-                    inputLocationMatch
+                    type == RuleType.TAG,
+                    type == RuleType.LOCATION
                 )
             if (success) {
                 showAddSheet = false

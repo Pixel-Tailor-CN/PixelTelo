@@ -188,8 +188,16 @@
     <string name="hint_exact_example">e.g. 13800138000</string>
     <string name="label_remark_optional">Remark (optional)</string>
     <string name="action_confirm">Confirm</string>
+    <string name="action_back">Back</string>
+    <string name="title_edit_rule">Edit Rule</string>
+    <string name="label_rule_type_number">Number</string>
+    <string name="summary_rule_type_number">Match the caller number exactly or by prefix</string>
+    <string name="label_rule_type_tag">Tag</string>
+    <string name="label_rule_type_location">Location</string>
     <string name="error_phone_empty">Phone number cannot be empty</string>
-    <string name="error_phone_already_exists">This number already exists in the list</string>
+    <string name="error_tag_empty">Tag name cannot be empty</string>
+    <string name="error_location_empty">Location keyword cannot be empty</string>
+    <string name="error_phone_already_exists">The same rule already exists</string>
     <string name="msg_added_to_list">Entry added</string>
     <string name="msg_updated_in_list">Entry updated</string>
     <string name="title_delete_entry">Delete Entry</string>

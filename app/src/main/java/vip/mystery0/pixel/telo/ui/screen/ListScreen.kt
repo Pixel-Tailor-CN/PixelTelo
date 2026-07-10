@@ -2,6 +2,11 @@ package vip.mystery0.pixel.telo.ui.screen
 
 import android.annotation.SuppressLint
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,16 +25,20 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -53,6 +62,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -67,6 +78,7 @@ import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.ui.util.rememberPagerBoundaryHandoffConnection
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
+import vip.mystery0.pixel.telo.viewmodel.RuleType
 
 /**
  * 黑白名单管理页面。
@@ -201,228 +213,273 @@ fun ListScreen(
         }
     }
 
-    // 添加条目 BottomSheet
+    // 添加/编辑规则 BottomSheet：两步式，先选类型再填写对应表单
     if (showSheet) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.closeAddSheet() },
             sheetState = sheetState
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .imePadding(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // 根据当前 Tab 显示对应标题
-                Text(
-                    if (viewModel.editingEntry != null) {
-                        if (viewModel.currentTab == ListType.BLACK) stringResource(R.string.title_add_to_blacklist).replace(
-                            "加入",
-                            "编辑"
-                        ).replace(
-                            "Add to",
-                            "Edit"
-                        ) else stringResource(R.string.title_add_to_whitelist).replace(
-                            "加入",
-                            "编辑"
-                        ).replace("Add to", "Edit")
+            AnimatedContent(
+                targetState = viewModel.inputRuleType,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "AddRuleContent"
+            ) { ruleType ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (ruleType == null) {
+                        RuleTypePickerContent(viewModel)
                     } else {
-                        if (viewModel.currentTab == ListType.BLACK) stringResource(R.string.title_add_to_blacklist) else stringResource(
-                            R.string.title_add_to_whitelist
-                        )
-                    },
-                    style = MaterialTheme.typography.titleLarge
-                )
-
-                // 号码输入框：根据是否前缀匹配展示不同的提示文字
-                OutlinedTextField(
-                    value = viewModel.inputPhone,
-                    onValueChange = {
-                        viewModel.inputPhone = it
-                    },
-                    label = {
-                        Text(
-                            if (viewModel.inputTagMatch) stringResource(R.string.label_tag_name)
-                            else if (viewModel.inputLocationMatch) stringResource(R.string.label_location_name)
-                            else stringResource(R.string.label_phone_number)
-                        )
-                    },
-                    placeholder = {
-                        Text(
-                            when {
-                                viewModel.inputTagMatch -> stringResource(R.string.hint_tag_example)
-                                viewModel.inputLocationMatch -> stringResource(R.string.hint_location_example)
-                                viewModel.inputIsPrefix -> stringResource(R.string.hint_prefix_example)
-                                else -> stringResource(R.string.hint_exact_example)
-                            }
-                        )
-                    },
-                    isError = viewModel.addErrorMessage != null,
-                    supportingText = viewModel.addErrorMessage?.let { { Text(it) } },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // 前缀匹配开关
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 16.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.label_prefix_match),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            stringResource(R.string.summary_prefix_match),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        RuleFormContent(viewModel, ruleType)
                     }
-                    Switch(
-                        checked = viewModel.inputIsPrefix,
-                        onCheckedChange = { viewModel.inputIsPrefix = it },
-                        enabled = !viewModel.inputTagMatch && !viewModel.inputLocationMatch
-                    )
-                }
-
-                // 标签匹配开关：白名单用于按标签放行，黑名单用于按标签强制挂断。
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 16.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.label_tag_match),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            stringResource(
-                                if (viewModel.currentTab == ListType.BLACK) {
-                                    R.string.summary_black_tag_match
-                                } else {
-                                    R.string.summary_tag_match
-                                }
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = viewModel.inputTagMatch,
-                        onCheckedChange = { viewModel.updateTagMatch(it) }
-                    )
-                }
-
-                if (viewModel.currentTab == ListType.BLACK && viewModel.inputTagMatch) {
-                    Text(
-                        stringResource(R.string.msg_black_tag_match_force_block),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 16.dp)
-                    ) {
-                        Text(
-                            stringResource(R.string.label_location_match),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            stringResource(
-                                if (viewModel.currentTab == ListType.BLACK) {
-                                    R.string.summary_black_location_match
-                                } else {
-                                    R.string.summary_location_match
-                                }
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = viewModel.inputLocationMatch,
-                        onCheckedChange = { viewModel.updateLocationMatch(it) }
-                    )
-                }
-
-                if (viewModel.inputLocationMatch) {
-                    Text(
-                        stringResource(R.string.msg_location_match_requires_network),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-
-                // 备注输入框（可选）
-                OutlinedTextField(
-                    value = viewModel.inputRemark,
-                    onValueChange = { viewModel.inputRemark = it },
-                    label = { Text(stringResource(R.string.label_remark_optional)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // 取消 / 删除 / 确认 按钮行
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (viewModel.editingEntry != null) {
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.requestDelete(viewModel.editingEntry!!)
-                                viewModel.closeAddSheet()
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        ) { Text(stringResource(R.string.action_delete)) }
-                    }
-                    OutlinedButton(
-                        onClick = { viewModel.closeAddSheet() },
-                        modifier = Modifier.weight(1f)
-                    ) { Text(stringResource(R.string.action_cancel)) }
-                    Button(
-                        onClick = { viewModel.confirmAdd() },
-                        modifier = Modifier.weight(1f)
-                    ) { Text(stringResource(R.string.action_confirm)) }
                 }
             }
             Spacer(modifier = Modifier.navigationBarsPadding())
         }
+    }
+}
+
+/**
+ * 第一步：规则类型选择。
+ * 每种类型带图标与按黑/白名单区分的说明，点击后进入对应表单。
+ */
+@Composable
+private fun RuleTypePickerContent(viewModel: ListViewModel) {
+    val isBlack = viewModel.currentTab == ListType.BLACK
+    Text(
+        stringResource(
+            if (isBlack) R.string.title_add_to_blacklist else R.string.title_add_to_whitelist
+        ),
+        style = MaterialTheme.typography.titleLarge
+    )
+    RuleTypeItem(
+        icon = Icons.Default.Phone,
+        title = stringResource(R.string.label_rule_type_number),
+        description = stringResource(R.string.summary_rule_type_number),
+        onClick = { viewModel.selectRuleType(RuleType.NUMBER) }
+    )
+    RuleTypeItem(
+        icon = Icons.AutoMirrored.Filled.Label,
+        title = stringResource(R.string.label_rule_type_tag),
+        description = stringResource(
+            if (isBlack) R.string.summary_black_tag_match else R.string.summary_tag_match
+        ),
+        onClick = { viewModel.selectRuleType(RuleType.TAG) }
+    )
+    RuleTypeItem(
+        icon = Icons.Default.LocationOn,
+        title = stringResource(R.string.label_rule_type_location),
+        description = stringResource(
+            if (isBlack) R.string.summary_black_location_match else R.string.summary_location_match
+        ),
+        onClick = { viewModel.selectRuleType(RuleType.LOCATION) }
+    )
+}
+
+/** 类型选择列表中的单个条目 */
+@Composable
+private fun RuleTypeItem(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Column {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * 第二步：按规则类型渲染的专用表单。
+ * 新增流程标题左侧提供返回按钮可重选类型；编辑流程类型固定，不可返回。
+ */
+@Composable
+private fun RuleFormContent(viewModel: ListViewModel, ruleType: RuleType) {
+    val isBlack = viewModel.currentTab == ListType.BLACK
+    val isEditing = viewModel.editingEntry != null
+
+    // 标题行：返回按钮（仅新增）+ 类型名标题
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (!isEditing) {
+            IconButton(onClick = { viewModel.backToRuleTypePicker() }) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.action_back)
+                )
+            }
+        }
+        Text(
+            if (isEditing) {
+                stringResource(R.string.title_edit_rule)
+            } else {
+                stringResource(
+                    if (isBlack) R.string.title_add_to_blacklist else R.string.title_add_to_whitelist
+                )
+            },
+            style = MaterialTheme.typography.titleLarge
+        )
+        Text(
+            stringResource(
+                when (ruleType) {
+                    RuleType.NUMBER -> R.string.label_rule_type_number
+                    RuleType.TAG -> R.string.label_rule_type_tag
+                    RuleType.LOCATION -> R.string.label_rule_type_location
+                }
+            ),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+
+    // 主输入框：label 与示例按类型展示
+    OutlinedTextField(
+        value = viewModel.inputPhone,
+        onValueChange = { viewModel.inputPhone = it },
+        label = {
+            Text(
+                stringResource(
+                    when (ruleType) {
+                        RuleType.NUMBER -> R.string.label_phone_number
+                        RuleType.TAG -> R.string.label_tag_name
+                        RuleType.LOCATION -> R.string.label_location_name
+                    }
+                )
+            )
+        },
+        placeholder = {
+            Text(
+                stringResource(
+                    when {
+                        ruleType == RuleType.TAG -> R.string.hint_tag_example
+                        ruleType == RuleType.LOCATION -> R.string.hint_location_example
+                        viewModel.inputIsPrefix -> R.string.hint_prefix_example
+                        else -> R.string.hint_exact_example
+                    }
+                )
+            )
+        },
+        isError = viewModel.addErrorMessage != null,
+        supportingText = viewModel.addErrorMessage?.let { { Text(it) } },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    when (ruleType) {
+        RuleType.NUMBER -> {
+            // 前缀匹配开关：仅号码类型
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 16.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.label_prefix_match),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        stringResource(R.string.summary_prefix_match),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = viewModel.inputIsPrefix,
+                    onCheckedChange = { viewModel.inputIsPrefix = it }
+                )
+            }
+        }
+
+        RuleType.TAG -> {
+            if (isBlack) {
+                Text(
+                    stringResource(R.string.msg_black_tag_match_force_block),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+
+        RuleType.LOCATION -> {
+            Text(
+                stringResource(R.string.msg_location_match_requires_network),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+
+    // 备注输入框（可选）
+    OutlinedTextField(
+        value = viewModel.inputRemark,
+        onValueChange = { viewModel.inputRemark = it },
+        label = { Text(stringResource(R.string.label_remark_optional)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    // 取消 / 删除 / 确认 按钮行
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (isEditing) {
+            OutlinedButton(
+                onClick = {
+                    viewModel.requestDelete(viewModel.editingEntry!!)
+                    viewModel.closeAddSheet()
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.error
+                )
+            ) { Text(stringResource(R.string.action_delete)) }
+        }
+        OutlinedButton(
+            onClick = { viewModel.closeAddSheet() },
+            modifier = Modifier.weight(1f)
+        ) { Text(stringResource(R.string.action_cancel)) }
+        Button(
+            onClick = { viewModel.confirmAdd() },
+            modifier = Modifier.weight(1f)
+        ) { Text(stringResource(R.string.action_confirm)) }
     }
 }
 
