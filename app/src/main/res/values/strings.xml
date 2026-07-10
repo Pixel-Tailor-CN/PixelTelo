@@ -216,4 +216,21 @@
     <string name="label_restore_whitelist">Whitelist (%1$d entries)</string>
     <string name="action_restore">Restore</string>
     <string name="msg_restored_summary">Restored: %1$d intercept records, %2$d blacklist, %3$d whitelist entries</string>
+
+    <!-- Query Sources -->
+    <string name="setting_query_sources">Online query sources</string>
+    <string name="setting_query_sources_summary">Enable, disable, and reorder the data sources used by online number queries.</string>
+    <string name="title_query_sources">Online Query Sources</string>
+    <string name="msg_query_sources_hint">Queries follow the order below. At least one available source must stay enabled.</string>
+    <string name="label_source_unavailable">Offline (no longer provided by the server)</string>
+    <string name="action_move_up">Move up</string>
+    <string name="action_move_down">Move down</string>
+    <string name="action_restore_default_sources">Restore server defaults</string>
+    <string name="action_save">Save</string>
+    <string name="msg_query_sources_loading">Loading source list…</string>
+    <string name="msg_query_sources_load_failed">Failed to load the source list. Check your network and retry.</string>
+    <string name="action_retry">Retry</string>
+    <string name="warning_source_unavailable_title">Query Source Unavailable</string>
+    <string name="warning_source_unavailable_message">Enabled sources no longer provided by the server: %1$s. Please adjust your query sources.</string>
+    <string name="action_adjust_sources">Adjust sources</string>
 </resources>

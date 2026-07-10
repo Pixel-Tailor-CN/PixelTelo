@@ -95,6 +95,16 @@ class MainActivity : ComponentActivity() {
                                                 AppDestinations.SETTINGS.ordinal
                                             )
                                         }
+                                    },
+                                    onNavigateToSourceSettings = {
+                                        // 先打开 source 设置 BottomSheet，再切换到设置页，
+                                        // 保证用户到达设置页时直接看到 source 配置
+                                        settingViewModel.openQuerySourceSettings()
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(
+                                                AppDestinations.SETTINGS.ordinal
+                                            )
+                                        }
                                     }
                                 )
                             }

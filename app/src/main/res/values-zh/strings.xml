@@ -214,4 +214,21 @@
     <string name="label_restore_whitelist">白名单（共 %1$d 条）</string>
     <string name="action_restore">恢复</string>
     <string name="msg_restored_summary">已恢复：%1$d 条拦截记录、%2$d 条黑名单、%3$d 条白名单</string>
+
+    <!-- Query Sources -->
+    <string name="setting_query_sources">联网查询数据源</string>
+    <string name="setting_query_sources_summary">启用、停用并排序联网号码查询使用的数据源</string>
+    <string name="title_query_sources">联网查询数据源</string>
+    <string name="msg_query_sources_hint">查询按以下顺序依次进行，至少需要启用一个当前可用的数据源。</string>
+    <string name="label_source_unavailable">已下线（服务端不再提供）</string>
+    <string name="action_move_up">上移</string>
+    <string name="action_move_down">下移</string>
+    <string name="action_restore_default_sources">恢复服务端默认</string>
+    <string name="action_save">保存</string>
+    <string name="msg_query_sources_loading">正在加载数据源清单…</string>
+    <string name="msg_query_sources_load_failed">数据源清单加载失败，请检查网络后重试。</string>
+    <string name="action_retry">重试</string>
+    <string name="warning_source_unavailable_title">数据源已下线</string>
+    <string name="warning_source_unavailable_message">已启用的数据源 %1$s 已被服务端下线，请调整数据源配置。</string>
+    <string name="action_adjust_sources">调整数据源</string>
 </resources>

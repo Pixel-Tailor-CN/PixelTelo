@@ -13,6 +13,7 @@ import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
@@ -25,6 +26,9 @@ import vip.mystery0.pixel.telo.data.repository.BackupPreview
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
+import vip.mystery0.pixel.telo.data.repository.QueryRepository
+import vip.mystery0.pixel.telo.data.repository.QuerySourceItem
+import vip.mystery0.pixel.telo.data.repository.QuerySourceState
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
@@ -61,6 +65,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     private val blockedCallRepository: BlockedCallRepository by inject()
     private val backupRepository: BackupRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
+    private val queryRepository: QueryRepository by inject()
     private val prefs: SharedPreferences by inject()
     private val context: Context by inject()
 
@@ -261,6 +266,14 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 }
             }
         }
+        viewModelScope.launch {
+            // BottomSheet 打开期间刷新成功时，把首次取得的清单填入空草稿
+            queryRepository.sourceState.collect { state ->
+                if (showQuerySourceSheet && querySourceDraft.isEmpty() && state.items.isNotEmpty()) {
+                    querySourceDraft = state.items
+                }
+            }
+        }
     }
 
     fun checkUpdate() {
@@ -364,6 +377,83 @@ class SettingViewModel : ViewModel(), KoinComponent {
             )
             hideTestDialog()
             syncStatusMessage = context.getString(R.string.msg_recorded_to_intercept_list)
+        }
+    }
+
+    // ---- 联网查询数据源设置 ----
+    /** source 配置状态，驱动 BottomSheet 的加载/失败展示 */
+    val querySourceState: StateFlow<QuerySourceState> = queryRepository.sourceState
+
+    /** source 设置 BottomSheet 是否展示 */
+    var showQuerySourceSheet by mutableStateOf(false)
+        private set
+
+    /** BottomSheet 中的编辑草稿，保存前不影响真实配置 */
+    var querySourceDraft by mutableStateOf<List<QuerySourceItem>>(emptyList())
+        private set
+
+    /** 打开 source 设置 BottomSheet，无缓存时触发一次刷新 */
+    fun openQuerySourceSettings() {
+        querySourceDraft = queryRepository.sourceState.value.items
+        showQuerySourceSheet = true
+        if (querySourceDraft.isEmpty()) {
+            retryQuerySourceRefresh()
+        }
+    }
+
+    fun closeQuerySourceSettings() {
+        showQuerySourceSheet = false
+        querySourceDraft = emptyList()
+    }
+
+    /** 启停草稿中的 source；不可用 source 禁止重新启用 */
+    fun toggleQuerySource(id: String, enabled: Boolean) {
+        querySourceDraft = querySourceDraft.map { item ->
+            when {
+                item.id != id -> item
+                enabled && !item.available -> item
+                else -> item.copy(enabled = enabled)
+            }
+        }
+    }
+
+    /** 在草稿中把 source 上移（offset < 0）或下移（offset > 0） */
+    fun moveQuerySource(id: String, offset: Int) {
+        val items = querySourceDraft.toMutableList()
+        val index = items.indexOfFirst { it.id == id }
+        if (index < 0) return
+        val target = index + offset
+        if (target < 0 || target >= items.size) return
+        val item = items.removeAt(index)
+        items.add(target, item)
+        querySourceDraft = items
+    }
+
+    /** 使用最近一次服务端默认顺序重建草稿，只启用默认列表内的可用 source */
+    fun restoreDefaultQuerySources() {
+        val defaults = queryRepository.sourceState.value.defaultSources
+        if (defaults.isEmpty()) return
+        val itemsById = querySourceDraft.associateBy { it.id }
+        val head = defaults.mapNotNull { itemsById[it] }
+        val tail = querySourceDraft.filterNot { it.id in defaults }
+        querySourceDraft = (head + tail).map { item ->
+            item.copy(enabled = item.id in defaults && item.available)
+        }
+    }
+
+    /** 保存草稿。@return false 表示没有任何可用 source 处于启用状态，保存被拒绝 */
+    fun saveQuerySources(): Boolean {
+        val saved = queryRepository.saveSourceSelection(querySourceDraft)
+        if (saved) {
+            closeQuerySourceSettings()
+        }
+        return saved
+    }
+
+    /** 手动重试拉取 source 清单 */
+    fun retryQuerySourceRefresh() {
+        viewModelScope.launch {
+            queryRepository.refreshSources()
         }
     }
 

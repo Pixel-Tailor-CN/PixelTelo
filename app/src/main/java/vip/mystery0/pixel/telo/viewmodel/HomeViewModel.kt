@@ -22,6 +22,8 @@ import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
+import vip.mystery0.pixel.telo.data.repository.QueryRepository
+import vip.mystery0.pixel.telo.data.repository.QuerySourceState
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
@@ -51,7 +53,18 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val syncRepository: SyncRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val userListRepository: UserListRepository by inject()
+    private val queryRepository: QueryRepository by inject()
     private val context: Context by inject()
+
+    /** 联网查询 source 配置状态，用于首页“已启用 source 下线”提示 */
+    val sourceState: StateFlow<QuerySourceState> = queryRepository.sourceState
+
+    init {
+        // 应用启动时后台刷新一次 source 清单，不阻塞首页首帧；失败沿用缓存
+        viewModelScope.launch {
+            queryRepository.refreshSources()
+        }
+    }
 
     val blockedCalls: StateFlow<List<BlockedCall>> = repository.allBlockedCalls
         .stateIn(

@@ -32,9 +32,12 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -48,16 +51,21 @@ import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,6 +86,7 @@ import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.repository.QuerySourceItem
 import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
@@ -574,6 +583,96 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         }
     }
 
+    // 联网查询数据源设置 BottomSheet：有草稿时可编辑，无缓存时展示加载/失败与重试
+    if (viewModel.showQuerySourceSheet) {
+        val sourceState by viewModel.querySourceState.collectAsState()
+        val draft = viewModel.querySourceDraft
+        ModalBottomSheet(onDismissRequest = { viewModel.closeQuerySourceSettings() }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    stringResource(R.string.title_query_sources),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                when {
+                    draft.isNotEmpty() -> {
+                        Text(
+                            stringResource(R.string.msg_query_sources_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        draft.forEachIndexed { index, item ->
+                            QuerySourceRow(
+                                item = item,
+                                canMoveUp = index > 0,
+                                canMoveDown = index < draft.lastIndex,
+                                onMoveUp = { viewModel.moveQuerySource(item.id, -1) },
+                                onMoveDown = { viewModel.moveQuerySource(item.id, 1) },
+                                onToggle = { viewModel.toggleQuerySource(item.id, it) },
+                            )
+                        }
+                        TextButton(onClick = { viewModel.restoreDefaultQuerySources() }) {
+                            Text(stringResource(R.string.action_restore_default_sources))
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.closeQuerySourceSettings() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text(stringResource(R.string.action_cancel)) }
+                            Button(
+                                onClick = { viewModel.saveQuerySources() },
+                                enabled = draft.any { it.enabled && it.available },
+                                modifier = Modifier.weight(1f)
+                            ) { Text(stringResource(R.string.action_save)) }
+                        }
+                    }
+
+                    sourceState.refreshing -> {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            Text(
+                                stringResource(R.string.msg_query_sources_loading),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+
+                    else -> {
+                        Text(
+                            stringResource(R.string.msg_query_sources_load_failed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.closeQuerySourceSettings() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text(stringResource(R.string.action_cancel)) }
+                            Button(
+                                onClick = { viewModel.retryQuerySourceRefresh() },
+                                modifier = Modifier.weight(1f)
+                            ) { Text(stringResource(R.string.action_retry)) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     ProvidePreferenceLocals {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -736,6 +835,13 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             }
 
             PreferenceCategory(title = { Text(stringResource(R.string.category_intercept_behavior)) })
+
+            Preference(
+                title = { Text(stringResource(R.string.setting_query_sources)) },
+                summary = { Text(stringResource(R.string.setting_query_sources_summary)) },
+                icon = { Icon(Icons.Default.Dns, contentDescription = null) },
+                onClick = { viewModel.openQuerySourceSettings() }
+            )
 
             var showTimeoutDialog by remember { mutableStateOf(false) }
             Preference(
@@ -1002,6 +1108,53 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             }
             }
         }
+    }
+}
+
+/**
+ * source 设置行：source ID + 可用状态 + 上下移动按钮 + 启停开关。
+ * 不可用 source 保留展示，但开关只允许从启用改为停用。
+ */
+@Composable
+private fun QuerySourceRow(
+    item: QuerySourceItem,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onToggle: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(item.id, style = MaterialTheme.typography.bodyLarge)
+            if (!item.available) {
+                Text(
+                    stringResource(R.string.label_source_unavailable),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+        IconButton(onClick = onMoveUp, enabled = canMoveUp) {
+            Icon(
+                Icons.Default.KeyboardArrowUp,
+                contentDescription = stringResource(R.string.action_move_up)
+            )
+        }
+        IconButton(onClick = onMoveDown, enabled = canMoveDown) {
+            Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = stringResource(R.string.action_move_down)
+            )
+        }
+        Switch(
+            checked = item.enabled,
+            onCheckedChange = onToggle,
+            enabled = item.available || item.enabled,
+        )
     }
 }
 

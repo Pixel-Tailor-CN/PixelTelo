@@ -75,7 +75,8 @@ import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToSourceSettings: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -84,6 +85,7 @@ fun HomeScreen(
     val missingPermissions by viewModel.missingPermissions.collectAsState()
     val isDefaultApp by viewModel.isDefaultApp.collectAsState()
     val retryQueryState by viewModel.retryQueryState.collectAsState()
+    val sourceState by viewModel.sourceState.collectAsState()
 
     val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
     val roleLauncher = rememberLauncherForActivityResult(
@@ -134,6 +136,14 @@ fun HomeScreen(
         item {
             AnimatedVisibility(!isDatabaseReady) {
                 DatabaseWarningCard(onNavigateToSettings)
+            }
+        }
+        item {
+            AnimatedVisibility(sourceState.unavailableEnabledSources.isNotEmpty()) {
+                SourceUnavailableWarningCard(
+                    sources = sourceState.unavailableEnabledSources,
+                    onClick = onNavigateToSourceSettings
+                )
             }
         }
         blockedCallsList(
@@ -390,6 +400,34 @@ fun PermissionWarningCard(onClick: () -> Unit) {
             )
         ) {
             Text(stringResource(R.string.action_grant_permissions))
+        }
+    }
+}
+
+/**
+ * 已启用的联网查询 source 被服务端下线时的提示卡片。
+ * 不提供忽略操作，用户修正配置后自动消失。
+ */
+@Composable
+fun SourceUnavailableWarningCard(sources: List<String>, onClick: () -> Unit) {
+    WarningCard(
+        containerColor = MaterialTheme.colorScheme.errorContainer,
+        icon = Icons.Default.Warning,
+        iconColor = MaterialTheme.colorScheme.error,
+        title = stringResource(R.string.warning_source_unavailable_title),
+        message = stringResource(
+            R.string.warning_source_unavailable_message,
+            sources.joinToString(", ")
+        ),
+    ) {
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError
+            )
+        ) {
+            Text(stringResource(R.string.action_adjust_sources))
         }
     }
 }
