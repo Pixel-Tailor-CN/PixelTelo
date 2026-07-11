@@ -69,6 +69,8 @@
     <string name="title_delete_record">删除记录</string>
     <string name="msg_delete_record_confirm">确定要删除这条拦截记录吗？此操作无法撤销。</string>
     <string name="action_delete">删除</string>
+    <string name="action_save_to_contacts">保存到通讯录</string>
+    <string name="msg_no_contacts_app">未找到通讯录应用</string>
 
     <!-- Settings Screen -->
     <string name="title_operation_success">操作成功</string>

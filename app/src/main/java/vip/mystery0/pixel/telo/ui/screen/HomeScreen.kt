@@ -1,8 +1,11 @@
 package vip.mystery0.pixel.telo.ui.screen
 
 import android.app.role.RoleManager
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.ContactsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -352,6 +355,29 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("加入标签白名单 ($label)") }
                 }
+                OutlinedButton(
+                    onClick = {
+                        // ACTION_INSERT_OR_EDIT 由系统弹出“新建联系人/添加到现有联系人”选择
+                        val intent = Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
+                            type = ContactsContract.Contacts.CONTENT_ITEM_TYPE
+                            putExtra(ContactsContract.Intents.Insert.PHONE, phone)
+                            if (label != null) {
+                                putExtra(ContactsContract.Intents.Insert.NAME, label)
+                            }
+                        }
+                        try {
+                            context.startActivity(intent)
+                            viewModel.closeQuickAdd()
+                        } catch (e: ActivityNotFoundException) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.msg_no_contacts_app),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(stringResource(R.string.action_save_to_contacts)) }
                 OutlinedButton(
                     onClick = {
                         itemToDelete = call

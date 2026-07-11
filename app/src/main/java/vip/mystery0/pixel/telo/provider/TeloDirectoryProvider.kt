@@ -98,7 +98,7 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
             Directory.DISPLAY_NAME to "Pixel Telo",
             Directory.PACKAGE_NAME to BuildConfig.APPLICATION_ID,
             Directory.TYPE_RESOURCE_ID to R.string.app_name,
-            Directory.EXPORT_SUPPORT to Directory.EXPORT_SUPPORT_NONE,
+            Directory.EXPORT_SUPPORT to Directory.EXPORT_SUPPORT_ANY_ACCOUNT,
             Directory.SHORTCUT_SUPPORT to Directory.SHORTCUT_SUPPORT_NONE,
             Directory.PHOTO_SUPPORT to Directory.PHOTO_SUPPORT_NONE,
             Directory.DIRECTORY_AUTHORITY to AUTHORITY
