@@ -44,6 +44,10 @@ interface BlockedCallDao {
     )
     suspend fun getSourceQualityStats(since: Long, negativeStatus: String): List<QuerySourceQuality>
 
+    /** 统计自 since 之后、指定结果类型的拦截记录数量（resultType 按枚举 name 存储） */
+    @Query("SELECT COUNT(*) FROM blocked_calls WHERE blockTime > :since AND resultType IN (:resultTypes)")
+    suspend fun countByResultTypesSince(since: Long, resultTypes: List<String>): Int
+
     @Insert
     suspend fun insert(blockedCall: BlockedCall): Long
 

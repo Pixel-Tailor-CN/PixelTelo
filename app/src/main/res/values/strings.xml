@@ -1,5 +1,11 @@
 <resources>
     <string name="app_name">Pixel Telo</string>
+
+    <string name="smartspacer_intercept_label">Silently blocked calls</string>
+    <string name="smartspacer_intercept_description">Shows how many spam calls were rejected without notifying you. Opening the app clears the count.</string>
+    <string name="smartspacer_intercept_count">%1$d blocked</string>
+    <string name="smartspacer_intercept_count_overflow">99+ blocked</string>
+
     <string name="setting_no_network_query">No Network Query</string>
     <string name="setting_no_network_query_summary">When enabled, intercept checks only match the local database and no longer perform network queries.</string>
     <string name="setting_always_record">Always Record</string>

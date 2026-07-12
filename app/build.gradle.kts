@@ -105,6 +105,7 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.compose.preference)
+    implementation(libs.smartspacer.sdk.plugin)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

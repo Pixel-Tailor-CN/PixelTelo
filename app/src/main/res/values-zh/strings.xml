@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Pixel Telo</string>
+
+    <string name="smartspacer_intercept_label">静默拦截</string>
+    <string name="smartspacer_intercept_description">显示在您未察觉时被直接挂断的骚扰来电数量，打开应用后清零。</string>
+    <string name="smartspacer_intercept_count">拦截 %1$d 个</string>
+    <string name="smartspacer_intercept_count_overflow">拦截 99+ 个</string>
+
     <string name="label_location_match">归属地匹配</string>
     <string name="summary_location_match">联网查询到的归属地包含该关键词时放行。</string>
     <string name="summary_black_location_match">联网查询到的归属地包含该关键词时拦截。</string>

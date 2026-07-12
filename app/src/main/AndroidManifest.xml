@@ -69,6 +69,17 @@
             android:name=".receiver.FeedbackActionReceiver"
             android:exported="false" />
 
+        <!-- Smartspacer 静默拦截数量 Complication -->
+        <provider
+            android:name=".smartspacer.SilentInterceptComplicationProvider"
+            android:authorities="${applicationId}.smartspacer.complication.silent_intercept"
+            android:exported="true"
+            android:permission="com.kieronquinn.app.smartspacer.permission.ACCESS_SMARTSPACER_COMPLICATIONS">
+            <intent-filter>
+                <action android:name="com.kieronquinn.app.smartspacer.COMPLICATION" />
+            </intent-filter>
+        </provider>
+
         <provider
             android:name=".provider.TeloDirectoryProvider"
             android:authorities="${applicationId}.provider"

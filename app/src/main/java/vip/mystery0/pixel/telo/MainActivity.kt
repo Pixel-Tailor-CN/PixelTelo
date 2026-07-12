@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
+import vip.mystery0.pixel.telo.smartspacer.SmartspacerInterceptRepository
 import vip.mystery0.pixel.telo.ui.screen.HomeScreen
 import vip.mystery0.pixel.telo.ui.screen.ListScreen
 import vip.mystery0.pixel.telo.ui.screen.SettingsScreen
@@ -37,6 +39,13 @@ class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels()
     private val listViewModel: ListViewModel by viewModels()
     private val settingViewModel: SettingViewModel by viewModels()
+    private val smartspacerInterceptRepository: SmartspacerInterceptRepository by inject()
+
+    override fun onResume() {
+        super.onResume()
+        // 进入应用即视为已知晓静默拦截，清零 Smartspacer 计数
+        smartspacerInterceptRepository.acknowledge(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()

@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.data.repository
 
+import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -9,9 +10,11 @@ import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
+import vip.mystery0.pixel.telo.smartspacer.SmartspacerIntegration
 
 class BlockedCallRepository : KoinComponent {
     private val blockedCallDao: BlockedCallDao by inject()
+    private val context: Context by inject()
 
     val allBlockedCalls: Flow<List<BlockedCall>> = blockedCallDao.getAll()
 
@@ -39,7 +42,13 @@ class BlockedCallRepository : KoinComponent {
             feedbackToken = token,
             feedbackStatus = if (token != null) FeedbackStatus.PENDING else FeedbackStatus.UNAVAILABLE,
         )
-        return blockedCallDao.insert(blockedCall)
+        val id = blockedCallDao.insert(blockedCall)
+        // 静默拦截（直接挂断且无任何提醒）需要刷新 Smartspacer 计数；
+        // notifyChange 仅向系统发送异步通知，不会阻塞来电响应路径
+        if (resultType == ResultType.INTERCEPT || resultType == ResultType.BLACK_LIST) {
+            SmartspacerIntegration.notifyChanged(context)
+        }
+        return id
     }
 
     suspend fun findById(id: Long): BlockedCall? {
