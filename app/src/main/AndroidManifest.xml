@@ -48,7 +48,7 @@
         <service
             android:name=".service.LauncherTileService"
             android:exported="true"
-            android:icon="@drawable/ic_launcher_monochrome"
+            android:icon="@drawable/ic_qs_tile"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
