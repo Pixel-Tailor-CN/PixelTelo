@@ -12,9 +12,9 @@
 </p>
 
 <p align="center">
-    <a href="https://github.com/Pixel-Tailor-CN/PixelTelo/releases/latest"><img src="https://img.shields.io/github/v/release/Mystery00/PixelTelo" alt="GitHub Release"></a>
+    <a href="https://github.com/Pixel-Tailor-CN/PixelTelo/releases/latest"><img src="https://img.shields.io/github/v/release/Pixel-Tailor-CN/PixelTelo" alt="GitHub Release"></a>
     <a href="https://play.google.com/store/apps/details?id=vip.mystery0.pixel.telo"><img src="https://img.shields.io/badge/Google_Play-PixelTelo-green?logo=google-play&logoColor=white" alt="Google Play"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/github/license/Mystery00/PixelTelo" alt="License"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/github/license/Pixel-Tailor-CN/PixelTelo" alt="License"></a>
 </p>
 
 [English](#english) | [中文](#中文)
