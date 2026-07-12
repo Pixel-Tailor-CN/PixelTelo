@@ -44,6 +44,18 @@
             </intent-filter>
         </service>
 
+        <!-- 快捷设置磁贴：无状态，仅用于点击启动应用 -->
+        <service
+            android:name=".service.LauncherTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_launcher_monochrome"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- PHONE_STATE 为系统受保护广播，第三方应用无法伪造 -->
         <receiver
             android:name=".receiver.CallStateReceiver"
