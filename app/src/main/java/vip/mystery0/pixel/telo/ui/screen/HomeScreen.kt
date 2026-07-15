@@ -294,6 +294,7 @@ fun HomeScreen(
     viewModel.quickAddCall?.let { call ->
         val phone = call.phoneNumber
         val label = call.label?.takeIf { it.isNotBlank() }
+        val noContactsAppMessage = stringResource(R.string.msg_no_contacts_app)
         ModalBottomSheet(onDismissRequest = { viewModel.closeQuickAdd() }) {
             Column(
                 modifier = Modifier
@@ -371,7 +372,7 @@ fun HomeScreen(
                         } catch (e: ActivityNotFoundException) {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.msg_no_contacts_app),
+                                noContactsAppMessage,
                                 Toast.LENGTH_SHORT
                             ).show()
                         }

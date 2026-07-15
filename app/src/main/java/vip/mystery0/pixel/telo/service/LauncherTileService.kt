@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.service
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
@@ -37,6 +38,7 @@ class LauncherTileService : TileService() {
             startActivityAndCollapse(pendingIntent)
         } else {
             @Suppress("DEPRECATION")
+            @SuppressLint("StartActivityAndCollapseDeprecated")
             startActivityAndCollapse(intent)
         }
     }
