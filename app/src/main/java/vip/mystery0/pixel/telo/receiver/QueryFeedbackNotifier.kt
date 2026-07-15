@@ -43,8 +43,8 @@ object QueryFeedbackNotifier {
      * 来电放行且记录持有反馈 token 时写入待提醒标记。
      * 开关关闭时不写入；后写入的标记覆盖旧标记。
      */
-    fun markPendingFeedback(prefs: SharedPreferences, recordId: Long) {
-        if (!prefs.getBoolean(SettingViewModel.KEY_FEEDBACK_NOTIFICATION, true)) return
+    fun markPendingFeedback(context: Context, prefs: SharedPreferences, recordId: Long) {
+        if (!isFeedbackEnabled(context, prefs)) return
         prefs.edit {
             putLong(KEY_PENDING_RECORD_ID, recordId)
             putLong(KEY_PENDING_MARKED_AT, System.currentTimeMillis())
@@ -55,7 +55,7 @@ object QueryFeedbackNotifier {
      * 读取并清除待提醒标记。
      * 返回窗口期内的记录 id；无标记或标记过期返回 null。
      */
-    fun consumePendingFeedback(prefs: SharedPreferences): Long? {
+    fun consumePendingFeedback(context: Context, prefs: SharedPreferences): Long? {
         val recordId = prefs.getLong(KEY_PENDING_RECORD_ID, -1L)
         if (recordId < 0) return null
         val markedAt = prefs.getLong(KEY_PENDING_MARKED_AT, 0L)
@@ -63,12 +63,30 @@ object QueryFeedbackNotifier {
             remove(KEY_PENDING_RECORD_ID)
             remove(KEY_PENDING_MARKED_AT)
         }
+        if (!isFeedbackEnabled(context, prefs)) {
+            Log.i(TAG, "Feedback marker dropped because reminders are disabled")
+            return null
+        }
         val age = System.currentTimeMillis() - markedAt
         if (age !in 0..MARKER_VALID_MILLIS) {
             Log.i(TAG, "Stale feedback marker dropped: age=${age}ms")
             return null
         }
         return recordId
+    }
+
+    /** 开关与运行时权限均满足时才启用提醒；缺权时同步纠正持久化开关。 */
+    private fun isFeedbackEnabled(context: Context, prefs: SharedPreferences): Boolean {
+        if (!prefs.getBoolean(SettingViewModel.KEY_FEEDBACK_NOTIFICATION, true)) return false
+        val phoneStateGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_PHONE_STATE
+        ) == PackageManager.PERMISSION_GRANTED
+        val enabled = phoneStateGranted && hasNotificationPermission(context)
+        if (!enabled) {
+            prefs.edit { putBoolean(SettingViewModel.KEY_FEEDBACK_NOTIFICATION, false) }
+        }
+        return enabled
     }
 
     /** 展示反馈询问通知：查询结果概要 + 数据源 + “结果准确/结果不准确”按钮 */

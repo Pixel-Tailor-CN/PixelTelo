@@ -34,7 +34,7 @@ class CallStateReceiver : BroadcastReceiver(), KoinComponent {
         if (state != TelephonyManager.EXTRA_STATE_IDLE) return
 
         // 读取即清除标记，重复到达的 IDLE 广播不会二次提醒
-        val recordId = QueryFeedbackNotifier.consumePendingFeedback(prefs) ?: return
+        val recordId = QueryFeedbackNotifier.consumePendingFeedback(context, prefs) ?: return
 
         val pendingResult = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {

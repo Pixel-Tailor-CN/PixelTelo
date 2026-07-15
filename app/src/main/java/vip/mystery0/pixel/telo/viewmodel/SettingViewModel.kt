@@ -2,6 +2,8 @@ package vip.mystery0.pixel.telo.viewmodel
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -10,6 +12,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -245,7 +248,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         prefs.edit { putInt(KEY_LOCATION_OVERLAY_OFFSET_DP, locationOverlayOffsetDp) }
     }
 
-    var feedbackNotification by mutableStateOf(prefs.getBoolean(KEY_FEEDBACK_NOTIFICATION, true))
+    var feedbackNotification by mutableStateOf(readFeedbackNotification())
 
     fun updateFeedbackNotification(enabled: Boolean) {
         feedbackNotification = enabled
@@ -257,6 +260,26 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun updateRepeatCallStrategy(strategy: RepeatCallStrategy) {
         repeatCallStrategy = strategy
         prefs.edit { putString(KEY_REPEAT_CALL_STRATEGY, strategy.name) }
+    }
+
+    /** 初始化时校验提醒所需权限，避免默认开启但实际不可用。 */
+    private fun readFeedbackNotification(): Boolean {
+        val enabled = prefs.getBoolean(KEY_FEEDBACK_NOTIFICATION, true)
+        if (!enabled) return false
+        val phoneStateGranted = ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_PHONE_STATE
+        ) == PackageManager.PERMISSION_GRANTED
+        val notificationGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        val effectiveEnabled = phoneStateGranted && notificationGranted
+        if (!effectiveEnabled) {
+            prefs.edit { putBoolean(KEY_FEEDBACK_NOTIFICATION, false) }
+        }
+        return effectiveEnabled
     }
 
     /** 兼容旧版布尔开关：开启映射为静音放行，关闭映射为不修改。 */

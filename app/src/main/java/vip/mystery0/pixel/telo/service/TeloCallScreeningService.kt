@@ -174,7 +174,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
      */
     private fun markFeedbackPromptIfEligible(recordId: Long, result: CheckResult) {
         if (result.feedbackToken.isNullOrBlank()) return
-        QueryFeedbackNotifier.markPendingFeedback(prefs, recordId)
+        QueryFeedbackNotifier.markPendingFeedback(this, prefs, recordId)
     }
 
     private fun showLocationOverlayIfNeeded(
