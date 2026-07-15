@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.data.remote
 
+import androidx.annotation.Keep
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
@@ -77,6 +78,7 @@ data class FeedbackRequest(
 )
 
 @Serializable
+@Keep
 data class FeedbackResponse(
     val status: String
 )
