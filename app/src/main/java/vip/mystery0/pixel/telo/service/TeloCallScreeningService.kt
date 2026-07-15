@@ -64,16 +64,15 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         querySource = result.querySource,
                         feedbackToken = result.feedbackToken
                     )
-                } else if (shouldSilenceRepeatMarkedCall(phoneNumber, callTime, result)) {
+                } else if (shouldAllowRepeatMarkedCall(phoneNumber, callTime, result)) {
                     val repeatLabel = result.label.ifBlank { "骚扰电话" }
                     response.setDisallowCall(false)
                     response.setRejectCall(false)
-                    response.setSilenceCall(true)
                     response.setSkipCallLog(false)
 
                     val recordId = blockedCallRepository.insert(
                         phoneNumber,
-                        remark = "$repeatLabel（重复来电，静音展示）",
+                        remark = "$repeatLabel（重复来电，响铃放行）",
                         ResultType.PASS_BUT_NOTIFY,
                         result.localCost,
                         result.networkCost,
@@ -179,7 +178,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         }
     }
 
-    private fun shouldSilenceRepeatMarkedCall(
+    private fun shouldAllowRepeatMarkedCall(
         phoneNumber: String,
         callTime: Long,
         result: CheckResult
@@ -209,7 +208,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         if (isRepeatCall) {
             Log.i(
                 TAG,
-                "Repeat marked call allowed silently: number=$phoneNumber, " +
+                "Repeat marked call allowed with ringing: number=$phoneNumber, " +
                     "window=${windowMinutes}min, interval=${callTime - lastMarkedCallTime}ms"
             )
         }
