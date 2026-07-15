@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -103,6 +104,17 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     val autoCheckPermissionDeniedMessage = stringResource(
         R.string.msg_auto_check_update_requires_notification_permission
     )
+    val feedbackPermissionDeniedMessage = stringResource(
+        R.string.msg_feedback_notification_requires_permissions
+    )
+    val feedbackPermissions = remember {
+        buildList {
+            add(Manifest.permission.READ_PHONE_STATE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
     val previewOverlay = remember {
         IncomingCallOverlay(
             context,
@@ -130,6 +142,28 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             result.forEach { (permission, isGranted) ->
                 this[permission] = isGranted
             }
+        }
+    }
+
+    val feedbackPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        permissionsState = permissionsState.toMutableMap().apply {
+            result.forEach { (permission, isGranted) ->
+                this[permission] = isGranted
+            }
+        }
+        val allGranted = feedbackPermissions.all { permission ->
+            ContextCompat.checkSelfPermission(context, permission) ==
+                PackageManager.PERMISSION_GRANTED
+        }
+        viewModel.updateFeedbackNotification(allGranted)
+        if (!allGranted) {
+            Toast.makeText(
+                context,
+                feedbackPermissionDeniedMessage,
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -190,6 +224,15 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             !OfflineDatabaseUpdateScheduler.hasNotificationPermission(context)
         ) {
             viewModel.updateAutoCheckUpdate(false)
+        }
+        if (
+            viewModel.feedbackNotification &&
+            feedbackPermissions.any { permission ->
+                ContextCompat.checkSelfPermission(context, permission) !=
+                    PackageManager.PERMISSION_GRANTED
+            }
+        ) {
+            viewModel.updateFeedbackNotification(false)
         }
     }
 
@@ -848,7 +891,21 @@ fun SettingsScreen(viewModel: SettingViewModel) {
 
             SwitchPreference(
                 value = viewModel.feedbackNotification,
-                onValueChange = { viewModel.updateFeedbackNotification(it) },
+                onValueChange = { enabled ->
+                    if (!enabled) {
+                        viewModel.updateFeedbackNotification(false)
+                    } else {
+                        val missingPermissions = feedbackPermissions.filter { permission ->
+                            ContextCompat.checkSelfPermission(context, permission) !=
+                                PackageManager.PERMISSION_GRANTED
+                        }
+                        if (missingPermissions.isEmpty()) {
+                            viewModel.updateFeedbackNotification(true)
+                        } else {
+                            feedbackPermissionLauncher.launch(missingPermissions.toTypedArray())
+                        }
+                    }
+                },
                 title = { Text(stringResource(R.string.setting_feedback_notification)) },
                 summary = { Text(stringResource(R.string.setting_feedback_notification_summary)) },
                 icon = { Icon(Icons.Default.ThumbsUpDown, contentDescription = null) }

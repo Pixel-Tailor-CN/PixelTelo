@@ -269,6 +269,7 @@
     <string name="permission_read_phone_state_desc">用于识别通话结束时机，以便在通话结束后提醒你反馈查询结果</string>
     <string name="setting_feedback_notification">通话结束后提醒反馈</string>
     <string name="setting_feedback_notification_summary">带有联网查询结果的来电结束后，弹出通知让你反馈本次识别是否准确</string>
+    <string name="msg_feedback_notification_requires_permissions">需要电话状态和通知权限才能启用通话结束反馈提醒</string>
     <string name="notification_feedback_channel_name">查询结果反馈</string>
     <string name="notification_feedback_title">本次来电识别准确吗？</string>
     <string name="notification_feedback_text_marked">%1$s 被标记为 %2$s（数据源: %3$s）</string>

@@ -271,6 +271,7 @@
     <string name="permission_read_phone_state_desc">Used to detect when a call ends so we can remind you to rate the query result.</string>
     <string name="setting_feedback_notification">Feedback reminder after calls</string>
     <string name="setting_feedback_notification_summary">After a call with an online query result ends, show a notification to rate whether the result was accurate.</string>
+    <string name="msg_feedback_notification_requires_permissions">Phone state and notification permissions are required for feedback reminders.</string>
     <string name="notification_feedback_channel_name">Query result feedback</string>
     <string name="notification_feedback_title">Was this call identified correctly?</string>
     <string name="notification_feedback_text_marked">%1$s was marked as %2$s (source: %3$s).</string>
