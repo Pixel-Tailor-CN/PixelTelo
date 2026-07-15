@@ -46,6 +46,12 @@ sealed interface BackupRestoreState {
     data class Failure(val message: String) : BackupRestoreState
 }
 
+enum class RepeatCallStrategy {
+    UNCHANGED,
+    SILENCE,
+    ALLOW,
+}
+
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
         private const val TAG = "SettingViewModel"
@@ -56,6 +62,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_SHOW_LOCATION_OVERLAY = "show_location_overlay"
         const val KEY_LOCATION_OVERLAY_OFFSET_DP = "location_overlay_offset_dp"
         const val KEY_ALLOW_REPEAT_CALL = "allow_repeat_call"
+        const val KEY_REPEAT_CALL_STRATEGY = "repeat_call_strategy"
         const val KEY_REPEAT_CALL_WINDOW_MINUTES = "repeat_call_window_minutes"
         const val KEY_FEEDBACK_NOTIFICATION = "feedback_notification"
         const val DEFAULT_NETWORK_TIMEOUT_SECONDS = 5
@@ -245,11 +252,25 @@ class SettingViewModel : ViewModel(), KoinComponent {
         prefs.edit { putBoolean(KEY_FEEDBACK_NOTIFICATION, enabled) }
     }
 
-    var allowRepeatCall by mutableStateOf(prefs.getBoolean(KEY_ALLOW_REPEAT_CALL, false))
+    var repeatCallStrategy by mutableStateOf(readRepeatCallStrategy())
 
-    fun updateAllowRepeatCall(enabled: Boolean) {
-        allowRepeatCall = enabled
-        prefs.edit { putBoolean(KEY_ALLOW_REPEAT_CALL, enabled) }
+    fun updateRepeatCallStrategy(strategy: RepeatCallStrategy) {
+        repeatCallStrategy = strategy
+        prefs.edit { putString(KEY_REPEAT_CALL_STRATEGY, strategy.name) }
+    }
+
+    /** 兼容旧版布尔开关：开启映射为静音放行，关闭映射为不修改。 */
+    private fun readRepeatCallStrategy(): RepeatCallStrategy {
+        val stored = prefs.getString(KEY_REPEAT_CALL_STRATEGY, null)
+        if (stored != null) {
+            return runCatching { RepeatCallStrategy.valueOf(stored) }
+                .getOrDefault(RepeatCallStrategy.UNCHANGED)
+        }
+        return if (prefs.getBoolean(KEY_ALLOW_REPEAT_CALL, false)) {
+            RepeatCallStrategy.SILENCE
+        } else {
+            RepeatCallStrategy.UNCHANGED
+        }
     }
 
     var repeatCallWindowMinutes by mutableIntStateOf(

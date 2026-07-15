@@ -112,8 +112,10 @@
     <string name="error_auto_check_update_interval">请输入 1 到 720 之间的整数。</string>
     <string name="setting_notify_only">仅提示不拦截</string>
     <string name="setting_notify_only_summary">识别到骚扰电话时仅记录，不挂断</string>
-    <string name="setting_allow_repeat_call">不自动拦截短时间重复来电</string>
-    <string name="setting_allow_repeat_call_summary">已标记的骚扰号码在设定时间内再次呼入时，响铃放行并交由你决定是否接听</string>
+    <string name="setting_repeat_call_strategy">重复来电策略</string>
+    <string name="repeat_call_strategy_unchanged">不修改</string>
+    <string name="repeat_call_strategy_silence">放行但静音</string>
+    <string name="repeat_call_strategy_allow">完全放行</string>
     <string name="setting_repeat_call_window">短时间重复来电判定时间</string>
     <string name="setting_repeat_call_window_summary">当前: %1$d 分钟</string>
     <string name="summary_test_intercept">输入号码模拟拦截检查</string>

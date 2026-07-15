@@ -105,8 +105,10 @@
     <string name="error_auto_check_update_interval">Enter a whole number from 1 to 720.</string>
     <string name="setting_notify_only">Notify Only</string>
     <string name="setting_notify_only_summary">Only record spam calls, do not hang up.</string>
-    <string name="setting_allow_repeat_call">Do not auto-block short repeat calls</string>
-    <string name="setting_allow_repeat_call_summary">When an already labeled spam number calls again within the configured window, let it ring and let you decide.</string>
+    <string name="setting_repeat_call_strategy">Repeat call strategy</string>
+    <string name="repeat_call_strategy_unchanged">No change</string>
+    <string name="repeat_call_strategy_silence">Allow silently</string>
+    <string name="repeat_call_strategy_allow">Allow completely</string>
     <string name="setting_repeat_call_window">Short repeat call window</string>
     <string name="setting_repeat_call_window_summary">Current: %1$d minutes</string>
     <string name="summary_test_intercept">Enter a number to simulate intercept check.</string>

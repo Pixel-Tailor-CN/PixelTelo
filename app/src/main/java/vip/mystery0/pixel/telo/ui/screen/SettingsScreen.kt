@@ -61,6 +61,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -94,6 +95,7 @@ import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
+import vip.mystery0.pixel.telo.viewmodel.RepeatCallStrategy
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 import java.time.LocalDateTime
@@ -962,6 +964,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             }
 
             var showRepeatWindowDialog by remember { mutableStateOf(false) }
+            var showRepeatStrategyDialog by remember { mutableStateOf(false) }
 
             SwitchPreference(
                 value = viewModel.notifyOnly,
@@ -971,13 +974,63 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 icon = { Icon(Icons.Default.NotificationsNone, contentDescription = null) }
             )
 
-            SwitchPreference(
-                value = viewModel.allowRepeatCall,
-                onValueChange = { viewModel.updateAllowRepeatCall(it) },
-                title = { Text(stringResource(R.string.setting_allow_repeat_call)) },
-                summary = { Text(stringResource(R.string.setting_allow_repeat_call_summary)) },
-                icon = { Icon(Icons.Default.Repeat, contentDescription = null) }
+            Preference(
+                title = { Text(stringResource(R.string.setting_repeat_call_strategy)) },
+                summary = {
+                    Text(
+                        stringResource(
+                            when (viewModel.repeatCallStrategy) {
+                                RepeatCallStrategy.UNCHANGED ->
+                                    R.string.repeat_call_strategy_unchanged
+                                RepeatCallStrategy.SILENCE ->
+                                    R.string.repeat_call_strategy_silence
+                                RepeatCallStrategy.ALLOW ->
+                                    R.string.repeat_call_strategy_allow
+                            }
+                        )
+                    )
+                },
+                icon = { Icon(Icons.Default.Repeat, contentDescription = null) },
+                onClick = { showRepeatStrategyDialog = true }
             )
+
+            if (showRepeatStrategyDialog) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showRepeatStrategyDialog = false },
+                    title = { Text(stringResource(R.string.setting_repeat_call_strategy)) },
+                    text = {
+                        Column {
+                            RepeatCallStrategy.entries.forEach { strategy ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = viewModel.repeatCallStrategy == strategy,
+                                        onClick = {
+                                            viewModel.updateRepeatCallStrategy(strategy)
+                                            showRepeatStrategyDialog = false
+                                        }
+                                    )
+                                    Text(
+                                        stringResource(
+                                            when (strategy) {
+                                                RepeatCallStrategy.UNCHANGED ->
+                                                    R.string.repeat_call_strategy_unchanged
+                                                RepeatCallStrategy.SILENCE ->
+                                                    R.string.repeat_call_strategy_silence
+                                                RepeatCallStrategy.ALLOW ->
+                                                    R.string.repeat_call_strategy_allow
+                                            }
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {}
+                )
+            }
 
             Preference(
                 title = { Text(stringResource(R.string.setting_repeat_call_window)) },

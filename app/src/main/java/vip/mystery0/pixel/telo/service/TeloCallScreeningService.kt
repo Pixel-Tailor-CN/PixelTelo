@@ -13,6 +13,7 @@ import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.receiver.QueryFeedbackNotifier
+import vip.mystery0.pixel.telo.viewmodel.RepeatCallStrategy
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 class TeloCallScreeningService : CallScreeningService(), KoinComponent {
@@ -47,6 +48,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         "forceBlock=${result.forceBlock}, label=${result.label}, " +
                         "localCost=${result.localCost}ms, networkCost=${result.networkCost}ms"
                 )
+                val repeatStrategy = repeatCallStrategy(phoneNumber, callTime, result)
 
                 if (result.shouldBlock && result.forceBlock) {
                     callRejected = true
@@ -64,16 +66,25 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         querySource = result.querySource,
                         feedbackToken = result.feedbackToken
                     )
-                } else if (shouldAllowRepeatMarkedCall(phoneNumber, callTime, result)) {
+                } else if (repeatStrategy != null) {
                     val repeatLabel = result.label.ifBlank { "骚扰电话" }
                     response.setDisallowCall(false)
                     response.setRejectCall(false)
+                    response.setSilenceCall(repeatStrategy == RepeatCallStrategy.SILENCE)
                     response.setSkipCallLog(false)
 
                     val recordId = blockedCallRepository.insert(
                         phoneNumber,
-                        remark = "$repeatLabel（重复来电，响铃放行）",
-                        ResultType.PASS_BUT_NOTIFY,
+                        remark = when (repeatStrategy) {
+                            RepeatCallStrategy.SILENCE -> "$repeatLabel（重复来电，静音放行）"
+                            RepeatCallStrategy.ALLOW -> "$repeatLabel（重复来电，完全放行）"
+                            RepeatCallStrategy.UNCHANGED -> error("Unreachable strategy")
+                        },
+                        if (repeatStrategy == RepeatCallStrategy.ALLOW) {
+                            ResultType.PASS
+                        } else {
+                            ResultType.PASS_BUT_NOTIFY
+                        },
                         result.localCost,
                         result.networkCost,
                         label = result.label.takeIf { it.isNotBlank() },
@@ -178,14 +189,23 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         }
     }
 
-    private fun shouldAllowRepeatMarkedCall(
+    private fun repeatCallStrategy(
         phoneNumber: String,
         callTime: Long,
         result: CheckResult
-    ): Boolean {
+    ): RepeatCallStrategy? {
         if (!result.shouldBlock || result.forceBlock || result.resultType == ResultType.BLACK_LIST) {
-            return false
+            return null
         }
+
+        val strategy = prefs.getString(SettingViewModel.KEY_REPEAT_CALL_STRATEGY, null)
+            ?.let { runCatching { RepeatCallStrategy.valueOf(it) }.getOrNull() }
+            ?: if (prefs.getBoolean(SettingViewModel.KEY_ALLOW_REPEAT_CALL, false)) {
+                RepeatCallStrategy.SILENCE
+            } else {
+                RepeatCallStrategy.UNCHANGED
+            }
+        if (strategy == RepeatCallStrategy.UNCHANGED) return null
 
         val normalizedNumber = normalizePhoneNumber(phoneNumber)
         val lastMarkedCallTime = synchronized(recentMarkedCalls) {
@@ -194,9 +214,8 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
             previous
         }
 
-        val enabled = prefs.getBoolean(SettingViewModel.KEY_ALLOW_REPEAT_CALL, false)
-        if (!enabled || lastMarkedCallTime <= 0L || callTime < lastMarkedCallTime) {
-            return false
+        if (lastMarkedCallTime <= 0L || callTime < lastMarkedCallTime) {
+            return null
         }
 
         val windowMinutes = prefs.getInt(
@@ -208,11 +227,12 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         if (isRepeatCall) {
             Log.i(
                 TAG,
-                "Repeat marked call allowed with ringing: number=$phoneNumber, " +
+                "Repeat marked call strategy applied: number=$phoneNumber, " +
+                    "strategy=$strategy, " +
                     "window=${windowMinutes}min, interval=${callTime - lastMarkedCallTime}ms"
             )
         }
-        return isRepeatCall
+        return strategy.takeIf { isRepeatCall }
     }
 
     private fun normalizePhoneNumber(phoneNumber: String): String {
