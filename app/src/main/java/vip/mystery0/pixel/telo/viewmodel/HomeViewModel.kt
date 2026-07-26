@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ListType
@@ -243,12 +244,15 @@ fun buildBlockedCallListItems(
 
 private fun UserListEntry.matchesPhone(phoneNumber: String): Boolean {
     if (tagMatch || locationMatch) return false
-    val rule = this.phoneNumber.trim()
-    val phone = phoneNumber.trim()
-    if (rule.isBlank() || phone.isBlank()) return false
-    return if (isPrefix) {
-        phone.startsWith(rule)
-    } else {
-        phone == rule
+    val originalRule = PhoneNumberNormalizer.normalizeCountryCode(this.phoneNumber)
+    val originalPhone = PhoneNumberNormalizer.normalizeCountryCode(phoneNumber)
+    val normalizedRule = PhoneNumberNormalizer.normalizeForLookup(originalRule)
+    val normalizedPhone = PhoneNumberNormalizer.normalizeForLookup(originalPhone)
+
+    fun matches(rule: String, phone: String): Boolean {
+        if (rule.isBlank() || phone.isBlank()) return false
+        return if (isPrefix) phone.startsWith(rule) else phone == rule
     }
+    return matches(normalizedRule, normalizedPhone) ||
+            (originalPhone != normalizedPhone && matches(originalRule, originalPhone))
 }

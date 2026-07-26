@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.remote.PhoneLocationInfo
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
@@ -44,7 +45,7 @@ class SpamNumberRepository : KoinComponent {
      * 用于手动重试联网查询超时的记录。超时限制使用用户设置。
      */
     suspend fun queryNetwork(phoneNumber: String): QueryResponse {
-        val phone = phoneNumber.removePrefix("+86")
+        val phone = PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
         return withContext(Dispatchers.IO) {
             withTimeout(networkTimeoutMs().milliseconds) {
                 queryRepository.queryNumber(phone)
@@ -54,17 +55,17 @@ class SpamNumberRepository : KoinComponent {
 
     suspend fun checkSpam(phoneNumber: String, forceNetworkQuery: Boolean = false): CheckResult {
         val start = System.currentTimeMillis()
-        val phone = phoneNumber.removePrefix("+86")
+        val phone = PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
         var localCost: Long
         var networkCost: Long
 
-        val whiteMatch = userListRepository.findWhiteListMatch(phone)
+        val whiteMatch = userListRepository.findWhiteListMatch(phoneNumber)
         if (whiteMatch != null) {
             Log.i(TAG, "White list hit")
             return CheckResult(false, whiteMatch.remark ?: "", ResultType.WHITE_LIST, 0, 0)
         }
 
-        val blackMatch = userListRepository.findBlackListMatch(phone)
+        val blackMatch = userListRepository.findBlackListMatch(phoneNumber)
         if (blackMatch != null) {
             Log.i(TAG, "Black list hit")
             return CheckResult(

@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
@@ -236,6 +237,6 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     }
 
     private fun normalizePhoneNumber(phoneNumber: String): String {
-        return phoneNumber.removePrefix("+86")
+        return PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
     }
 }
