@@ -52,8 +52,10 @@ Pixel Telo 遵循 **MVVM (Model-View-ViewModel)** 架构模式，严格遵守 **
   `PagingData<BlockedCallListItem>`，不再为 UI 持有全部历史记录。
 * `ContactRepository` 只解析 Paging 当前已加载窗口中的去重号码，依次尝试原始号码、
   去国家码号码和 `PhoneNumberNormalizer.normalizeForLookup()` 的标准号码。
-* 联系人姓名仅保存在有界内存缓存中，不持久化、不进入备份，也不进入
-  `CallScreeningService` 的实时查询链路。
+* 联系人姓名仅保存在有界内存缓存中；未命中结果缓存 30 秒，Provider 查询异常不缓存。
+  缓存使用代次保护，联系人变化后未完成的旧查询不能回灌已失效结果。
+* 页面恢复时重新建立联系人 ContentObserver，兼容首次无权限、后续授权的场景。
+* 联系人姓名不持久化、不进入备份，也不进入 `CallScreeningService` 的实时查询链路。
 
 ## 依赖注入
 

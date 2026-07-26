@@ -504,6 +504,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 result.localCost,
                 result.networkCost,
                 label = result.label.takeIf { it.isNotBlank() },
+                province = result.locationInfo?.province,
+                city = result.locationInfo?.city,
                 querySource = result.querySource,
                 feedbackToken = result.feedbackToken
             )

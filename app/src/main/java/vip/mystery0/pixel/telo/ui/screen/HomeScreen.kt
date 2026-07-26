@@ -600,7 +600,7 @@ private fun LazyListScope.blockedCallsList(
     onClick: (BlockedCall) -> Unit,
 ) {
     when {
-        callItems.loadState.refresh is LoadState.Loading -> {
+        callItems.itemCount == 0 && callItems.loadState.refresh is LoadState.Loading -> {
             item {
                 Box(
                     modifier = Modifier
@@ -612,7 +612,7 @@ private fun LazyListScope.blockedCallsList(
             }
         }
 
-        callItems.loadState.refresh is LoadState.Error -> {
+        callItems.itemCount == 0 && callItems.loadState.refresh is LoadState.Error -> {
             item {
                 Column(
                     modifier = Modifier
@@ -646,6 +646,35 @@ private fun LazyListScope.blockedCallsList(
         }
 
         else -> {
+            if (callItems.loadState.refresh is LoadState.Loading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .align(Alignment.Center),
+                        )
+                    }
+                }
+            }
+
+            if (callItems.loadState.refresh is LoadState.Error) {
+                item {
+                    TextButton(
+                        onClick = callItems::retry,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.home_records_load_failed))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.action_retry))
+                    }
+                }
+            }
+
             items(
                 count = callItems.itemCount,
                 key = callItems.itemKey { it.call.id },

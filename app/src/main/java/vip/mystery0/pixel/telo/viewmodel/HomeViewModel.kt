@@ -146,7 +146,7 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     }
 
     fun refreshContactNames() {
-        contactRepository.invalidateCache()
+        contactRepository.restartObservation()
         resolveLoadedContacts()
     }
 
