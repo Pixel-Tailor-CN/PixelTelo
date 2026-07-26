@@ -21,6 +21,7 @@ import vip.mystery0.pixel.telo.data.remote.QueryApi
 import vip.mystery0.pixel.telo.data.remote.SyncApi
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
+import vip.mystery0.pixel.telo.data.repository.ContactRepository
 import vip.mystery0.pixel.telo.data.repository.QueryRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
@@ -51,6 +52,7 @@ val appModule = module {
     single { get<AppDatabase>().userListDao() }
 
     single { BlockedCallRepository() }
+    single { ContactRepository(androidContext()) }
     single { UserListRepository(get()) }
     single { BackupRepository(get(), get()) }  // 第二个 get() 注入 UserListDao
     single { SpamNumberRepository() }
