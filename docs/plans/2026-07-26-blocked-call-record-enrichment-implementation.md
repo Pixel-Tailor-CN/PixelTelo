@@ -13,6 +13,18 @@ Android 模拟器完成性能与显示验收。
 **技术栈：** Kotlin、Room 2.8.4、Paging 3.5.0、Paging Compose、Jetpack Compose、
 Kotlin Coroutines、Koin、ContactsContract。
 
+## 执行结果
+
+- 已完成 Room v7→v8 迁移、归属地持久化、备份格式 v4、联系人动态解析和 Paging 3 列表迁移。
+- `./gradlew :app:assembleDebug`、`./gradlew lint`、`./gradlew :app:installDebug` 均通过。
+- Android 17 Pixel 模拟器保留原数据库升级成功，旧记录未丢失，空归属地不显示占位。
+- 使用 504 条临时记录验证分页滚动；常速连续滚动 440 帧无错误日志，
+  P50/P90/P95/P99 为 18/27/34/48ms。
+- 普通号码、`+86` 号码和移动一卡多号前缀号码均匹配到同一联系人；
+  撤销联系人权限后降级为只显示号码，重新授权后恢复姓名。
+- 列表与 BottomSheet 均正确展示联系人和归属地；省市相同时只展示一次，未展示运营商。
+- 验证完成后已恢复原数据库并删除本次创建的临时联系人。
+
 ## Global Constraints
 
 - 代码注释、KDoc 与项目文档使用中文；日志使用英文。
@@ -404,6 +416,9 @@ git commit -m "feat: 增加联系人动态解析与有界缓存"
 
 ### Task 4：将 HomeViewModel 改为分页展示状态
 
+> **原子迁移约束：** Task 4 会改变 `HomeViewModel.blockedCallItems` 的公开类型，
+> 必须与 Task 5 的 Compose 消费端迁移连续完成；两项之间不执行编译或提交。
+
 **Files:**
 
 - Modify: `app/src/main/java/vip/mystery0/pixel/telo/viewmodel/HomeViewModel.kt`
@@ -520,22 +535,9 @@ viewModelScope.launch {
 `BlockedCallRepository.allBlockedCalls` 和 `BlockedCallDao.getAll()`；保留
 `getAllSnapshot()` 供备份导出使用。
 
-- [ ] **Step 5：执行编译检查**
+- [ ] **Step 5：继续执行 Compose 消费端迁移**
 
-Run:
-
-```bash
-./gradlew :app:assembleDebug
-```
-
-Expected: `BUILD SUCCESSFUL`，ViewModel 不再持有全部拦截记录。
-
-- [ ] **Step 6：提交**
-
-```bash
-git add app/src/main/java/vip/mystery0/pixel/telo/viewmodel/HomeViewModel.kt app/src/main/java/vip/mystery0/pixel/telo/data/repository/BlockedCallRepository.kt app/src/main/java/vip/mystery0/pixel/telo/data/dao/BlockedCallDao.kt
-git commit -m "refactor: 使用 PagingData 驱动拦截记录页面"
-```
+不要在接口生产端和消费端类型不一致的中间状态执行编译或提交，直接继续 Task 5。
 
 ### Task 5：实现 Paging Compose 与布局 C
 
@@ -789,7 +791,7 @@ Expected: `BUILD SUCCESSFUL`，Paging Compose、LoadState 和布局参数全部�
 - [ ] **Step 8：提交**
 
 ```bash
-git add app/src/main/java/vip/mystery0/pixel/telo/ui/screen/HomeScreen.kt app/src/main/res/values/strings.xml app/src/main/res/values-zh/strings.xml
+git add app/src/main/java/vip/mystery0/pixel/telo/viewmodel/HomeViewModel.kt app/src/main/java/vip/mystery0/pixel/telo/data/repository/BlockedCallRepository.kt app/src/main/java/vip/mystery0/pixel/telo/data/dao/BlockedCallDao.kt app/src/main/java/vip/mystery0/pixel/telo/ui/screen/HomeScreen.kt app/src/main/res/values/strings.xml app/src/main/res/values-zh/strings.xml
 git commit -m "feat: 分页展示拦截记录联系人和归属地"
 ```
 

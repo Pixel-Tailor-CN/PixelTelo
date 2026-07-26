@@ -45,6 +45,16 @@ Pixel Telo 遵循 **MVVM (Model-View-ViewModel)** 架构模式，严格遵守 **
   `BlockedCallRepository.attachQueryResult()`/`updateFeedbackStatus()` 返回更新后的实体，
   调用方必须基于返回值继续操作，避免旧对象覆盖新字段。
 
+## 拦截记录分页与联系人解析
+
+* `BlockedCall` 在 Room v8 新增可空的 `province`、`city`，只持久化联网结果中的省份和城市。
+* 拦截记录由 Room `PagingSource` 分页加载，`HomeViewModel` 组合黑白名单状态后输出
+  `PagingData<BlockedCallListItem>`，不再为 UI 持有全部历史记录。
+* `ContactRepository` 只解析 Paging 当前已加载窗口中的去重号码，依次尝试原始号码、
+  去国家码号码和 `PhoneNumberNormalizer.normalizeForLookup()` 的标准号码。
+* 联系人姓名仅保存在有界内存缓存中，不持久化、不进入备份，也不进入
+  `CallScreeningService` 的实时查询链路。
+
 ## 依赖注入
 
 我们使用 **Koin** 进行依赖注入。
