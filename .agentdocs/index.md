@@ -7,6 +7,8 @@
 ### 产品与需求 (`prd/`)
 
 * [需求规范](prd/requirements.md): 详细的功能和非功能需求，包括 Call Guardian, Data Sync 和性能约束。
+* [拦截记录信息增强设计](prd/2026-07-26-blocked-call-record-enrichment-design.md):
+  归属地持久化、联系人动态识别、分页展示与模拟器验收方案。
 
 ### 架构与技术 (`architecture/`)
 

@@ -15,4 +15,5 @@
 local.properties
 .idea
 /.claude/
+/.superpowers/
 /app/release/
