@@ -40,15 +40,20 @@ import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.OpenWith
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RestorePage
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ThumbsUpDown
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -97,6 +102,8 @@ import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
+import vip.mystery0.pixel.telo.viewmodel.LocationOverlayDisplayMode
+import vip.mystery0.pixel.telo.viewmodel.LocationOverlayStyle
 import vip.mystery0.pixel.telo.viewmodel.RepeatCallStrategy
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
@@ -1111,7 +1118,251 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     icon = { Icon(Icons.Default.WifiOff, contentDescription = null) }
                 )
 
-                LocationOverlaySettings(viewModel)
+                var showOverlayDisplayModeDialog by remember { mutableStateOf(false) }
+                var showOverlayDurationDialog by remember { mutableStateOf(false) }
+                var showOverlayStyleDialog by remember { mutableStateOf(false) }
+                val locationOverlayEnabled = !viewModel.noNetworkQuery
+
+                SwitchPreference(
+                    value = viewModel.showLocationOverlay,
+                    onValueChange = viewModel::updateShowLocationOverlay,
+                    enabled = locationOverlayEnabled,
+                    title = { Text(stringResource(R.string.setting_show_location_overlay)) },
+                    summary = {
+                        Text(
+                            stringResource(
+                                if (locationOverlayEnabled) {
+                                    R.string.setting_show_location_overlay_summary
+                                } else {
+                                    R.string.setting_show_location_overlay_disabled_summary
+                                }
+                            )
+                        )
+                    },
+                    icon = { Icon(Icons.Default.Map, contentDescription = null) }
+                )
+
+                Preference(
+                    enabled = locationOverlayEnabled,
+                    title = {
+                        Text(stringResource(R.string.setting_location_overlay_display_mode))
+                    },
+                    summary = {
+                        Text(
+                            stringResource(
+                                when (viewModel.locationOverlayDisplayMode) {
+                                    LocationOverlayDisplayMode.FIXED_DURATION ->
+                                        R.string.location_overlay_display_mode_fixed
+
+                                    LocationOverlayDisplayMode.UNTIL_CALL_END ->
+                                        R.string.location_overlay_display_mode_until_call_end
+                                }
+                            )
+                        )
+                    },
+                    icon = { Icon(Icons.Default.Visibility, contentDescription = null) },
+                    onClick = { showOverlayDisplayModeDialog = true }
+                )
+
+                if (
+                    viewModel.locationOverlayDisplayMode ==
+                    LocationOverlayDisplayMode.FIXED_DURATION
+                ) {
+                    Preference(
+                        enabled = locationOverlayEnabled,
+                        title = {
+                            Text(stringResource(R.string.setting_location_overlay_duration))
+                        },
+                        summary = {
+                            Text(
+                                stringResource(
+                                    R.string.setting_location_overlay_duration_summary,
+                                    viewModel.locationOverlayDurationSeconds
+                                )
+                            )
+                        },
+                        icon = { Icon(Icons.Default.Timer, contentDescription = null) },
+                        onClick = { showOverlayDurationDialog = true }
+                    )
+                }
+
+                Preference(
+                    enabled = locationOverlayEnabled,
+                    title = { Text(stringResource(R.string.setting_location_overlay_style)) },
+                    summary = {
+                        Text(
+                            stringResource(
+                                when (viewModel.locationOverlayStyle) {
+                                    LocationOverlayStyle.CARD ->
+                                        R.string.location_overlay_style_card
+
+                                    LocationOverlayStyle.MINIMAL ->
+                                        R.string.location_overlay_style_minimal
+                                }
+                            )
+                        )
+                    },
+                    icon = { Icon(Icons.Default.Palette, contentDescription = null) },
+                    onClick = { showOverlayStyleDialog = true }
+                )
+
+                Preference(
+                    title = { Text(stringResource(R.string.setting_adjust_location_overlay)) },
+                    summary = {
+                        Text(
+                            stringResource(
+                                if (viewModel.showLocationOverlayAdjuster) {
+                                    R.string.setting_adjust_location_overlay_active_summary
+                                } else {
+                                    R.string.setting_adjust_location_overlay_summary
+                                }
+                            )
+                        )
+                    },
+                    icon = { Icon(Icons.Default.OpenWith, contentDescription = null) },
+                    onClick = viewModel::toggleLocationOverlayAdjuster
+                )
+
+                if (showOverlayDisplayModeDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showOverlayDisplayModeDialog = false },
+                        title = {
+                            Text(stringResource(R.string.setting_location_overlay_display_mode))
+                        },
+                        text = {
+                            Column {
+                                LocationOverlayDisplayMode.entries.forEach { mode ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                viewModel.updateLocationOverlayDisplayMode(mode)
+                                                showOverlayDisplayModeDialog = false
+                                            },
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(
+                                            selected =
+                                                viewModel.locationOverlayDisplayMode == mode,
+                                            onClick = {
+                                                viewModel.updateLocationOverlayDisplayMode(mode)
+                                                showOverlayDisplayModeDialog = false
+                                            }
+                                        )
+                                        Text(
+                                            stringResource(
+                                                when (mode) {
+                                                    LocationOverlayDisplayMode.FIXED_DURATION ->
+                                                        R.string
+                                                            .location_overlay_display_mode_fixed
+
+                                                    LocationOverlayDisplayMode.UNTIL_CALL_END ->
+                                                        R.string
+                                                            .location_overlay_display_mode_until_call_end
+                                                }
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {}
+                    )
+                }
+
+                if (showOverlayStyleDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showOverlayStyleDialog = false },
+                        title = { Text(stringResource(R.string.setting_location_overlay_style)) },
+                        text = {
+                            Column {
+                                LocationOverlayStyle.entries.forEach { style ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                viewModel.updateLocationOverlayStyle(style)
+                                                showOverlayStyleDialog = false
+                                            },
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(
+                                            selected = viewModel.locationOverlayStyle == style,
+                                            onClick = {
+                                                viewModel.updateLocationOverlayStyle(style)
+                                                showOverlayStyleDialog = false
+                                            }
+                                        )
+                                        Text(
+                                            stringResource(
+                                                when (style) {
+                                                    LocationOverlayStyle.CARD ->
+                                                        R.string.location_overlay_style_card
+
+                                                    LocationOverlayStyle.MINIMAL ->
+                                                        R.string.location_overlay_style_minimal
+                                                }
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {}
+                    )
+                }
+
+                if (showOverlayDurationDialog) {
+                    var sliderValue by remember {
+                        mutableFloatStateOf(viewModel.locationOverlayDurationSeconds.toFloat())
+                    }
+                    AlertDialog(
+                        onDismissRequest = { showOverlayDurationDialog = false },
+                        title = {
+                            Text(stringResource(R.string.setting_location_overlay_duration))
+                        },
+                        text = {
+                            Column {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_location_overlay_duration_summary,
+                                        sliderValue.toInt()
+                                    )
+                                )
+                                Slider(
+                                    value = sliderValue,
+                                    onValueChange = { sliderValue = it },
+                                    valueRange =
+                                        SettingViewModel.MIN_LOCATION_OVERLAY_DURATION_SECONDS
+                                            .toFloat()..
+                                                SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS
+                                                    .toFloat(),
+                                    steps =
+                                        SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS -
+                                                SettingViewModel.MIN_LOCATION_OVERLAY_DURATION_SECONDS -
+                                                1
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    viewModel.updateLocationOverlayDurationSeconds(
+                                        sliderValue.toInt()
+                                    )
+                                    showOverlayDurationDialog = false
+                                }
+                            ) {
+                                Text(stringResource(R.string.action_confirm))
+                            }
+                        },
+                        dismissButton = {
+                            OutlinedButton(onClick = { showOverlayDurationDialog = false }) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        }
+                    )
+                }
 
                 SwitchPreference(
                     value = viewModel.alwaysRecord,
