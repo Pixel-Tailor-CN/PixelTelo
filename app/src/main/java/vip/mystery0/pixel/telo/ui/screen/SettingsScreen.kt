@@ -68,6 +68,8 @@ import vip.mystery0.pixel.telo.ui.screen.settings.AppFeaturesPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.BackupRestorePreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.DebugPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.InterceptBehaviorPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.LocationOverlayPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.OnlineQueryPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.PermissionsPreferences
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
@@ -734,11 +736,17 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_intercept_behavior)) })
-                InterceptBehaviorPreferences(
+                InterceptBehaviorPreferences(viewModel)
+
+                PreferenceCategory(title = { Text(stringResource(R.string.category_online_query)) })
+                OnlineQueryPreferences(
                     viewModel = viewModel,
                     feedbackPermissions = feedbackPermissions,
                     onRequestFeedbackPermissions = feedbackPermissionLauncher::launch
                 )
+
+                PreferenceCategory(title = { Text(stringResource(R.string.category_location_overlay)) })
+                LocationOverlayPreferences(viewModel)
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
                 BackupRestorePreferences(
