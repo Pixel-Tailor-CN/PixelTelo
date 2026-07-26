@@ -88,9 +88,17 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+/** 从 v7 升级到 v8：拦截记录新增省份和城市字段 */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `province` TEXT")
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `city` TEXT")
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

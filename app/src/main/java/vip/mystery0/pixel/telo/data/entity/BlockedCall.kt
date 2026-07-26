@@ -18,6 +18,10 @@ data class BlockedCall(
     val networkDuration: Long = 0,
     /** 来电标签（如"快递送餐"），来自本地/网络查询 */
     val label: String? = null,
+    /** 联网查询返回的省份；旧记录或无数据时为 null */
+    val province: String? = null,
+    /** 联网查询返回的城市；旧记录或无数据时为 null */
+    val city: String? = null,
     /** 联网查询最终命中的服务端 source，纯本地结果为 null */
     val querySource: String? = null,
     /** 服务端签发的一次性反馈 token，不写入备份与日志 */
