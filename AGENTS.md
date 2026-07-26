@@ -225,12 +225,15 @@ Pixel Telo 是专为 Google Pixel 设备设计的来电识别与拦截应用，�
 
 ## 文档体系
 
-文档与记忆采用 Markdown 格式，存放于 `.agentdocs/` 及其子目录下。
+文档与记忆采用 Markdown 格式。长期维护的产品、架构、UI 与工作流文档存放于
+`.agentdocs/` 及其子目录下；功能的设计计划与实现计划文档统一存放于
+`docs/plans/`。
 
 索引文档: `.agentdocs/index.md`
 
 ### 文档分类
 
+- `docs/plans/`: 功能设计计划与实现计划文档。
 - `prd/`: 产品与需求文档。
 - `prd/requirements.md`: 核心功能需求 (Call Guardian, Data Sync)。
 - `architecture/`: 架构设计与技术细节文档。
@@ -263,6 +266,6 @@ Pixel Telo 是专为 Google Pixel 设备设计的来电识别与拦截应用，�
 在任务完成并呈现最终消息前，进行以下检查：
 
 - 检查是否产生新的可复用组件，并更新架构文档。
-- 检查 `.agentdocs/` 下的文档是否需要更新。
+- 检查 `.agentdocs/` 与 `docs/plans/` 下的文档是否需要更新。
 - 确认 `libs.versions.toml` 中的依赖版本是否符合项目稳定性要求。
 - 说明已执行的验证命令；若无法执行真机或设备验证，需要明确说明原因。
