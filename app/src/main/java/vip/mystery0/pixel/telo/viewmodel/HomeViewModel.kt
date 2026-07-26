@@ -6,6 +6,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.map
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +30,7 @@ import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
+import vip.mystery0.pixel.telo.data.repository.ContactRepository
 import vip.mystery0.pixel.telo.data.repository.FeedbackSubmitResult
 import vip.mystery0.pixel.telo.data.repository.QueryRepository
 import vip.mystery0.pixel.telo.data.repository.QuerySourceState
@@ -58,12 +65,18 @@ data class BlockedCallListItem(
     val currentListState: CurrentListState,
 )
 
+private data class UserLists(
+    val black: List<UserListEntry>,
+    val white: List<UserListEntry>,
+)
+
 class HomeViewModel() : ViewModel(), KoinComponent {
     private val repository: BlockedCallRepository by inject()
     private val syncRepository: SyncRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val userListRepository: UserListRepository by inject()
     private val queryRepository: QueryRepository by inject()
+    private val contactRepository: ContactRepository by inject()
     private val context: Context by inject()
 
     /** 联网查询 source 配置状态，用于首页“已启用 source 下线”提示 */
@@ -74,26 +87,34 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         viewModelScope.launch {
             queryRepository.refreshSources()
         }
+        viewModelScope.launch {
+            contactRepository.changes.collect {
+                resolveLoadedContacts()
+            }
+        }
     }
 
-    val blockedCalls: StateFlow<List<BlockedCall>> = repository.allBlockedCalls
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Companion.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    val blockedCallItems: StateFlow<List<BlockedCallListItem>> = combine(
-        repository.allBlockedCalls,
+    private val userLists: Flow<UserLists> = combine(
         userListRepository.observeBlackList(),
-        userListRepository.observeWhiteList()
-    ) { calls, blackList, whiteList ->
-        buildBlockedCallListItems(calls, blackList, whiteList)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+        userListRepository.observeWhiteList(),
+    ) { blackList, whiteList ->
+        UserLists(blackList, whiteList)
+    }
+
+    val blockedCallItems: Flow<PagingData<BlockedCallListItem>> =
+        repository.blockedCallsPager
+            .combine(userLists) { pagingData, lists ->
+                pagingData.map { call ->
+                    buildBlockedCallListItem(call, lists.black, lists.white)
+                }
+            }
+            .cachedIn(viewModelScope)
+
+    private val _contactNames = MutableStateFlow<Map<String, String>>(emptyMap())
+    val contactNames: StateFlow<Map<String, String>> = _contactNames.asStateFlow()
+
+    private var loadedPhoneNumbers: Set<String> = emptySet()
+    private var contactLookupJob: Job? = null
 
     val isDatabaseReady: StateFlow<Boolean> = syncRepository.versionFlow
         .map { it.isNotBlank() }
@@ -115,6 +136,30 @@ class HomeViewModel() : ViewModel(), KoinComponent {
 
     fun updateMissingPermissions(permissions: List<String>) {
         _missingPermissions.value = permissions
+    }
+
+    fun updateLoadedPhoneNumbers(phoneNumbers: Set<String>) {
+        val sanitized = phoneNumbers.filter { it.isNotBlank() }.toSet()
+        if (sanitized == loadedPhoneNumbers) return
+        loadedPhoneNumbers = sanitized
+        resolveLoadedContacts()
+    }
+
+    fun refreshContactNames() {
+        contactRepository.invalidateCache()
+        resolveLoadedContacts()
+    }
+
+    private fun resolveLoadedContacts() {
+        contactLookupJob?.cancel()
+        if (loadedPhoneNumbers.isEmpty()) {
+            _contactNames.value = emptyMap()
+            return
+        }
+        contactLookupJob = viewModelScope.launch {
+            delay(100)
+            _contactNames.value = contactRepository.resolveNames(loadedPhoneNumbers)
+        }
     }
 
     private val _retryQueryState = MutableStateFlow<RetryQueryState>(RetryQueryState.Idle)
@@ -224,22 +269,20 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         userListRepository.add(tag, false, ListType.WHITE, null, tagMatch = true)
 }
 
-fun buildBlockedCallListItems(
-    calls: List<BlockedCall>,
+fun buildBlockedCallListItem(
+    call: BlockedCall,
     blackList: List<UserListEntry>,
     whiteList: List<UserListEntry>,
-): List<BlockedCallListItem> {
-    return calls.map { call ->
-        val inBlackList = blackList.any { it.matchesPhone(call.phoneNumber) }
-        val inWhiteList = whiteList.any { it.matchesPhone(call.phoneNumber) }
-        val currentListState = when {
-            inBlackList && inWhiteList -> CurrentListState.BOTH
-            inBlackList -> CurrentListState.BLACK
-            inWhiteList -> CurrentListState.WHITE
-            else -> CurrentListState.NONE
-        }
-        BlockedCallListItem(call, currentListState)
+): BlockedCallListItem {
+    val inBlackList = blackList.any { it.matchesPhone(call.phoneNumber) }
+    val inWhiteList = whiteList.any { it.matchesPhone(call.phoneNumber) }
+    val currentListState = when {
+        inBlackList && inWhiteList -> CurrentListState.BOTH
+        inBlackList -> CurrentListState.BLACK
+        inWhiteList -> CurrentListState.WHITE
+        else -> CurrentListState.NONE
     }
+    return BlockedCallListItem(call, currentListState)
 }
 
 private fun UserListEntry.matchesPhone(phoneNumber: String): Boolean {

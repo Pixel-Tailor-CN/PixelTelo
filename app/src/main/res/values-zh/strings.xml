@@ -54,7 +54,9 @@
 
     <!-- Home Screen -->
     <string name="home_no_records">暂无拦截记录</string>
+    <string name="home_records_load_failed">拦截记录加载失败</string>
     <string name="action_retry_query">重新联网查询</string>
+    <string name="label_phone_location">归属地：%1$s</string>
     <string name="result_intercept_spam">拦截原因: 骚扰电话</string>
     <string name="result_pass_but_notify">拦截原因: 提示(未拦截)</string>
     <string name="result_network_timeout">拦截原因: 联网查询超时(已放行)</string>

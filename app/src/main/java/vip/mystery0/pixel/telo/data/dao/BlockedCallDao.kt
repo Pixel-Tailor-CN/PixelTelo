@@ -6,7 +6,6 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import androidx.paging.PagingSource
-import kotlinx.coroutines.flow.Flow
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 
 /** 单个 source 在统计窗口内的查询质量统计 */
@@ -20,9 +19,6 @@ data class QuerySourceQuality(
 
 @Dao
 interface BlockedCallDao {
-    @Query("SELECT * FROM blocked_calls ORDER BY blockTime DESC")
-    fun getAll(): Flow<List<BlockedCall>>
-
     @Query("SELECT * FROM blocked_calls ORDER BY blockTime DESC")
     fun getPagingSource(): PagingSource<Int, BlockedCall>
 

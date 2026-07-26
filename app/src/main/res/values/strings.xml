@@ -47,7 +47,9 @@
 
     <!-- Home Screen -->
     <string name="home_no_records">No intercept records</string>
+    <string name="home_records_load_failed">Failed to load intercept records</string>
     <string name="action_retry_query">Retry Query</string>
+    <string name="label_phone_location">Location: %1$s</string>
     <string name="result_intercept_spam">Reason: Spam Call</string>
     <string name="result_pass_but_notify">Reason: Notify (Not Blocked)</string>
     <string name="result_network_timeout">Reason: Network Timeout (Allowed)</string>

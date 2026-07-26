@@ -19,8 +19,6 @@ class BlockedCallRepository : KoinComponent {
     private val blockedCallDao: BlockedCallDao by inject()
     private val context: Context by inject()
 
-    val allBlockedCalls: Flow<List<BlockedCall>> = blockedCallDao.getAll()
-
     val blockedCallsPager: Flow<PagingData<BlockedCall>> = Pager(
         config = PagingConfig(
             pageSize = 30,

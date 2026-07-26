@@ -19,14 +19,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
@@ -48,12 +49,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -63,6 +66,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
@@ -85,7 +93,8 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val blockedCallItems by viewModel.blockedCallItems.collectAsState()
+    val blockedCallItems = viewModel.blockedCallItems.collectAsLazyPagingItems()
+    val contactNames by viewModel.contactNames.collectAsState()
     val isDatabaseReady by viewModel.isDatabaseReady.collectAsState()
     val missingPermissions by viewModel.missingPermissions.collectAsState()
     val isDefaultApp by viewModel.isDefaultApp.collectAsState()
@@ -103,6 +112,16 @@ fun HomeScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<BlockedCall?>(null) }
 
+    LaunchedEffect(blockedCallItems) {
+        snapshotFlow {
+            blockedCallItems.itemSnapshotList.items
+                .map { it.call.phoneNumber }
+                .toSet()
+        }
+            .distinctUntilChanged()
+            .collect(viewModel::updateLoadedPhoneNumbers)
+    }
+
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         // Check Permissions
         val missing = PermissionUtils.allPermissions
@@ -118,6 +137,7 @@ fun HomeScreen(
 
         // Check Default App Role
         viewModel.updateDefaultAppState(roleManager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING))
+        viewModel.refreshContactNames()
     }
 
     LazyColumn(
@@ -153,6 +173,7 @@ fun HomeScreen(
         }
         blockedCallsList(
             callItems = blockedCallItems,
+            contactNames = contactNames,
             onRetry = { call -> viewModel.retryNetworkQuery(call) },
             onClick = { call -> viewModel.openQuickAdd(call) },
         )
@@ -294,6 +315,8 @@ fun HomeScreen(
     viewModel.quickAddCall?.let { call ->
         val phone = call.phoneNumber
         val label = call.label?.takeIf { it.isNotBlank() }
+        val contactName = contactNames[phone]
+        val location = call.locationText()
         val noContactsAppMessage = stringResource(R.string.msg_no_contacts_app)
         ModalBottomSheet(onDismissRequest = { viewModel.closeQuickAdd() }) {
             Column(
@@ -303,11 +326,24 @@ fun HomeScreen(
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                if (!contactName.isNullOrBlank()) {
+                    Text(
+                        text = contactName,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                }
                 Text(
                     text = phone,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (location != null) {
+                    Text(
+                        text = stringResource(R.string.label_phone_location, location),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (call.querySource != null) {
                     Text(
                         text = stringResource(R.string.label_query_source, call.querySource),
@@ -558,42 +594,117 @@ fun DatabaseWarningCard(onClick: () -> Unit) {
 }
 
 private fun LazyListScope.blockedCallsList(
-    callItems: List<BlockedCallListItem>,
+    callItems: LazyPagingItems<BlockedCallListItem>,
+    contactNames: Map<String, String>,
     onRetry: (BlockedCall) -> Unit,
     onClick: (BlockedCall) -> Unit,
 ) {
-    if (callItems.isEmpty()) {
+    when {
+        callItems.loadState.refresh is LoadState.Loading -> {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+            }
+        }
+
+        callItems.loadState.refresh is LoadState.Error -> {
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(stringResource(R.string.home_records_load_failed))
+                    Button(onClick = callItems::retry) {
+                        Text(stringResource(R.string.action_retry))
+                    }
+                }
+            }
+        }
+
+        callItems.itemCount == 0 -> {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.home_no_records),
+                        modifier = Modifier.align(Alignment.Center),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+
+        else -> {
+            items(
+                count = callItems.itemCount,
+                key = callItems.itemKey { it.call.id },
+            ) { index ->
+                callItems[index]?.let { item ->
+                    val call = item.call
+                    BlockedCallItem(
+                        call = call,
+                        contactName = contactNames[call.phoneNumber],
+                        currentListState = item.currentListState,
+                        onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
+                            { onRetry(call) }
+                        } else {
+                            null
+                        },
+                        onClick = { onClick(call) },
+                    )
+                }
+            }
+        }
+    }
+
+    if (callItems.loadState.append is LoadState.Loading) {
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(360.dp),
+                    .padding(16.dp),
             ) {
-                Text(
-                    stringResource(R.string.home_no_records),
-                    modifier = Modifier.align(Alignment.Center),
-                    style = MaterialTheme.typography.bodyLarge,
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .align(Alignment.Center),
                 )
             }
         }
-    } else {
-        items(callItems, key = { it.call.id }) { item ->
-            val call = item.call
-            BlockedCallItem(
-                call = call,
-                currentListState = item.currentListState,
-                onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
-                    { onRetry(call) }
-                } else null,
-                onClick = { onClick(call) },
-            )
+    }
+
+    if (callItems.loadState.append is LoadState.Error) {
+        item {
+            TextButton(
+                onClick = callItems::retry,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.action_retry))
+            }
         }
     }
 }
 
+private fun BlockedCall.locationText(): String? = listOfNotNull(
+    province?.trim()?.takeIf { it.isNotEmpty() },
+    city?.trim()?.takeIf { it.isNotEmpty() },
+).distinct().joinToString(" ").takeIf { it.isNotEmpty() }
+
 @Composable
 fun BlockedCallItem(
     call: BlockedCall,
+    contactName: String? = null,
     currentListState: CurrentListState = CurrentListState.NONE,
     onRetry: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
@@ -635,16 +746,39 @@ fun BlockedCallItem(
                         .padding(start = 16.dp)
                 ) {
                     Column {
-                        // Row 1: Number + (Retry) + Time
+                        // 第一行：联系人姓名 + 号码 +（重查）+ 时间
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = call.phoneNumber,
-                                style = MaterialTheme.typography.titleMedium
-                            )
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                if (!contactName.isNullOrBlank()) {
+                                    Text(
+                                        text = contactName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = call.phoneNumber,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                    )
+                                } else {
+                                    Text(
+                                        text = call.phoneNumber,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (onRetry != null) {
                                     IconButton(onClick = onRetry) {
@@ -662,7 +796,16 @@ fun BlockedCallItem(
                             }
                         }
 
-                        // Row 2: Result Type
+                        call.locationText()?.let { location ->
+                            Text(
+                                text = location,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                        }
+
+                        // 第二部分：拦截结果
                         val resultText = when (call.resultType) {
                             ResultType.INTERCEPT -> stringResource(R.string.result_intercept_spam)
                             ResultType.PASS_BUT_NOTIFY -> stringResource(R.string.result_pass_but_notify)
