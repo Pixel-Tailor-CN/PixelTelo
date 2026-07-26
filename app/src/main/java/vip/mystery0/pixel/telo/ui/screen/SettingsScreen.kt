@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,10 +40,8 @@ import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.NotificationsNone
-import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Repeat
@@ -51,6 +50,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ThumbsUpDown
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,6 +62,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -70,6 +71,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -157,7 +159,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         }
         val allGranted = feedbackPermissions.all { permission ->
             ContextCompat.checkSelfPermission(context, permission) ==
-                PackageManager.PERMISSION_GRANTED
+                    PackageManager.PERMISSION_GRANTED
         }
         viewModel.updateFeedbackNotification(allGranted)
         if (!allGranted) {
@@ -231,7 +233,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             viewModel.feedbackNotification &&
             feedbackPermissions.any { permission ->
                 ContextCompat.checkSelfPermission(context, permission) !=
-                    PackageManager.PERMISSION_GRANTED
+                        PackageManager.PERMISSION_GRANTED
             }
         ) {
             viewModel.updateFeedbackNotification(false)
@@ -250,7 +252,10 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     }
 
     val permissionOverlayDesc = stringResource(R.string.permission_overlay_desc)
-    LaunchedEffect(viewModel.showLocationOverlayAdjuster) {
+    LaunchedEffect(
+        viewModel.showLocationOverlayAdjuster,
+        viewModel.locationOverlayStyle
+    ) {
         if (viewModel.showLocationOverlayAdjuster) {
             val shown = previewOverlay.showPreview(
                 viewModel.locationOverlayOffsetDp,
@@ -785,8 +790,8 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     val minInterval = OfflineDatabaseUpdateScheduler.MIN_UPDATE_INTERVAL_HOURS
                     val maxInterval = OfflineDatabaseUpdateScheduler.MAX_UPDATE_INTERVAL_HOURS
                     val intervalValid = intervalHours != null &&
-                        intervalHours in minInterval..maxInterval
-                    androidx.compose.material3.AlertDialog(
+                            intervalHours in minInterval..maxInterval
+                    AlertDialog(
                         onDismissRequest = { showAutoCheckIntervalDialog = false },
                         title = { Text(stringResource(R.string.title_auto_check_update_interval)) },
                         text = {
@@ -841,392 +846,371 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     onClick = { viewModel.showTestDialog() }
                 )
 
-            PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
-            Preference(
-                title = { Text(stringResource(R.string.permission_overlay_name)) },
-                summary = { Text(stringResource(R.string.permission_overlay_desc)) },
-                icon = {
-                    Icon(
-                        if (overlayPermissionGranted) Icons.Default.Check else Icons.Default.Close,
-                        contentDescription = null,
-                        tint = if (overlayPermissionGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                    )
-                },
-                onClick = {
-                    if (!overlayPermissionGranted) {
-                        val intent = Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            "package:${context.packageName}".toUri()
-                        )
-                        overlayPermissionLauncher.launch(intent)
-                    }
-                }
-            )
-            PermissionUtils.allPermissions.forEach { item ->
-                val isGranted = permissionsState[item.permission] == true
+                PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
                 Preference(
-                    title = { Text(stringResource(item.nameResId)) },
-                    summary = { Text(stringResource(item.descriptionResId)) },
+                    title = { Text(stringResource(R.string.permission_overlay_name)) },
+                    summary = { Text(stringResource(R.string.permission_overlay_desc)) },
                     icon = {
                         Icon(
-                            if (isGranted) Icons.Default.Check else Icons.Default.Close,
+                            if (overlayPermissionGranted) Icons.Default.Check else Icons.Default.Close,
                             contentDescription = null,
-                            tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            tint = if (overlayPermissionGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
                     },
                     onClick = {
-                        if (!isGranted) {
-                            launcher.launch(arrayOf(item.permission))
+                        if (!overlayPermissionGranted) {
+                            val intent = Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                "package:${context.packageName}".toUri()
+                            )
+                            overlayPermissionLauncher.launch(intent)
                         }
                     }
                 )
-            }
-
-            PreferenceCategory(title = { Text(stringResource(R.string.category_intercept_behavior)) })
-
-            Preference(
-                title = { Text(stringResource(R.string.setting_query_sources)) },
-                summary = { Text(stringResource(R.string.setting_query_sources_summary)) },
-                icon = { Icon(Icons.Default.Dns, contentDescription = null) },
-                onClick = { viewModel.openQuerySourceSettings() }
-            )
-
-            SwitchPreference(
-                value = viewModel.feedbackNotification,
-                onValueChange = { enabled ->
-                    if (!enabled) {
-                        viewModel.updateFeedbackNotification(false)
-                    } else {
-                        val missingPermissions = feedbackPermissions.filter { permission ->
-                            ContextCompat.checkSelfPermission(context, permission) !=
-                                PackageManager.PERMISSION_GRANTED
-                        }
-                        if (missingPermissions.isEmpty()) {
-                            viewModel.updateFeedbackNotification(true)
-                        } else {
-                            feedbackPermissionLauncher.launch(missingPermissions.toTypedArray())
-                        }
-                    }
-                },
-                title = { Text(stringResource(R.string.setting_feedback_notification)) },
-                summary = { Text(stringResource(R.string.setting_feedback_notification_summary)) },
-                icon = { Icon(Icons.Default.ThumbsUpDown, contentDescription = null) }
-            )
-
-            var showTimeoutDialog by remember { mutableStateOf(false) }
-            Preference(
-                title = { Text(stringResource(R.string.setting_network_timeout)) },
-                summary = {
-                    Text(
-                        stringResource(
-                            R.string.setting_network_timeout_summary,
-                            viewModel.networkTimeout
-                        )
-                    )
-                },
-                icon = { Icon(Icons.Default.NetworkCheck, contentDescription = null) },
-                onClick = { showTimeoutDialog = true }
-            )
-
-            if (showTimeoutDialog) {
-                var sliderValue by remember { androidx.compose.runtime.mutableFloatStateOf(viewModel.networkTimeout.toFloat()) }
-                androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { showTimeoutDialog = false },
-                    title = { Text(stringResource(R.string.setting_network_timeout)) },
-                    text = {
-                        Column {
-                            Text(
-                                stringResource(
-                                    R.string.setting_network_timeout_summary,
-                                    sliderValue.toInt()
-                                )
+                PermissionUtils.allPermissions.forEach { item ->
+                    val isGranted = permissionsState[item.permission] == true
+                    Preference(
+                        title = { Text(stringResource(item.nameResId)) },
+                        summary = { Text(stringResource(item.descriptionResId)) },
+                        icon = {
+                            Icon(
+                                if (isGranted) Icons.Default.Check else Icons.Default.Close,
+                                contentDescription = null,
+                                tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                             )
-                            androidx.compose.material3.Slider(
-                                value = sliderValue,
-                                onValueChange = { sliderValue = it },
-                                valueRange = 1f..10f,
-                                steps = 8
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        Button(onClick = {
-                            viewModel.updateNetworkTimeout(sliderValue.toInt())
-                            showTimeoutDialog = false
-                        }) { Text(stringResource(R.string.action_confirm)) }
-                    },
-                    dismissButton = {
-                        OutlinedButton(onClick = { showTimeoutDialog = false }) {
-                            Text(stringResource(R.string.action_cancel))
-                        }
-                    }
-                )
-            }
-
-            var showRepeatWindowDialog by remember { mutableStateOf(false) }
-            var showRepeatStrategyDialog by remember { mutableStateOf(false) }
-
-            SwitchPreference(
-                value = viewModel.notifyOnly,
-                onValueChange = { viewModel.updateNotifyOnly(it) },
-                title = { Text(stringResource(R.string.setting_notify_only)) },
-                summary = { Text(stringResource(R.string.setting_notify_only_summary)) },
-                icon = { Icon(Icons.Default.NotificationsNone, contentDescription = null) }
-            )
-
-            Preference(
-                title = { Text(stringResource(R.string.setting_repeat_call_strategy)) },
-                summary = {
-                    Text(
-                        stringResource(
-                            when (viewModel.repeatCallStrategy) {
-                                RepeatCallStrategy.UNCHANGED ->
-                                    R.string.repeat_call_strategy_unchanged
-                                RepeatCallStrategy.SILENCE ->
-                                    R.string.repeat_call_strategy_silence
-                                RepeatCallStrategy.ALLOW ->
-                                    R.string.repeat_call_strategy_allow
+                        },
+                        onClick = {
+                            if (!isGranted) {
+                                launcher.launch(arrayOf(item.permission))
                             }
-                        )
+                        }
                     )
-                },
-                icon = { Icon(Icons.Default.Repeat, contentDescription = null) },
-                onClick = { showRepeatStrategyDialog = true }
-            )
+                }
 
-            if (showRepeatStrategyDialog) {
-                androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { showRepeatStrategyDialog = false },
-                    title = { Text(stringResource(R.string.setting_repeat_call_strategy)) },
-                    text = {
-                        Column {
-                            RepeatCallStrategy.entries.forEach { strategy ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = viewModel.repeatCallStrategy == strategy,
-                                        onClick = {
-                                            viewModel.updateRepeatCallStrategy(strategy)
-                                            showRepeatStrategyDialog = false
-                                        }
+                PreferenceCategory(title = { Text(stringResource(R.string.category_intercept_behavior)) })
+
+                Preference(
+                    title = { Text(stringResource(R.string.setting_query_sources)) },
+                    summary = { Text(stringResource(R.string.setting_query_sources_summary)) },
+                    icon = { Icon(Icons.Default.Dns, contentDescription = null) },
+                    onClick = { viewModel.openQuerySourceSettings() }
+                )
+
+                SwitchPreference(
+                    value = viewModel.feedbackNotification,
+                    onValueChange = { enabled ->
+                        if (!enabled) {
+                            viewModel.updateFeedbackNotification(false)
+                        } else {
+                            val missingPermissions = feedbackPermissions.filter { permission ->
+                                ContextCompat.checkSelfPermission(context, permission) !=
+                                        PackageManager.PERMISSION_GRANTED
+                            }
+                            if (missingPermissions.isEmpty()) {
+                                viewModel.updateFeedbackNotification(true)
+                            } else {
+                                feedbackPermissionLauncher.launch(missingPermissions.toTypedArray())
+                            }
+                        }
+                    },
+                    title = { Text(stringResource(R.string.setting_feedback_notification)) },
+                    summary = { Text(stringResource(R.string.setting_feedback_notification_summary)) },
+                    icon = { Icon(Icons.Default.ThumbsUpDown, contentDescription = null) }
+                )
+
+                var showTimeoutDialog by remember { mutableStateOf(false) }
+                Preference(
+                    title = { Text(stringResource(R.string.setting_network_timeout)) },
+                    summary = {
+                        Text(
+                            stringResource(
+                                R.string.setting_network_timeout_summary,
+                                viewModel.networkTimeout
+                            )
+                        )
+                    },
+                    icon = { Icon(Icons.Default.NetworkCheck, contentDescription = null) },
+                    onClick = { showTimeoutDialog = true }
+                )
+
+                if (showTimeoutDialog) {
+                    var sliderValue by remember {
+                        mutableFloatStateOf(
+                            viewModel.networkTimeout.toFloat()
+                        )
+                    }
+                    AlertDialog(
+                        onDismissRequest = { showTimeoutDialog = false },
+                        title = { Text(stringResource(R.string.setting_network_timeout)) },
+                        text = {
+                            Column {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_network_timeout_summary,
+                                        sliderValue.toInt()
                                     )
-                                    Text(
-                                        stringResource(
-                                            when (strategy) {
-                                                RepeatCallStrategy.UNCHANGED ->
-                                                    R.string.repeat_call_strategy_unchanged
-                                                RepeatCallStrategy.SILENCE ->
-                                                    R.string.repeat_call_strategy_silence
-                                                RepeatCallStrategy.ALLOW ->
-                                                    R.string.repeat_call_strategy_allow
+                                )
+                                Slider(
+                                    value = sliderValue,
+                                    onValueChange = { sliderValue = it },
+                                    valueRange = 1f..10f,
+                                    steps = 8
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(onClick = {
+                                viewModel.updateNetworkTimeout(sliderValue.toInt())
+                                showTimeoutDialog = false
+                            }) { Text(stringResource(R.string.action_confirm)) }
+                        },
+                        dismissButton = {
+                            OutlinedButton(onClick = { showTimeoutDialog = false }) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        }
+                    )
+                }
+
+                var showRepeatWindowDialog by remember { mutableStateOf(false) }
+                var showRepeatStrategyDialog by remember { mutableStateOf(false) }
+
+                SwitchPreference(
+                    value = viewModel.notifyOnly,
+                    onValueChange = { viewModel.updateNotifyOnly(it) },
+                    title = { Text(stringResource(R.string.setting_notify_only)) },
+                    summary = { Text(stringResource(R.string.setting_notify_only_summary)) },
+                    icon = { Icon(Icons.Default.NotificationsNone, contentDescription = null) }
+                )
+
+                Preference(
+                    title = { Text(stringResource(R.string.setting_repeat_call_strategy)) },
+                    summary = {
+                        Text(
+                            stringResource(
+                                when (viewModel.repeatCallStrategy) {
+                                    RepeatCallStrategy.UNCHANGED ->
+                                        R.string.repeat_call_strategy_unchanged
+
+                                    RepeatCallStrategy.SILENCE ->
+                                        R.string.repeat_call_strategy_silence
+
+                                    RepeatCallStrategy.ALLOW ->
+                                        R.string.repeat_call_strategy_allow
+                                }
+                            )
+                        )
+                    },
+                    icon = { Icon(Icons.Default.Repeat, contentDescription = null) },
+                    onClick = { showRepeatStrategyDialog = true }
+                )
+
+                if (showRepeatStrategyDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showRepeatStrategyDialog = false },
+                        title = { Text(stringResource(R.string.setting_repeat_call_strategy)) },
+                        text = {
+                            Column {
+                                RepeatCallStrategy.entries.forEach { strategy ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable(onClick = {
+                                                viewModel.updateRepeatCallStrategy(strategy)
+                                                showRepeatStrategyDialog = false
+                                            }),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(
+                                            selected = viewModel.repeatCallStrategy == strategy,
+                                            onClick = {
+                                                viewModel.updateRepeatCallStrategy(strategy)
+                                                showRepeatStrategyDialog = false
                                             }
                                         )
-                                    )
+                                        Text(
+                                            stringResource(
+                                                when (strategy) {
+                                                    RepeatCallStrategy.UNCHANGED ->
+                                                        R.string.repeat_call_strategy_unchanged
+
+                                                    RepeatCallStrategy.SILENCE ->
+                                                        R.string.repeat_call_strategy_silence
+
+                                                    RepeatCallStrategy.ALLOW ->
+                                                        R.string.repeat_call_strategy_allow
+                                                }
+                                            )
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    },
-                    confirmButton = {}
-                )
-            }
-
-            Preference(
-                title = { Text(stringResource(R.string.setting_repeat_call_window)) },
-                summary = {
-                    Text(
-                        stringResource(
-                            R.string.setting_repeat_call_window_summary,
-                            viewModel.repeatCallWindowMinutes
-                        )
-                    )
-                },
-                icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
-                onClick = { showRepeatWindowDialog = true }
-            )
-
-            if (showRepeatWindowDialog) {
-                var sliderValue by remember {
-                    androidx.compose.runtime.mutableFloatStateOf(
-                        viewModel.repeatCallWindowMinutes.toFloat()
+                        },
+                        confirmButton = {}
                     )
                 }
-                androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { showRepeatWindowDialog = false },
+
+                Preference(
                     title = { Text(stringResource(R.string.setting_repeat_call_window)) },
-                    text = {
-                        Column {
-                            Text(
-                                stringResource(
-                                    R.string.setting_repeat_call_window_summary,
-                                    sliderValue.toInt()
-                                )
+                    summary = {
+                        Text(
+                            stringResource(
+                                R.string.setting_repeat_call_window_summary,
+                                viewModel.repeatCallWindowMinutes
                             )
-                            androidx.compose.material3.Slider(
-                                value = sliderValue,
-                                onValueChange = { sliderValue = it },
-                                valueRange = 1f..30f,
-                                steps = 28
-                            )
-                        }
+                        )
                     },
-                    confirmButton = {
-                        Button(onClick = {
-                            viewModel.updateRepeatCallWindowMinutes(sliderValue.toInt())
-                            showRepeatWindowDialog = false
-                        }) { Text(stringResource(R.string.action_confirm)) }
-                    },
-                    dismissButton = {
-                        OutlinedButton(onClick = { showRepeatWindowDialog = false }) {
-                            Text(stringResource(R.string.action_cancel))
-                        }
-                    }
+                    icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
+                    onClick = { showRepeatWindowDialog = true }
                 )
-            }
 
-            SwitchPreference(
-                value = viewModel.noNetworkQuery,
-                onValueChange = { viewModel.updateNoNetworkQuery(it) },
-                title = { Text(stringResource(R.string.setting_no_network_query)) },
-                summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
-                icon = { Icon(Icons.Default.WifiOff, contentDescription = null) }
-            )
-
-            SwitchPreference(
-                value = viewModel.showLocationOverlay,
-                onValueChange = { viewModel.updateShowLocationOverlay(it) },
-                enabled = !viewModel.noNetworkQuery,
-                title = { Text(stringResource(R.string.setting_show_location_overlay)) },
-                summary = {
-                    Text(
-                        stringResource(
-                            if (viewModel.noNetworkQuery) {
-                                R.string.setting_show_location_overlay_disabled_summary
-                            } else {
-                                R.string.setting_show_location_overlay_summary
-                            }
-                        )
-                    )
-                },
-                icon = { Icon(Icons.Default.Map, contentDescription = null) }
-            )
-
-            Preference(
-                title = { Text(stringResource(R.string.setting_adjust_location_overlay)) },
-                summary = {
-                    Text(
-                        stringResource(
-                            if (viewModel.showLocationOverlayAdjuster) {
-                                R.string.setting_adjust_location_overlay_active_summary
-                            } else {
-                                R.string.setting_adjust_location_overlay_summary
-                            }
-                        )
-                    )
-                },
-                icon = { Icon(Icons.Default.OpenWith, contentDescription = null) },
-                onClick = { viewModel.toggleLocationOverlayAdjuster() }
-            )
-
-            SwitchPreference(
-                value = viewModel.alwaysRecord,
-                onValueChange = { viewModel.updateAlwaysRecord(it) },
-                title = { Text(stringResource(R.string.setting_always_record)) },
-                summary = { Text(stringResource(R.string.setting_always_record_summary)) },
-                icon = { Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null) }
-            )
-
-            PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
-            Preference(
-                title = { Text(stringResource(R.string.setting_backup_records)) },
-                summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
-                icon = { Icon(Icons.Default.Backup, contentDescription = null) },
-                onClick = { viewModel.openBackupOptionsSheet() }
-            )
-
-            Preference(
-                title = { Text(stringResource(R.string.setting_restore_records)) },
-                summary = { Text(stringResource(R.string.setting_restore_records_summary)) },
-                icon = { Icon(Icons.Default.RestorePage, contentDescription = null) },
-                onClick = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
-            )
-
-            PreferenceCategory(title = { Text(stringResource(R.string.category_about)) })
-            Preference(
-                title = { Text(stringResource(R.string.setting_version_name)) },
-                summary = { Text(viewModel.versionName) },
-                icon = { Icon(Icons.Default.Info, contentDescription = null) },
-                onClick = { viewModel.onVersionClick() }
-            )
-            Preference(
-                title = { Text(stringResource(R.string.setting_version_code)) },
-                summary = { Text(viewModel.versionCode.toString()) },
-                icon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) }
-            )
-            Preference(
-                title = { Text(stringResource(R.string.setting_feedback)) },
-                summary = { Text(stringResource(R.string.setting_feedback_summary)) },
-                icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                onClick = {
-                    val intent = Intent(
-                        Intent.ACTION_VIEW,
-                        "https://github.com/Pixel-Tailor-CN/PixelTelo/issues/new".toUri()
-                    )
-                    context.startActivity(intent)
-                }
-            )
-            Preference(
-                title = { Text(stringResource(R.string.setting_pixel_tailor)) },
-                summary = { Text(stringResource(R.string.setting_pixel_tailor_summary)) },
-                icon = {
-                    Box(
-                        modifier = Modifier.size(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painterResource(R.drawable.ic_pixel_tailor),
-                            contentDescription = null
+                if (showRepeatWindowDialog) {
+                    var sliderValue by remember {
+                        mutableFloatStateOf(
+                            viewModel.repeatCallWindowMinutes.toFloat()
                         )
                     }
-                },
-                onClick = {
-                    val intent = Intent(
-                        Intent.ACTION_VIEW,
-                        "https://pixel.mystery0.app".toUri()
+                    AlertDialog(
+                        onDismissRequest = { showRepeatWindowDialog = false },
+                        title = { Text(stringResource(R.string.setting_repeat_call_window)) },
+                        text = {
+                            Column {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_repeat_call_window_summary,
+                                        sliderValue.toInt()
+                                    )
+                                )
+                                Slider(
+                                    value = sliderValue,
+                                    onValueChange = { sliderValue = it },
+                                    valueRange = 1f..30f,
+                                    steps = 28
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(onClick = {
+                                viewModel.updateRepeatCallWindowMinutes(sliderValue.toInt())
+                                showRepeatWindowDialog = false
+                            }) { Text(stringResource(R.string.action_confirm)) }
+                        },
+                        dismissButton = {
+                            OutlinedButton(onClick = { showRepeatWindowDialog = false }) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        }
                     )
-                    context.startActivity(intent)
                 }
-            )
-            Preference(
-                title = { Text(stringResource(R.string.setting_telegram)) },
-                summary = { Text(stringResource(R.string.setting_telegram_summary)) },
-                icon = { Icon(Icons.Default.Forum, contentDescription = null) },
-                onClick = {
-                    val intent = Intent(
-                        Intent.ACTION_VIEW,
-                        "https://t.me/pixel_tailor_cn".toUri()
-                    )
-                    context.startActivity(intent)
-                }
-            )
 
-            if (viewModel.debugUnlocked) {
-                PreferenceCategory(title = { Text(stringResource(R.string.category_debug_mode)) })
                 SwitchPreference(
-                    value = viewModel.forceDownload,
-                    onValueChange = { viewModel.forceDownload = it },
-                    title = { Text(stringResource(R.string.setting_force_download)) },
-                    summary = { Text(stringResource(R.string.setting_force_download_summary)) },
-                    icon = { Icon(Icons.Default.DownloadForOffline, contentDescription = null) }
+                    value = viewModel.noNetworkQuery,
+                    onValueChange = { viewModel.updateNoNetworkQuery(it) },
+                    title = { Text(stringResource(R.string.setting_no_network_query)) },
+                    summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
+                    icon = { Icon(Icons.Default.WifiOff, contentDescription = null) }
+                )
+
+                LocationOverlaySettings(viewModel)
+
+                SwitchPreference(
+                    value = viewModel.alwaysRecord,
+                    onValueChange = { viewModel.updateAlwaysRecord(it) },
+                    title = { Text(stringResource(R.string.setting_always_record)) },
+                    summary = { Text(stringResource(R.string.setting_always_record_summary)) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null) }
+                )
+
+                PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
+                Preference(
+                    title = { Text(stringResource(R.string.setting_backup_records)) },
+                    summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
+                    icon = { Icon(Icons.Default.Backup, contentDescription = null) },
+                    onClick = { viewModel.openBackupOptionsSheet() }
+                )
+
+                Preference(
+                    title = { Text(stringResource(R.string.setting_restore_records)) },
+                    summary = { Text(stringResource(R.string.setting_restore_records_summary)) },
+                    icon = { Icon(Icons.Default.RestorePage, contentDescription = null) },
+                    onClick = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
+                )
+
+                PreferenceCategory(title = { Text(stringResource(R.string.category_about)) })
+                Preference(
+                    title = { Text(stringResource(R.string.setting_version_name)) },
+                    summary = { Text(viewModel.versionName) },
+                    icon = { Icon(Icons.Default.Info, contentDescription = null) },
+                    onClick = { viewModel.onVersionClick() }
                 )
                 Preference(
-                    title = { Text(stringResource(R.string.setting_delete_database)) },
-                    summary = { Text(stringResource(R.string.setting_delete_database_summary)) },
-                    icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
-                    onClick = { viewModel.deleteDatabase() }
+                    title = { Text(stringResource(R.string.setting_version_code)) },
+                    summary = { Text(viewModel.versionCode.toString()) },
+                    icon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) }
                 )
-            }
+                Preference(
+                    title = { Text(stringResource(R.string.setting_feedback)) },
+                    summary = { Text(stringResource(R.string.setting_feedback_summary)) },
+                    icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            "https://github.com/Pixel-Tailor-CN/PixelTelo/issues/new".toUri()
+                        )
+                        context.startActivity(intent)
+                    }
+                )
+                Preference(
+                    title = { Text(stringResource(R.string.setting_pixel_tailor)) },
+                    summary = { Text(stringResource(R.string.setting_pixel_tailor_summary)) },
+                    icon = {
+                        Box(
+                            modifier = Modifier.size(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painterResource(R.drawable.ic_pixel_tailor),
+                                contentDescription = null
+                            )
+                        }
+                    },
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            "https://pixel.mystery0.app".toUri()
+                        )
+                        context.startActivity(intent)
+                    }
+                )
+                Preference(
+                    title = { Text(stringResource(R.string.setting_telegram)) },
+                    summary = { Text(stringResource(R.string.setting_telegram_summary)) },
+                    icon = { Icon(Icons.Default.Forum, contentDescription = null) },
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            "https://t.me/pixel_tailor_cn".toUri()
+                        )
+                        context.startActivity(intent)
+                    }
+                )
+
+                if (viewModel.debugUnlocked) {
+                    PreferenceCategory(title = { Text(stringResource(R.string.category_debug_mode)) })
+                    SwitchPreference(
+                        value = viewModel.forceDownload,
+                        onValueChange = { viewModel.forceDownload = it },
+                        title = { Text(stringResource(R.string.setting_force_download)) },
+                        summary = { Text(stringResource(R.string.setting_force_download_summary)) },
+                        icon = { Icon(Icons.Default.DownloadForOffline, contentDescription = null) }
+                    )
+                    Preference(
+                        title = { Text(stringResource(R.string.setting_delete_database)) },
+                        summary = { Text(stringResource(R.string.setting_delete_database_summary)) },
+                        icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+                        onClick = { viewModel.deleteDatabase() }
+                    )
+                }
             }
         }
     }

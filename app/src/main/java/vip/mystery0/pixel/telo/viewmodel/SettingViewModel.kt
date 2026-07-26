@@ -11,8 +11,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.core.content.edit
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +55,18 @@ enum class RepeatCallStrategy {
     ALLOW,
 }
 
+/** 来电归属地悬浮窗的消失策略。 */
+enum class LocationOverlayDisplayMode {
+    FIXED_DURATION,
+    UNTIL_CALL_END,
+}
+
+/** 来电归属地悬浮窗的视觉样式。 */
+enum class LocationOverlayStyle {
+    CARD,
+    MINIMAL,
+}
+
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
         private const val TAG = "SettingViewModel"
@@ -64,6 +76,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_NETWORK_TIMEOUT = "network_timeout"
         const val KEY_SHOW_LOCATION_OVERLAY = "show_location_overlay"
         const val KEY_LOCATION_OVERLAY_OFFSET_DP = "location_overlay_offset_dp"
+        const val KEY_LOCATION_OVERLAY_DISPLAY_MODE = "location_overlay_display_mode"
+        const val KEY_LOCATION_OVERLAY_DURATION_SECONDS = "location_overlay_duration_seconds"
+        const val KEY_LOCATION_OVERLAY_STYLE = "location_overlay_style"
         const val KEY_ALLOW_REPEAT_CALL = "allow_repeat_call"
         const val KEY_REPEAT_CALL_STRATEGY = "repeat_call_strategy"
         const val KEY_REPEAT_CALL_WINDOW_MINUTES = "repeat_call_window_minutes"
@@ -73,6 +88,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val MAX_NETWORK_TIMEOUT_SECONDS = 10
         const val DEFAULT_REPEAT_CALL_WINDOW_MINUTES = 3
         const val DEFAULT_LOCATION_OVERLAY_OFFSET_DP = 56
+        const val DEFAULT_LOCATION_OVERLAY_DURATION_SECONDS = 6
+        const val MIN_LOCATION_OVERLAY_DURATION_SECONDS = 3
+        const val MAX_LOCATION_OVERLAY_DURATION_SECONDS = 30
 
         /** source 质量统计窗口：近 7 天 */
         const val QUALITY_STATS_WINDOW_MILLIS = 7L * 24 * 60 * 60 * 1000
@@ -227,6 +245,34 @@ class SettingViewModel : ViewModel(), KoinComponent {
         prefs.edit { putBoolean(KEY_SHOW_LOCATION_OVERLAY, effectiveEnabled) }
     }
 
+    var locationOverlayDisplayMode by mutableStateOf(readLocationOverlayDisplayMode())
+        private set
+
+    fun updateLocationOverlayDisplayMode(mode: LocationOverlayDisplayMode) {
+        locationOverlayDisplayMode = mode
+        prefs.edit { putString(KEY_LOCATION_OVERLAY_DISPLAY_MODE, mode.name) }
+    }
+
+    var locationOverlayDurationSeconds by mutableIntStateOf(readLocationOverlayDurationSeconds())
+        private set
+
+    fun updateLocationOverlayDurationSeconds(seconds: Int) {
+        val safeSeconds = seconds.coerceIn(
+            MIN_LOCATION_OVERLAY_DURATION_SECONDS,
+            MAX_LOCATION_OVERLAY_DURATION_SECONDS
+        )
+        locationOverlayDurationSeconds = safeSeconds
+        prefs.edit { putInt(KEY_LOCATION_OVERLAY_DURATION_SECONDS, safeSeconds) }
+    }
+
+    var locationOverlayStyle by mutableStateOf(readLocationOverlayStyle())
+        private set
+
+    fun updateLocationOverlayStyle(style: LocationOverlayStyle) {
+        locationOverlayStyle = style
+        prefs.edit { putString(KEY_LOCATION_OVERLAY_STYLE, style.name) }
+    }
+
     var locationOverlayOffsetDp by mutableIntStateOf(
         prefs.getInt(KEY_LOCATION_OVERLAY_OFFSET_DP, DEFAULT_LOCATION_OVERLAY_OFFSET_DP)
     )
@@ -246,6 +292,35 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun updateLocationOverlayOffset(offsetDp: Int) {
         locationOverlayOffsetDp = offsetDp.coerceAtLeast(0)
         prefs.edit { putInt(KEY_LOCATION_OVERLAY_OFFSET_DP, locationOverlayOffsetDp) }
+    }
+
+    private fun readLocationOverlayDisplayMode(): LocationOverlayDisplayMode {
+        val stored = prefs.getString(KEY_LOCATION_OVERLAY_DISPLAY_MODE, null)
+        return stored?.let {
+            runCatching { LocationOverlayDisplayMode.valueOf(it) }.getOrNull()
+        } ?: LocationOverlayDisplayMode.FIXED_DURATION
+    }
+
+    private fun readLocationOverlayDurationSeconds(): Int {
+        val stored = prefs.getInt(
+            KEY_LOCATION_OVERLAY_DURATION_SECONDS,
+            DEFAULT_LOCATION_OVERLAY_DURATION_SECONDS
+        )
+        val safeSeconds = stored.coerceIn(
+            MIN_LOCATION_OVERLAY_DURATION_SECONDS,
+            MAX_LOCATION_OVERLAY_DURATION_SECONDS
+        )
+        if (stored != safeSeconds) {
+            prefs.edit { putInt(KEY_LOCATION_OVERLAY_DURATION_SECONDS, safeSeconds) }
+        }
+        return safeSeconds
+    }
+
+    private fun readLocationOverlayStyle(): LocationOverlayStyle {
+        val stored = prefs.getString(KEY_LOCATION_OVERLAY_STYLE, null)
+        return stored?.let {
+            runCatching { LocationOverlayStyle.valueOf(it) }.getOrNull()
+        } ?: LocationOverlayStyle.CARD
     }
 
     var feedbackNotification by mutableStateOf(readFeedbackNotification())

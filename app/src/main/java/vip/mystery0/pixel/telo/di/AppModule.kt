@@ -24,6 +24,7 @@ import vip.mystery0.pixel.telo.data.repository.QueryRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
+import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.smartspacer.SmartspacerInterceptRepository
 
 val appModule = module {
@@ -52,6 +53,7 @@ val appModule = module {
     single { BackupRepository(get(), get()) }  // 第二个 get() 注入 UserListDao
     single { SpamNumberRepository() }
     single { SmartspacerInterceptRepository() }
+    single { IncomingCallOverlay(androidContext(), get()) }
 
     single {
         OkHttpClient.Builder()

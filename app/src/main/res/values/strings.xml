@@ -14,6 +14,14 @@
     <string name="setting_show_location_overlay">Show location in floating window</string>
     <string name="setting_show_location_overlay_summary">Show phone attribution returned by online query in a floating window during incoming calls.</string>
     <string name="setting_show_location_overlay_disabled_summary">Disable No Network Query before using online attribution display.</string>
+    <string name="setting_location_overlay_display_mode">Floating window visibility</string>
+    <string name="location_overlay_display_mode_fixed">Fixed duration</string>
+    <string name="location_overlay_display_mode_until_call_end">Until the call ends</string>
+    <string name="setting_location_overlay_duration">Floating window duration</string>
+    <string name="setting_location_overlay_duration_summary">%1$d seconds</string>
+    <string name="setting_location_overlay_style">Floating window style</string>
+    <string name="location_overlay_style_card">Card</string>
+    <string name="location_overlay_style_minimal">Minimal text</string>
     <string name="setting_adjust_location_overlay">Adjust floating window position</string>
     <string name="setting_adjust_location_overlay_summary">Show a simulated incoming-call attribution window and drag it vertically to save its position.</string>
     <string name="setting_adjust_location_overlay_active_summary">Drag the simulated floating window vertically. Tap again to hide it.</string>

@@ -31,12 +31,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -51,6 +56,8 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
+import vip.mystery0.pixel.telo.viewmodel.LocationOverlayDisplayMode
+import vip.mystery0.pixel.telo.viewmodel.LocationOverlayStyle
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 import kotlin.math.roundToInt
 
@@ -60,7 +67,7 @@ class IncomingCallOverlay(
 ) {
     companion object {
         private const val TAG = "IncomingCallOverlay"
-        private const val DISPLAY_DURATION_MS = 6_000L
+        private const val UNTIL_CALL_END_SAFETY_TIMEOUT_MS = 12L * 60 * 60 * 1_000
     }
 
     private val appContext = context.applicationContext
@@ -71,6 +78,7 @@ class IncomingCallOverlay(
     private var currentView: View? = null
     private var currentParams: WindowManager.LayoutParams? = null
     private var currentLifecycleOwner: OverlayLifecycleOwner? = null
+    private var dismissRunnable: Runnable? = null
 
     fun show(phoneNumber: String, result: CheckResult) {
         if (!Settings.canDrawOverlays(appContext) || !result.locationLookupAttempted) return
@@ -91,11 +99,19 @@ class IncomingCallOverlay(
             SettingViewModel.KEY_LOCATION_OVERLAY_OFFSET_DP,
             SettingViewModel.DEFAULT_LOCATION_OVERLAY_OFFSET_DP
         )
+        val displayMode = readDisplayMode()
+        val dismissDelayMillis = when (displayMode) {
+            LocationOverlayDisplayMode.FIXED_DURATION ->
+                readDurationSeconds() * 1_000L
+
+            LocationOverlayDisplayMode.UNTIL_CALL_END ->
+                UNTIL_CALL_END_SAFETY_TIMEOUT_MS
+        }
         showOverlay(
             content = content,
             offsetDp = offsetDp,
             draggable = false,
-            autoDismiss = true,
+            dismissDelayMillis = dismissDelayMillis,
             onOffsetChanged = {}
         )
     }
@@ -111,7 +127,7 @@ class IncomingCallOverlay(
             ),
             offsetDp = offsetDp,
             draggable = true,
-            autoDismiss = false,
+            dismissDelayMillis = null,
             onOffsetChanged = onOffsetChanged
         )
         return true
@@ -125,14 +141,16 @@ class IncomingCallOverlay(
         content: IncomingCallOverlayContent,
         offsetDp: Int,
         draggable: Boolean,
-        autoDismiss: Boolean,
+        dismissDelayMillis: Long?,
         onOffsetChanged: (Int) -> Unit
     ) {
         mainHandler.post {
             removeCurrentView()
             val params = createLayoutParams(offsetDp, draggable)
+            val style = readStyle()
             val view = createView(
                 content = content,
+                style = style,
                 draggable = draggable,
                 onDragDelta = { deltaY ->
                     val targetView = currentView ?: return@createView
@@ -162,8 +180,8 @@ class IncomingCallOverlay(
                 currentView = view
                 currentParams = params
                 currentLifecycleOwner = lifecycleOwner
-                if (autoDismiss) {
-                    mainHandler.postDelayed({ removeCurrentView() }, DISPLAY_DURATION_MS)
+                if (dismissDelayMillis != null) {
+                    scheduleDismiss(view, dismissDelayMillis)
                 }
             }.onFailure {
                 Log.w(TAG, "Failed to show incoming call overlay", it)
@@ -194,6 +212,7 @@ class IncomingCallOverlay(
 
     private fun createView(
         content: IncomingCallOverlayContent,
+        style: LocationOverlayStyle,
         draggable: Boolean,
         onDragDelta: (Float) -> Unit
     ): View {
@@ -218,91 +237,9 @@ class IncomingCallOverlay(
                             .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.TopCenter
                     ) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth(0.94f)
-                                .widthIn(max = 420.dp),
-                            shape = RoundedCornerShape(28.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.88f),
-                            tonalElevation = 0.dp,
-                            shadowElevation = 0.dp,
-                            border = BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    modifier = Modifier.size(44.dp),
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.LocalPhone,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    Text(
-                                        text = content.phoneNumber,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Place,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Text(
-                                            text = content.locationText,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    content.labelText?.let { label ->
-                                        Surface(
-                                            shape = RoundedCornerShape(50.dp),
-                                            color = MaterialTheme.colorScheme.secondaryContainer.copy(
-                                                alpha = 0.86f
-                                            )
-                                        ) {
-                                            Text(
-                                                text = label,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(
-                                                    horizontal = 10.dp,
-                                                    vertical = 4.dp
-                                                )
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                        when (style) {
+                            LocationOverlayStyle.CARD -> CardContent(content)
+                            LocationOverlayStyle.MINIMAL -> MinimalContent(content)
                         }
                     }
                 }
@@ -310,7 +247,167 @@ class IncomingCallOverlay(
         }
     }
 
+    @Composable
+    private fun CardContent(content: IncomingCallOverlayContent) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .widthIn(max = 420.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.88f),
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(44.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.LocalPhone,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Text(
+                        text = content.phoneNumber,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Place,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = content.locationText,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    content.labelText?.let { label ->
+                        Surface(
+                            shape = RoundedCornerShape(50.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.86f)
+                        ) {
+                            Text(
+                                text = label,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun MinimalContent(content: IncomingCallOverlayContent) {
+        val textShadow = Shadow(
+            color = Color.Black.copy(alpha = 0.9f),
+            offset = Offset(0f, 2f),
+            blurRadius = 6f
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .widthIn(max = 420.dp)
+                .padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = content.locationText,
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium.copy(shadow = textShadow),
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+            content.labelText?.let { label ->
+                Text(
+                    text = label,
+                    color = Color.White.copy(alpha = 0.9f),
+                    style = MaterialTheme.typography.bodyMedium.copy(shadow = textShadow),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+
+    private fun scheduleDismiss(view: View, delayMillis: Long) {
+        val runnable = Runnable {
+            if (currentView === view) {
+                removeCurrentView()
+            }
+        }
+        dismissRunnable = runnable
+        mainHandler.postDelayed(runnable, delayMillis)
+    }
+
+    private fun readDisplayMode(): LocationOverlayDisplayMode {
+        val stored = prefs.getString(SettingViewModel.KEY_LOCATION_OVERLAY_DISPLAY_MODE, null)
+        return stored?.let {
+            runCatching { LocationOverlayDisplayMode.valueOf(it) }.getOrNull()
+        } ?: LocationOverlayDisplayMode.FIXED_DURATION
+    }
+
+    private fun readDurationSeconds(): Int {
+        return prefs.getInt(
+            SettingViewModel.KEY_LOCATION_OVERLAY_DURATION_SECONDS,
+            SettingViewModel.DEFAULT_LOCATION_OVERLAY_DURATION_SECONDS
+        ).coerceIn(
+            SettingViewModel.MIN_LOCATION_OVERLAY_DURATION_SECONDS,
+            SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS
+        )
+    }
+
+    private fun readStyle(): LocationOverlayStyle {
+        val stored = prefs.getString(SettingViewModel.KEY_LOCATION_OVERLAY_STYLE, null)
+        return stored?.let {
+            runCatching { LocationOverlayStyle.valueOf(it) }.getOrNull()
+        } ?: LocationOverlayStyle.CARD
+    }
+
     private fun removeCurrentView() {
+        dismissRunnable?.let(mainHandler::removeCallbacks)
+        dismissRunnable = null
         val view = currentView ?: return
         runCatching {
             windowManager.removeView(view)

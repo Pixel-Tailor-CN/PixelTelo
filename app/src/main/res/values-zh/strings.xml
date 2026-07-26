@@ -17,6 +17,14 @@
     <string name="setting_show_location_overlay">悬浮窗显示归属地信息</string>
     <string name="setting_show_location_overlay_summary">来电时通过联网查询获取归属地，并显示到悬浮窗中。</string>
     <string name="setting_show_location_overlay_disabled_summary">需要先关闭“不联网查询”，才能使用联网归属地展示。</string>
+    <string name="setting_location_overlay_display_mode">悬浮窗显示方式</string>
+    <string name="location_overlay_display_mode_fixed">固定时长</string>
+    <string name="location_overlay_display_mode_until_call_end">显示至通话结束</string>
+    <string name="setting_location_overlay_duration">悬浮窗显示时长</string>
+    <string name="setting_location_overlay_duration_summary">%1$d 秒</string>
+    <string name="setting_location_overlay_style">悬浮窗样式</string>
+    <string name="location_overlay_style_card">卡片</string>
+    <string name="location_overlay_style_minimal">简洁文本</string>
     <string name="overlay_unknown_location">未知归属地</string>
     <string name="overlay_location_timeout">归属地查询超时</string>
     <string name="setting_adjust_location_overlay">悬浮窗位置调整</string>

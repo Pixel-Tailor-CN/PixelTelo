@@ -25,7 +25,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     private val blockedCallRepository: BlockedCallRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val prefs: SharedPreferences by inject()
-    private val incomingCallOverlay by lazy { IncomingCallOverlay(this, prefs) }
+    private val incomingCallOverlay: IncomingCallOverlay by inject()
 
     override fun onScreenCall(callDetails: Call.Details) {
         val phoneNumber = callDetails.handle?.schemeSpecificPart ?: return
