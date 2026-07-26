@@ -13,8 +13,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,37 +23,10 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.FactCheck
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.DownloadForOffline
-import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.NetworkCheck
-import androidx.compose.material.icons.filled.NotificationsNone
-import androidx.compose.material.icons.filled.OpenWith
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PhoneInTalk
-import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RestorePage
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.ThumbsUpDown
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Update
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -66,8 +37,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -76,35 +45,33 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
-import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
 import vip.mystery0.pixel.telo.data.repository.QuerySourceItem
 import vip.mystery0.pixel.telo.service.IncomingCallOverlay
+import vip.mystery0.pixel.telo.ui.screen.settings.AboutPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.AppFeaturesPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.BackupRestorePreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.DebugPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.InterceptBehaviorPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.PermissionsPreferences
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
-import vip.mystery0.pixel.telo.viewmodel.LocationOverlayDisplayMode
-import vip.mystery0.pixel.telo.viewmodel.LocationOverlayStyle
-import vip.mystery0.pixel.telo.viewmodel.RepeatCallStrategy
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 import java.time.LocalDateTime
@@ -740,727 +707,51 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                var showAutoCheckIntervalDialog by remember { mutableStateOf(false) }
-
                 PreferenceCategory(title = { Text(stringResource(R.string.category_app_features)) })
-                Preference(
-                    title = { Text(stringResource(R.string.setting_update_offline_data)) },
-                    summary = { Text(stringResource(R.string.summary_current_version) + viewModel.offlineDbVersion) },
-                    icon = { Icon(Icons.Default.Update, contentDescription = null) },
-                    onClick = {
-                        viewModel.checkUpdate()
-                    }
-                )
-
-                SwitchPreference(
-                    value = viewModel.autoCheckUpdate,
-                    onValueChange = { enabled ->
-                        if (!enabled) {
-                            viewModel.updateAutoCheckUpdate(false)
-                        } else if (OfflineDatabaseUpdateScheduler.hasNotificationPermission(context)) {
-                            viewModel.updateAutoCheckUpdate(true)
-                        } else {
-                            notificationPermissionLauncher.launch(
-                                Manifest.permission.POST_NOTIFICATIONS
-                            )
-                        }
-                    },
-                    title = { Text(stringResource(R.string.setting_auto_check_update)) },
-                    summary = { Text(stringResource(R.string.setting_auto_check_update_summary)) },
-                    icon = { Icon(Icons.Default.NotificationsNone, contentDescription = null) }
-                )
-
-                Preference(
-                    enabled = viewModel.autoCheckUpdate,
-                    title = { Text(stringResource(R.string.setting_auto_check_update_interval)) },
-                    summary = {
-                        Text(
-                            stringResource(
-                                R.string.setting_auto_check_update_interval_summary,
-                                viewModel.autoCheckUpdateIntervalHours
-                            )
+                AppFeaturesPreferences(
+                    viewModel = viewModel,
+                    onRequestNotificationPermission = {
+                        notificationPermissionLauncher.launch(
+                            Manifest.permission.POST_NOTIFICATIONS
                         )
-                    },
-                    icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
-                    onClick = {
-                        if (viewModel.autoCheckUpdate) {
-                            showAutoCheckIntervalDialog = true
-                        }
                     }
-                )
-
-                if (showAutoCheckIntervalDialog) {
-                    var intervalText by remember(showAutoCheckIntervalDialog) {
-                        mutableStateOf(viewModel.autoCheckUpdateIntervalHours.toString())
-                    }
-                    val intervalHours = intervalText.toIntOrNull()
-                    val minInterval = OfflineDatabaseUpdateScheduler.MIN_UPDATE_INTERVAL_HOURS
-                    val maxInterval = OfflineDatabaseUpdateScheduler.MAX_UPDATE_INTERVAL_HOURS
-                    val intervalValid = intervalHours != null &&
-                            intervalHours in minInterval..maxInterval
-                    AlertDialog(
-                        onDismissRequest = { showAutoCheckIntervalDialog = false },
-                        title = { Text(stringResource(R.string.title_auto_check_update_interval)) },
-                        text = {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(
-                                    value = intervalText,
-                                    onValueChange = { value ->
-                                        intervalText = value.filter { it.isDigit() }.take(3)
-                                    },
-                                    label = {
-                                        Text(stringResource(R.string.hint_auto_check_update_interval))
-                                    },
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Number
-                                    ),
-                                    singleLine = true,
-                                    isError = intervalText.isNotBlank() && !intervalValid,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                if (intervalText.isNotBlank() && !intervalValid) {
-                                    Text(
-                                        stringResource(R.string.error_auto_check_update_interval),
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                        },
-                        confirmButton = {
-                            Button(
-                                enabled = intervalValid,
-                                onClick = {
-                                    viewModel.updateAutoCheckUpdateIntervalHours(intervalHours!!)
-                                    showAutoCheckIntervalDialog = false
-                                }
-                            ) {
-                                Text(stringResource(R.string.action_confirm))
-                            }
-                        },
-                        dismissButton = {
-                            OutlinedButton(onClick = { showAutoCheckIntervalDialog = false }) {
-                                Text(stringResource(R.string.action_cancel))
-                            }
-                        }
-                    )
-                }
-
-                Preference(
-                    title = { Text(stringResource(R.string.title_test_intercept)) },
-                    summary = { Text(stringResource(R.string.summary_test_intercept)) },
-                    icon = { Icon(Icons.Default.PhoneInTalk, contentDescription = null) },
-                    onClick = { viewModel.showTestDialog() }
                 )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
-                Preference(
-                    title = { Text(stringResource(R.string.permission_overlay_name)) },
-                    summary = { Text(stringResource(R.string.permission_overlay_desc)) },
-                    icon = {
-                        Icon(
-                            if (overlayPermissionGranted) Icons.Default.Check else Icons.Default.Close,
-                            contentDescription = null,
-                            tint = if (overlayPermissionGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                PermissionsPreferences(
+                    overlayPermissionGranted = overlayPermissionGranted,
+                    permissionsState = permissionsState,
+                    onRequestOverlayPermission = {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            "package:${context.packageName}".toUri()
                         )
+                        overlayPermissionLauncher.launch(intent)
                     },
-                    onClick = {
-                        if (!overlayPermissionGranted) {
-                            val intent = Intent(
-                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                "package:${context.packageName}".toUri()
-                            )
-                            overlayPermissionLauncher.launch(intent)
-                        }
+                    onRequestPermission = { permission ->
+                        launcher.launch(arrayOf(permission))
                     }
                 )
-                PermissionUtils.allPermissions.forEach { item ->
-                    val isGranted = permissionsState[item.permission] == true
-                    Preference(
-                        title = { Text(stringResource(item.nameResId)) },
-                        summary = { Text(stringResource(item.descriptionResId)) },
-                        icon = {
-                            Icon(
-                                if (isGranted) Icons.Default.Check else Icons.Default.Close,
-                                contentDescription = null,
-                                tint = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                            )
-                        },
-                        onClick = {
-                            if (!isGranted) {
-                                launcher.launch(arrayOf(item.permission))
-                            }
-                        }
-                    )
-                }
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_intercept_behavior)) })
-
-                Preference(
-                    title = { Text(stringResource(R.string.setting_query_sources)) },
-                    summary = { Text(stringResource(R.string.setting_query_sources_summary)) },
-                    icon = { Icon(Icons.Default.Dns, contentDescription = null) },
-                    onClick = { viewModel.openQuerySourceSettings() }
-                )
-
-                SwitchPreference(
-                    value = viewModel.feedbackNotification,
-                    onValueChange = { enabled ->
-                        if (!enabled) {
-                            viewModel.updateFeedbackNotification(false)
-                        } else {
-                            val missingPermissions = feedbackPermissions.filter { permission ->
-                                ContextCompat.checkSelfPermission(context, permission) !=
-                                        PackageManager.PERMISSION_GRANTED
-                            }
-                            if (missingPermissions.isEmpty()) {
-                                viewModel.updateFeedbackNotification(true)
-                            } else {
-                                feedbackPermissionLauncher.launch(missingPermissions.toTypedArray())
-                            }
-                        }
-                    },
-                    title = { Text(stringResource(R.string.setting_feedback_notification)) },
-                    summary = { Text(stringResource(R.string.setting_feedback_notification_summary)) },
-                    icon = { Icon(Icons.Default.ThumbsUpDown, contentDescription = null) }
-                )
-
-                var showTimeoutDialog by remember { mutableStateOf(false) }
-                Preference(
-                    title = { Text(stringResource(R.string.setting_network_timeout)) },
-                    summary = {
-                        Text(
-                            stringResource(
-                                R.string.setting_network_timeout_summary,
-                                viewModel.networkTimeout
-                            )
-                        )
-                    },
-                    icon = { Icon(Icons.Default.NetworkCheck, contentDescription = null) },
-                    onClick = { showTimeoutDialog = true }
-                )
-
-                if (showTimeoutDialog) {
-                    var sliderValue by remember {
-                        mutableFloatStateOf(
-                            viewModel.networkTimeout.toFloat()
-                        )
-                    }
-                    AlertDialog(
-                        onDismissRequest = { showTimeoutDialog = false },
-                        title = { Text(stringResource(R.string.setting_network_timeout)) },
-                        text = {
-                            Column {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_network_timeout_summary,
-                                        sliderValue.toInt()
-                                    )
-                                )
-                                Slider(
-                                    value = sliderValue,
-                                    onValueChange = { sliderValue = it },
-                                    valueRange = 1f..10f,
-                                    steps = 8
-                                )
-                            }
-                        },
-                        confirmButton = {
-                            Button(onClick = {
-                                viewModel.updateNetworkTimeout(sliderValue.toInt())
-                                showTimeoutDialog = false
-                            }) { Text(stringResource(R.string.action_confirm)) }
-                        },
-                        dismissButton = {
-                            OutlinedButton(onClick = { showTimeoutDialog = false }) {
-                                Text(stringResource(R.string.action_cancel))
-                            }
-                        }
-                    )
-                }
-
-                var showRepeatWindowDialog by remember { mutableStateOf(false) }
-                var showRepeatStrategyDialog by remember { mutableStateOf(false) }
-
-                SwitchPreference(
-                    value = viewModel.notifyOnly,
-                    onValueChange = { viewModel.updateNotifyOnly(it) },
-                    title = { Text(stringResource(R.string.setting_notify_only)) },
-                    summary = { Text(stringResource(R.string.setting_notify_only_summary)) },
-                    icon = { Icon(Icons.Default.NotificationsNone, contentDescription = null) }
-                )
-
-                Preference(
-                    title = { Text(stringResource(R.string.setting_repeat_call_strategy)) },
-                    summary = {
-                        Text(
-                            stringResource(
-                                when (viewModel.repeatCallStrategy) {
-                                    RepeatCallStrategy.UNCHANGED ->
-                                        R.string.repeat_call_strategy_unchanged
-
-                                    RepeatCallStrategy.SILENCE ->
-                                        R.string.repeat_call_strategy_silence
-
-                                    RepeatCallStrategy.ALLOW ->
-                                        R.string.repeat_call_strategy_allow
-                                }
-                            )
-                        )
-                    },
-                    icon = { Icon(Icons.Default.Repeat, contentDescription = null) },
-                    onClick = { showRepeatStrategyDialog = true }
-                )
-
-                if (showRepeatStrategyDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showRepeatStrategyDialog = false },
-                        title = { Text(stringResource(R.string.setting_repeat_call_strategy)) },
-                        text = {
-                            Column {
-                                RepeatCallStrategy.entries.forEach { strategy ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable(onClick = {
-                                                viewModel.updateRepeatCallStrategy(strategy)
-                                                showRepeatStrategyDialog = false
-                                            }),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        RadioButton(
-                                            selected = viewModel.repeatCallStrategy == strategy,
-                                            onClick = {
-                                                viewModel.updateRepeatCallStrategy(strategy)
-                                                showRepeatStrategyDialog = false
-                                            }
-                                        )
-                                        Text(
-                                            stringResource(
-                                                when (strategy) {
-                                                    RepeatCallStrategy.UNCHANGED ->
-                                                        R.string.repeat_call_strategy_unchanged
-
-                                                    RepeatCallStrategy.SILENCE ->
-                                                        R.string.repeat_call_strategy_silence
-
-                                                    RepeatCallStrategy.ALLOW ->
-                                                        R.string.repeat_call_strategy_allow
-                                                }
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        confirmButton = {}
-                    )
-                }
-
-                Preference(
-                    title = { Text(stringResource(R.string.setting_repeat_call_window)) },
-                    summary = {
-                        Text(
-                            stringResource(
-                                R.string.setting_repeat_call_window_summary,
-                                viewModel.repeatCallWindowMinutes
-                            )
-                        )
-                    },
-                    icon = { Icon(Icons.Default.Schedule, contentDescription = null) },
-                    onClick = { showRepeatWindowDialog = true }
-                )
-
-                if (showRepeatWindowDialog) {
-                    var sliderValue by remember {
-                        mutableFloatStateOf(
-                            viewModel.repeatCallWindowMinutes.toFloat()
-                        )
-                    }
-                    AlertDialog(
-                        onDismissRequest = { showRepeatWindowDialog = false },
-                        title = { Text(stringResource(R.string.setting_repeat_call_window)) },
-                        text = {
-                            Column {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_repeat_call_window_summary,
-                                        sliderValue.toInt()
-                                    )
-                                )
-                                Slider(
-                                    value = sliderValue,
-                                    onValueChange = { sliderValue = it },
-                                    valueRange = 1f..30f,
-                                    steps = 28
-                                )
-                            }
-                        },
-                        confirmButton = {
-                            Button(onClick = {
-                                viewModel.updateRepeatCallWindowMinutes(sliderValue.toInt())
-                                showRepeatWindowDialog = false
-                            }) { Text(stringResource(R.string.action_confirm)) }
-                        },
-                        dismissButton = {
-                            OutlinedButton(onClick = { showRepeatWindowDialog = false }) {
-                                Text(stringResource(R.string.action_cancel))
-                            }
-                        }
-                    )
-                }
-
-                SwitchPreference(
-                    value = viewModel.noNetworkQuery,
-                    onValueChange = { viewModel.updateNoNetworkQuery(it) },
-                    title = { Text(stringResource(R.string.setting_no_network_query)) },
-                    summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
-                    icon = { Icon(Icons.Default.WifiOff, contentDescription = null) }
-                )
-
-                var showOverlayDisplayModeDialog by remember { mutableStateOf(false) }
-                var showOverlayDurationDialog by remember { mutableStateOf(false) }
-                var showOverlayStyleDialog by remember { mutableStateOf(false) }
-                val locationOverlayEnabled = !viewModel.noNetworkQuery
-
-                SwitchPreference(
-                    value = viewModel.showLocationOverlay,
-                    onValueChange = viewModel::updateShowLocationOverlay,
-                    enabled = locationOverlayEnabled,
-                    title = { Text(stringResource(R.string.setting_show_location_overlay)) },
-                    summary = {
-                        Text(
-                            stringResource(
-                                if (locationOverlayEnabled) {
-                                    R.string.setting_show_location_overlay_summary
-                                } else {
-                                    R.string.setting_show_location_overlay_disabled_summary
-                                }
-                            )
-                        )
-                    },
-                    icon = { Icon(Icons.Default.Map, contentDescription = null) }
-                )
-
-                Preference(
-                    enabled = locationOverlayEnabled,
-                    title = {
-                        Text(stringResource(R.string.setting_location_overlay_display_mode))
-                    },
-                    summary = {
-                        Text(
-                            stringResource(
-                                when (viewModel.locationOverlayDisplayMode) {
-                                    LocationOverlayDisplayMode.FIXED_DURATION ->
-                                        R.string.location_overlay_display_mode_fixed
-
-                                    LocationOverlayDisplayMode.UNTIL_CALL_END ->
-                                        R.string.location_overlay_display_mode_until_call_end
-                                }
-                            )
-                        )
-                    },
-                    icon = { Icon(Icons.Default.Visibility, contentDescription = null) },
-                    onClick = { showOverlayDisplayModeDialog = true }
-                )
-
-                if (
-                    viewModel.locationOverlayDisplayMode ==
-                    LocationOverlayDisplayMode.FIXED_DURATION
-                ) {
-                    Preference(
-                        enabled = locationOverlayEnabled,
-                        title = {
-                            Text(stringResource(R.string.setting_location_overlay_duration))
-                        },
-                        summary = {
-                            Text(
-                                stringResource(
-                                    R.string.setting_location_overlay_duration_summary,
-                                    viewModel.locationOverlayDurationSeconds
-                                )
-                            )
-                        },
-                        icon = { Icon(Icons.Default.Timer, contentDescription = null) },
-                        onClick = { showOverlayDurationDialog = true }
-                    )
-                }
-
-                Preference(
-                    enabled = locationOverlayEnabled,
-                    title = { Text(stringResource(R.string.setting_location_overlay_style)) },
-                    summary = {
-                        Text(
-                            stringResource(
-                                when (viewModel.locationOverlayStyle) {
-                                    LocationOverlayStyle.CARD ->
-                                        R.string.location_overlay_style_card
-
-                                    LocationOverlayStyle.MINIMAL ->
-                                        R.string.location_overlay_style_minimal
-                                }
-                            )
-                        )
-                    },
-                    icon = { Icon(Icons.Default.Palette, contentDescription = null) },
-                    onClick = { showOverlayStyleDialog = true }
-                )
-
-                Preference(
-                    title = { Text(stringResource(R.string.setting_adjust_location_overlay)) },
-                    summary = {
-                        Text(
-                            stringResource(
-                                if (viewModel.showLocationOverlayAdjuster) {
-                                    R.string.setting_adjust_location_overlay_active_summary
-                                } else {
-                                    R.string.setting_adjust_location_overlay_summary
-                                }
-                            )
-                        )
-                    },
-                    icon = { Icon(Icons.Default.OpenWith, contentDescription = null) },
-                    onClick = viewModel::toggleLocationOverlayAdjuster
-                )
-
-                if (showOverlayDisplayModeDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showOverlayDisplayModeDialog = false },
-                        title = {
-                            Text(stringResource(R.string.setting_location_overlay_display_mode))
-                        },
-                        text = {
-                            Column {
-                                LocationOverlayDisplayMode.entries.forEach { mode ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                viewModel.updateLocationOverlayDisplayMode(mode)
-                                                showOverlayDisplayModeDialog = false
-                                            },
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        RadioButton(
-                                            selected =
-                                                viewModel.locationOverlayDisplayMode == mode,
-                                            onClick = {
-                                                viewModel.updateLocationOverlayDisplayMode(mode)
-                                                showOverlayDisplayModeDialog = false
-                                            }
-                                        )
-                                        Text(
-                                            stringResource(
-                                                when (mode) {
-                                                    LocationOverlayDisplayMode.FIXED_DURATION ->
-                                                        R.string
-                                                            .location_overlay_display_mode_fixed
-
-                                                    LocationOverlayDisplayMode.UNTIL_CALL_END ->
-                                                        R.string
-                                                            .location_overlay_display_mode_until_call_end
-                                                }
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        confirmButton = {}
-                    )
-                }
-
-                if (showOverlayStyleDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showOverlayStyleDialog = false },
-                        title = { Text(stringResource(R.string.setting_location_overlay_style)) },
-                        text = {
-                            Column {
-                                LocationOverlayStyle.entries.forEach { style ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                viewModel.updateLocationOverlayStyle(style)
-                                                showOverlayStyleDialog = false
-                                            },
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        RadioButton(
-                                            selected = viewModel.locationOverlayStyle == style,
-                                            onClick = {
-                                                viewModel.updateLocationOverlayStyle(style)
-                                                showOverlayStyleDialog = false
-                                            }
-                                        )
-                                        Text(
-                                            stringResource(
-                                                when (style) {
-                                                    LocationOverlayStyle.CARD ->
-                                                        R.string.location_overlay_style_card
-
-                                                    LocationOverlayStyle.MINIMAL ->
-                                                        R.string.location_overlay_style_minimal
-                                                }
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        confirmButton = {}
-                    )
-                }
-
-                if (showOverlayDurationDialog) {
-                    var sliderValue by remember {
-                        mutableFloatStateOf(viewModel.locationOverlayDurationSeconds.toFloat())
-                    }
-                    AlertDialog(
-                        onDismissRequest = { showOverlayDurationDialog = false },
-                        title = {
-                            Text(stringResource(R.string.setting_location_overlay_duration))
-                        },
-                        text = {
-                            Column {
-                                Text(
-                                    stringResource(
-                                        R.string.setting_location_overlay_duration_summary,
-                                        sliderValue.toInt()
-                                    )
-                                )
-                                Slider(
-                                    value = sliderValue,
-                                    onValueChange = { sliderValue = it },
-                                    valueRange =
-                                        SettingViewModel.MIN_LOCATION_OVERLAY_DURATION_SECONDS
-                                            .toFloat()..
-                                                SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS
-                                                    .toFloat(),
-                                    steps =
-                                        SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS -
-                                                SettingViewModel.MIN_LOCATION_OVERLAY_DURATION_SECONDS -
-                                                1
-                                )
-                            }
-                        },
-                        confirmButton = {
-                            Button(
-                                onClick = {
-                                    viewModel.updateLocationOverlayDurationSeconds(
-                                        sliderValue.toInt()
-                                    )
-                                    showOverlayDurationDialog = false
-                                }
-                            ) {
-                                Text(stringResource(R.string.action_confirm))
-                            }
-                        },
-                        dismissButton = {
-                            OutlinedButton(onClick = { showOverlayDurationDialog = false }) {
-                                Text(stringResource(R.string.action_cancel))
-                            }
-                        }
-                    )
-                }
-
-                SwitchPreference(
-                    value = viewModel.alwaysRecord,
-                    onValueChange = { viewModel.updateAlwaysRecord(it) },
-                    title = { Text(stringResource(R.string.setting_always_record)) },
-                    summary = { Text(stringResource(R.string.setting_always_record_summary)) },
-                    icon = { Icon(Icons.AutoMirrored.Filled.FactCheck, contentDescription = null) }
+                InterceptBehaviorPreferences(
+                    viewModel = viewModel,
+                    feedbackPermissions = feedbackPermissions,
+                    onRequestFeedbackPermissions = feedbackPermissionLauncher::launch
                 )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
-                Preference(
-                    title = { Text(stringResource(R.string.setting_backup_records)) },
-                    summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
-                    icon = { Icon(Icons.Default.Backup, contentDescription = null) },
-                    onClick = { viewModel.openBackupOptionsSheet() }
-                )
-
-                Preference(
-                    title = { Text(stringResource(R.string.setting_restore_records)) },
-                    summary = { Text(stringResource(R.string.setting_restore_records_summary)) },
-                    icon = { Icon(Icons.Default.RestorePage, contentDescription = null) },
-                    onClick = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
+                BackupRestorePreferences(
+                    viewModel = viewModel,
+                    onRestore = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
                 )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_about)) })
-                Preference(
-                    title = { Text(stringResource(R.string.setting_version_name)) },
-                    summary = { Text(viewModel.versionName) },
-                    icon = { Icon(Icons.Default.Info, contentDescription = null) },
-                    onClick = { viewModel.onVersionClick() }
-                )
-                Preference(
-                    title = { Text(stringResource(R.string.setting_version_code)) },
-                    summary = { Text(viewModel.versionCode.toString()) },
-                    icon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) }
-                )
-                Preference(
-                    title = { Text(stringResource(R.string.setting_feedback)) },
-                    summary = { Text(stringResource(R.string.setting_feedback_summary)) },
-                    icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            "https://github.com/Pixel-Tailor-CN/PixelTelo/issues/new".toUri()
-                        )
-                        context.startActivity(intent)
-                    }
-                )
-                Preference(
-                    title = { Text(stringResource(R.string.setting_pixel_tailor)) },
-                    summary = { Text(stringResource(R.string.setting_pixel_tailor_summary)) },
-                    icon = {
-                        Box(
-                            modifier = Modifier.size(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painterResource(R.drawable.ic_pixel_tailor),
-                                contentDescription = null
-                            )
-                        }
-                    },
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            "https://pixel.mystery0.app".toUri()
-                        )
-                        context.startActivity(intent)
-                    }
-                )
-                Preference(
-                    title = { Text(stringResource(R.string.setting_telegram)) },
-                    summary = { Text(stringResource(R.string.setting_telegram_summary)) },
-                    icon = { Icon(Icons.Default.Forum, contentDescription = null) },
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            "https://t.me/pixel_tailor_cn".toUri()
-                        )
-                        context.startActivity(intent)
-                    }
-                )
+                AboutPreferences(viewModel)
 
                 if (viewModel.debugUnlocked) {
                     PreferenceCategory(title = { Text(stringResource(R.string.category_debug_mode)) })
-                    SwitchPreference(
-                        value = viewModel.forceDownload,
-                        onValueChange = { viewModel.forceDownload = it },
-                        title = { Text(stringResource(R.string.setting_force_download)) },
-                        summary = { Text(stringResource(R.string.setting_force_download_summary)) },
-                        icon = { Icon(Icons.Default.DownloadForOffline, contentDescription = null) }
-                    )
-                    Preference(
-                        title = { Text(stringResource(R.string.setting_delete_database)) },
-                        summary = { Text(stringResource(R.string.setting_delete_database_summary)) },
-                        icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
-                        onClick = { viewModel.deleteDatabase() }
-                    )
+                    DebugPreferences(viewModel)
                 }
             }
         }
