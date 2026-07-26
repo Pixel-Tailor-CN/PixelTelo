@@ -779,6 +779,7 @@ fun BlockedCallItem(
                                     )
                                 }
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (onRetry != null) {
                                     IconButton(onClick = onRetry) {
