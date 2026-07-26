@@ -12,6 +12,8 @@
 
 * [拦截记录信息增强设计](../docs/plans/2026-07-26-blocked-call-record-enrichment-design.md):
   归属地持久化、联系人动态识别、分页展示与模拟器验收方案。
+* [拦截记录信息增强实现计划](../docs/plans/2026-07-26-blocked-call-record-enrichment-implementation.md):
+  具体文件、接口、验证命令与模拟器验收步骤。
 
 ### 架构与技术 (`architecture/`)
 
