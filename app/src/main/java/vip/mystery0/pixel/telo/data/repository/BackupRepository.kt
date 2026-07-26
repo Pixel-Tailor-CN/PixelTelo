@@ -164,7 +164,9 @@ class BackupRepository(
         resultType = resultType.name,
         localDuration = localDuration,
         networkDuration = networkDuration,
-        label = label
+        label = label,
+        province = province,
+        city = city,
     )
 
     private fun BlockedCallDto.toEntity() = BlockedCall(
@@ -174,7 +176,9 @@ class BackupRepository(
         resultType = runCatching { ResultType.valueOf(resultType) }.getOrDefault(ResultType.INTERCEPT),
         localDuration = localDuration,
         networkDuration = networkDuration,
-        label = label
+        label = label,
+        province = province,
+        city = city,
     )
 
     private fun UserListEntry.toDto() = UserListEntryDto(

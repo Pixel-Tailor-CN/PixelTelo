@@ -5,11 +5,12 @@ import kotlinx.serialization.Serializable
 
 /**
  * 备份文件根结构，序列化为 ZIP 内的 backup.json。
- * version 2 起包含黑白名单数据；version 3 起黑名单条目包含 force_block 字段。
+ * version 2 起包含黑白名单数据；version 3 起黑名单条目包含 force_block 字段；
+ * version 4 起拦截记录包含省份和城市。
  */
 @Serializable
 data class BackupData(
-    val version: Int = 3,
+    val version: Int = 4,
     @SerialName("exported_at") val exportedAt: Long,
     val records: List<BlockedCallDto> = emptyList(),
     @SerialName("black_list") val blackList: List<UserListEntryDto> = emptyList(),
@@ -28,6 +29,8 @@ data class BlockedCallDto(
     @SerialName("local_duration") val localDuration: Long = 0,
     @SerialName("network_duration") val networkDuration: Long = 0,
     val label: String? = null,
+    val province: String? = null,
+    val city: String? = null,
 )
 
 /**

@@ -1,6 +1,9 @@
 package vip.mystery0.pixel.telo.data.repository
 
 import android.content.Context
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -18,6 +21,17 @@ class BlockedCallRepository : KoinComponent {
 
     val allBlockedCalls: Flow<List<BlockedCall>> = blockedCallDao.getAll()
 
+    val blockedCallsPager: Flow<PagingData<BlockedCall>> = Pager(
+        config = PagingConfig(
+            pageSize = 30,
+            initialLoadSize = 30,
+            prefetchDistance = 10,
+            maxSize = 90,
+            enablePlaceholders = false,
+        ),
+        pagingSourceFactory = blockedCallDao::getPagingSource,
+    ).flow
+
     /** 插入拦截记录，返回新记录的自增 id */
     suspend fun insert(
         phoneNumber: String,
@@ -26,6 +40,8 @@ class BlockedCallRepository : KoinComponent {
         localDuration: Long = 0,
         networkDuration: Long = 0,
         label: String? = null,
+        province: String? = null,
+        city: String? = null,
         querySource: String? = null,
         feedbackToken: String? = null,
     ): Long {
@@ -38,6 +54,8 @@ class BlockedCallRepository : KoinComponent {
             localDuration = localDuration,
             networkDuration = networkDuration,
             label = label,
+            province = province.cleanLocationPart(),
+            city = city.cleanLocationPart(),
             querySource = querySource?.takeIf { it.isNotBlank() },
             feedbackToken = token,
             feedbackStatus = if (token != null) FeedbackStatus.PENDING else FeedbackStatus.UNAVAILABLE,
@@ -62,6 +80,8 @@ class BlockedCallRepository : KoinComponent {
     suspend fun attachQueryResult(call: BlockedCall, response: QueryResponse): BlockedCall {
         val token = response.feedbackToken.takeIf { it.isNotBlank() }
         val updated = call.copy(
+            province = response.data?.province.cleanLocationPart() ?: call.province,
+            city = response.data?.city.cleanLocationPart() ?: call.city,
             querySource = response.source.takeIf { it.isNotBlank() },
             feedbackToken = token,
             feedbackStatus = if (token != null) FeedbackStatus.PENDING else FeedbackStatus.UNAVAILABLE,
@@ -94,3 +114,5 @@ class BlockedCallRepository : KoinComponent {
         blockedCallDao.delete(blockedCall)
     }
 }
+
+private fun String?.cleanLocationPart(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
