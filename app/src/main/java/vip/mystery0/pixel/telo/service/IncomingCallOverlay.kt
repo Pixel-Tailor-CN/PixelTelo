@@ -189,6 +189,7 @@ class IncomingCallOverlay(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun createLayoutParams(offsetDp: Int, draggable: Boolean): WindowManager.LayoutParams {
         val touchFlag = if (draggable) {
             0
@@ -202,6 +203,8 @@ class IncomingCallOverlay(
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    // Overlay 没有 Activity 可调用 setShowWhenLocked，保留旧 flag 兼容锁屏来电页面。
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                 touchFlag,
             PixelFormat.TRANSLUCENT
         ).apply {
