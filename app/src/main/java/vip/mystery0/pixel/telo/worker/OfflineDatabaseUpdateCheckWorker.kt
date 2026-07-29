@@ -109,7 +109,7 @@ class OfflineDatabaseUpdateCheckWorker(
             latestVersion
         )
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(applicationContext.getString(R.string.notification_offline_update_title))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
