@@ -1,3 +1,5 @@
+import org.gradle.api.GradleException
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -24,6 +26,12 @@ val gitVersionName: String =
         )
     }.standardOutput.asText.get().trim()
 val appVersionName: String = libs.versions.app.version.get()
+val selfhostMinServerVersion: String = libs.versions.selfhost.min.server.get()
+val stableSemanticVersionPattern = Regex("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$")
+
+if (!stableSemanticVersionPattern.matches(selfhostMinServerVersion)) {
+    throw GradleException("Invalid self-host minimum server version")
+}
 
 kotlin {
     compilerOptions {
@@ -45,6 +53,11 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = gitVersionCode
         versionName = appVersionName
+        buildConfigField(
+            "String",
+            "MIN_SELFHOST_SERVER_VERSION",
+            "\"${libs.versions.selfhost.min.server.get()}\"",
+        )
     }
     packaging {
         resources {
