@@ -10,10 +10,18 @@ import kotlinx.serialization.json.Json
 import java.util.UUID
 import vip.mystery0.pixel.telo.data.query.QueryBackendType
 import vip.mystery0.pixel.telo.data.query.SelfHostedBlockReason
+import vip.mystery0.pixel.telo.data.query.SelfHostedConfigurationException
 import vip.mystery0.pixel.telo.data.query.SelfHostedConnectionState
 import vip.mystery0.pixel.telo.data.query.SelfHostedCredentialStore
 import vip.mystery0.pixel.telo.data.query.SelfHostedTlsMode
+import vip.mystery0.pixel.telo.data.query.SELF_HOSTED_QUERY_CAPABILITY
 import vip.mystery0.pixel.telo.data.query.VerifiedSelfHostedConfig
+
+/** 显式完整重验证使用的配置与凭据；调用方使用后必须清空 [token]。 */
+internal data class SelfHostedRevalidationMaterial(
+    val config: VerifiedSelfHostedConfig,
+    val token: CharArray,
+)
 
 /**
  * 持久化自建服务非敏感配置及活动 Backend。
@@ -171,6 +179,30 @@ class SelfHostedConfigRepository(
         return credentialStore.load(record.credentialSlot)
     }
 
+    /**
+     * Blocked 状态只允许通过此边界读取重验证材料，不能用于构建普通运行期 Client。
+     *
+     * 配置损坏、槽位错配或凭据不可解密时直接失败，调用方不得发起网络请求。
+     */
+    @Synchronized
+    internal fun loadRevalidationMaterial(): Result<SelfHostedRevalidationMaterial> = runCatching {
+        val slot = activeSlot()
+            ?: throw SelfHostedConfigurationException(SelfHostedBlockReason.Configuration)
+        val record = readRecord(slot)
+            ?: throw SelfHostedConfigurationException(SelfHostedBlockReason.Configuration)
+        if (record.credentialSlot != slot) {
+            throw SelfHostedConfigurationException(SelfHostedBlockReason.Configuration)
+        }
+        val config = record.toVerifiedConfig()
+            ?: throw SelfHostedConfigurationException(SelfHostedBlockReason.Configuration)
+        val token = credentialStore.load(slot).getOrElse { exception ->
+            throw SelfHostedConfigurationException(SelfHostedBlockReason.Credentials).also {
+                it.initCause(exception)
+            }
+        }
+        SelfHostedRevalidationMaterial(config = config, token = token)
+    }
+
     private fun readInitialState(): SelfHostedConnectionState {
         migrateCurrentBackendTypeIfNeeded()
         recoverActivationJournal()
@@ -183,6 +215,7 @@ class SelfHostedConfigRepository(
         val config = activeConfig ?: lastKnownGood ?: return SelfHostedConnectionState.NotConfigured
 
         processBlockedReason?.let { reason ->
+            persistBlockedReason(activeSlot, record, reason)
             return SelfHostedConnectionState.Blocked(config, reason)
         }
         val storedReason = record?.blockedReason?.toBlockReason()
@@ -192,10 +225,12 @@ class SelfHostedConfigRepository(
         }
         if (activeConfig == null) {
             processBlockedReason = SelfHostedBlockReason.Configuration
+            persistBlockedReason(activeSlot, record, SelfHostedBlockReason.Configuration)
             return SelfHostedConnectionState.Blocked(config, SelfHostedBlockReason.Configuration)
         }
         if (!isSlotUsable(activeSlot, record)) {
             processBlockedReason = SelfHostedBlockReason.Credentials
+            persistBlockedReason(activeSlot, record, SelfHostedBlockReason.Credentials)
             return SelfHostedConnectionState.Blocked(config, SelfHostedBlockReason.Credentials)
         }
 
@@ -330,6 +365,16 @@ class SelfHostedConfigRepository(
         _connectionState.value = SelfHostedConnectionState.Blocked(config, reason)
     }
 
+    private fun persistBlockedReason(
+        slot: String?,
+        record: StoredConfigRecord?,
+        reason: SelfHostedBlockReason,
+    ) {
+        if (slot == null || record == null) return
+        val updated = record.copy(blockedReason = reason.toStoredValue())
+        preferences.edit().putString(recordKey(slot), json.encodeToString(updated)).commit()
+    }
+
     /** 仅回收无 journal 保护且未被活动指针引用的候选项。 */
     private fun clearInactiveCandidatesAfterRecovery(activeSlot: String?) {
         if (readActivationJournal() != null) return
@@ -430,7 +475,11 @@ class SelfHostedConfigRepository(
             apiVersion = apiVersion,
             capabilities = capabilities,
             verifiedAtEpochMillis = verifiedAtEpochMillis,
-        )
+        ).also {
+            require(SELF_HOSTED_QUERY_CAPABILITY in it.capabilities) {
+                "Required self-hosted capability is missing"
+            }
+        }
 
         companion object {
             fun from(config: VerifiedSelfHostedConfig) = StoredVerifiedConfig(

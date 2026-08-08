@@ -27,6 +27,7 @@ private const val SPKI_SHA256_PREFIX = "sha256/"
 data class SelfHostedClientBundle(
     val queryApi: QueryApi,
     val selfHostedApi: SelfHostedApi,
+    val bindIdentity: (SelfHostedIdentity) -> Unit,
     val close: () -> Unit,
 )
 
@@ -51,6 +52,8 @@ class SelfHostedQueryClientFactory(
                 tlsMode = draft.tlsMode,
                 normalizedPin = normalizedPin,
                 token = token,
+                allowPreRelease = draft.allowPreRelease,
+                verifiedIdentity = null,
                 onBlocked = null,
             )
         } finally {
@@ -78,6 +81,12 @@ class SelfHostedQueryClientFactory(
             tlsMode = config.tlsMode,
             normalizedPin = normalizedPin,
             token = token,
+            allowPreRelease = false,
+            verifiedIdentity = SelfHostedIdentity(
+                instanceId = config.instanceId,
+                version = config.version,
+                apiVersion = config.apiVersion,
+            ),
             onBlocked = onBlocked,
         )
     }
@@ -87,6 +96,8 @@ class SelfHostedQueryClientFactory(
         tlsMode: SelfHostedTlsMode,
         normalizedPin: String,
         token: CharArray,
+        allowPreRelease: Boolean,
+        verifiedIdentity: SelfHostedIdentity?,
         onBlocked: ((SelfHostedBlockReason) -> Unit)?,
     ): SelfHostedClientBundle {
         if (token.isEmpty()) {
@@ -97,6 +108,15 @@ class SelfHostedQueryClientFactory(
         var pinnedTrustManager: SelfHostedPinnedTrustManager? = null
         var client: OkHttpClient? = null
         try {
+            val compatibilityInterceptor = if (verifiedIdentity == null) {
+                SelfHostedCompatibilityInterceptor.bootstrap(allowPreRelease)
+            } else {
+                SelfHostedCompatibilityInterceptor.runtime(
+                    identity = verifiedIdentity,
+                    onBlocked = requireNotNull(onBlocked),
+                    runIfOpen = bearerInterceptor::runIfOpen,
+                )
+            }
             val builder = OkHttpClient.Builder()
                 .followRedirects(false)
                 .followSslRedirects(false)
@@ -104,6 +124,7 @@ class SelfHostedQueryClientFactory(
                 .proxyAuthenticator(Authenticator.NONE)
                 .cookieJar(CookieJar.NO_COOKIES)
                 .addInterceptor(bearerInterceptor)
+                .addInterceptor(compatibilityInterceptor)
 
             if (onBlocked != null) {
                 builder.addInterceptor(
@@ -142,6 +163,7 @@ class SelfHostedQueryClientFactory(
             return SelfHostedClientBundle(
                 queryApi = retrofit.create(QueryApi::class.java),
                 selfHostedApi = retrofit.create(SelfHostedApi::class.java),
+                bindIdentity = compatibilityInterceptor::bind,
                 close = closeAction,
             )
         } catch (exception: Exception) {
@@ -233,7 +255,7 @@ private class TlsFailureBlockingInterceptor(
     }
 }
 
-private fun Throwable.tlsBlockReason(): SelfHostedBlockReason? {
+internal fun Throwable.tlsBlockReason(): SelfHostedBlockReason? {
     var current: Throwable? = this
     val visited = HashSet<Throwable>()
     while (current != null && visited.add(current)) {
