@@ -124,9 +124,21 @@ class SelfHostedCredentialStore(context: Context) {
     }
 
     /** 清除指定候选槽位的密文。 */
-    internal fun clear(slot: String) {
+    internal fun clear(slot: String): Result<Unit> = runCatching {
         requireValidSlot(slot)
-        preferences.edit().remove(preferenceKey(slot)).commit()
+        check(preferences.edit().remove(preferenceKey(slot)).commit()) {
+            "Unable to clear self-hosted credentials"
+        }
+    }
+
+    /** 启动恢复时回收所有未被活动配置引用的候选凭据。 */
+    internal fun clearInactiveSlots(activeSlot: String?) {
+        preferences.all.keys
+            .asSequence()
+            .filter { it.startsWith(CREDENTIAL_KEY_PREFIX) }
+            .map { it.removePrefix(CREDENTIAL_KEY_PREFIX) }
+            .filter { it != DEFAULT_SLOT && it != activeSlot }
+            .forEach { slot -> clear(slot) }
     }
 
     private fun getOrCreateSecretKey(): SecretKey {

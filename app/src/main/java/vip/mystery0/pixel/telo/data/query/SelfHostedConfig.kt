@@ -47,6 +47,9 @@ data class VerifiedSelfHostedConfig(
  * 这些值面向 UI 与持久化状态，不能存放异常文本、Token、URL 或服务端响应正文。
  */
 sealed interface SelfHostedBlockReason {
+    /** 活动配置记录缺失、损坏或与其凭据槽位不一致。 */
+    data object Configuration : SelfHostedBlockReason
+
     /** 凭据缺失、损坏或被服务端拒绝。 */
     data object Credentials : SelfHostedBlockReason
 
@@ -96,6 +99,11 @@ sealed interface SelfHostedConnectionState {
     /** 安全校验失败，必须重新完整验证后才能继续使用。 */
     data class Blocked(
         val config: VerifiedSelfHostedConfig,
+        val reason: SelfHostedBlockReason,
+    ) : SelfHostedConnectionState
+
+    /** 活动记录损坏且无法安全恢复配置内容时的阻止状态。 */
+    data class BlockedWithoutConfig(
         val reason: SelfHostedBlockReason,
     ) : SelfHostedConnectionState
 }
