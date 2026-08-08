@@ -124,7 +124,7 @@ val appModule = module {
 
     single {
         QueryRepository(
-            queryApi = get(named(OFFICIAL_QUERY)),
+            backendProvider = get(),
             officialFeedbackApi = get(named(OFFICIAL_FEEDBACK)),
             preferences = get(),
         )

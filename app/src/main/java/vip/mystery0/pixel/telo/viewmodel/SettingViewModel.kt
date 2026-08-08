@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
@@ -526,16 +527,46 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var querySourceDraft by mutableStateOf<List<QuerySourceItem>>(emptyList())
         private set
 
+    /** 编辑草稿所属 Backend，用于拒绝切换瞬间的跨 Backend 保存。 */
+    private var querySourceDraftBackendId: String? = null
+
     /** 各 source 近 7 天的查询质量统计，key 为 source ID */
     var querySourceQuality by mutableStateOf<Map<String, QuerySourceQuality>>(emptyMap())
         private set
 
+    init {
+        viewModelScope.launch {
+            querySourceState.collect { state ->
+                if (querySourceDraftBackendId == state.backendId) {
+                    if (
+                        showQuerySourceSheet &&
+                        querySourceDraft.isEmpty() &&
+                        state.initialized &&
+                        !state.refreshing
+                    ) {
+                        querySourceDraft = state.items
+                    }
+                    return@collect
+                }
+
+                // Backend 切换时先清空旧草稿，再装载新 Backend 已发布的缓存或空状态。
+                querySourceDraft = emptyList()
+                querySourceDraftBackendId = if (showQuerySourceSheet) state.backendId else null
+                if (showQuerySourceSheet) {
+                    querySourceDraft = state.items
+                }
+            }
+        }
+    }
+
     /** 打开 source 设置 BottomSheet，无缓存时触发一次刷新 */
     fun openQuerySourceSettings() {
-        querySourceDraft = queryRepository.sourceState.value.items
+        val state = queryRepository.sourceState.value
+        querySourceDraftBackendId = state.backendId
+        querySourceDraft = state.items
         showQuerySourceSheet = true
         loadQuerySourceQuality()
-        if (querySourceDraft.isEmpty()) {
+        if (state.backendId != null && querySourceDraft.isEmpty() && !state.refreshing) {
             retryQuerySourceRefresh()
         }
     }
@@ -551,6 +582,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     fun closeQuerySourceSettings() {
         showQuerySourceSheet = false
         querySourceDraft = emptyList()
+        querySourceDraftBackendId = null
     }
 
     /** 启停草稿中的 source；不可用 source 禁止重新启用 */
@@ -578,7 +610,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     /** 使用最近一次服务端默认顺序重建草稿，只启用默认列表内的可用 source */
     fun restoreDefaultQuerySources() {
-        val defaults = queryRepository.sourceState.value.defaultSources
+        val state = queryRepository.sourceState.value
+        if (querySourceDraftBackendId == null || querySourceDraftBackendId != state.backendId) return
+        val defaults = state.defaultSources
         if (defaults.isEmpty()) return
         val itemsById = querySourceDraft.associateBy { it.id }
         val head = defaults.mapNotNull { itemsById[it] }
@@ -590,7 +624,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     /** 保存草稿。@return false 表示没有任何可用 source 处于启用状态，保存被拒绝 */
     fun saveQuerySources(): Boolean {
-        val saved = queryRepository.saveSourceSelection(querySourceDraft)
+        val saved = queryRepository.saveSourceSelection(
+            querySourceDraft,
+            querySourceDraftBackendId,
+        )
         if (saved) {
             closeQuerySourceSettings()
         }
@@ -599,10 +636,18 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     /** 重试拉取 source 清单；刷新成功且 BottomSheet 仍打开时把清单填入空草稿 */
     fun retryQuerySourceRefresh() {
+        val backendId = querySourceDraftBackendId ?: return
         viewModelScope.launch {
-            val result = queryRepository.refreshSources()
-            if (result.isSuccess && showQuerySourceSheet && querySourceDraft.isEmpty()) {
-                querySourceDraft = queryRepository.sourceState.value.items
+            val result = queryRepository.refreshSources(backendId)
+            val state = queryRepository.sourceState.value
+            if (
+                result.isSuccess &&
+                showQuerySourceSheet &&
+                querySourceDraft.isEmpty() &&
+                querySourceDraftBackendId == backendId &&
+                state.backendId == backendId
+            ) {
+                querySourceDraft = state.items
             }
         }
     }

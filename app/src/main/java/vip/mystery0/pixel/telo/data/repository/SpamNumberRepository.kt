@@ -2,6 +2,7 @@ package vip.mystery0.pixel.telo.data.repository
 
 import android.content.SharedPreferences
 import android.util.Log
+import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -11,8 +12,8 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.query.BackendQueryResponse
 import vip.mystery0.pixel.telo.data.remote.PhoneLocationInfo
-import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -27,6 +28,8 @@ data class CheckResult(
     /** true 表示用户规则要求强制拦截，不受“仅提示”等全局策略影响。 */
     val forceBlock: Boolean = false,
     val querySource: String? = null,
+    /** 联网结果所属的稳定 Backend ID；纯本地结果或联网失败时为 null。 */
+    val queryBackendId: String? = null,
     val feedbackToken: String? = null,
 )
 
@@ -44,7 +47,7 @@ class SpamNumberRepository : KoinComponent {
      * 仅发起联网查询，跳过本地数据库检查。
      * 用于手动重试联网查询超时的记录。超时限制使用用户设置。
      */
-    suspend fun queryNetwork(phoneNumber: String): QueryResponse {
+    suspend fun queryNetwork(phoneNumber: String): BackendQueryResponse {
         val phone = PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
         return withContext(Dispatchers.IO) {
             withTimeout(networkTimeoutMs().milliseconds) {
@@ -130,16 +133,16 @@ class SpamNumberRepository : KoinComponent {
         val networkStart = System.currentTimeMillis()
         return withContext(Dispatchers.IO) {
             try {
-                val response = withTimeout(networkTimeoutMs().milliseconds) {
+                val backendResponse = withTimeout(networkTimeoutMs().milliseconds) {
                     queryRepository.queryNumber(phone)
                 }
                 networkCost = System.currentTimeMillis() - networkStart
-                Log.i(TAG, "Network result: source=${response.source}, cost=${networkCost}ms")
+                Log.i(TAG, "Network query succeeded: cost=${networkCost}ms")
 
-                buildNetworkResult(response, localCost, networkCost)
+                buildNetworkResult(backendResponse, localCost, networkCost)
             } catch (exception: TimeoutCancellationException) {
                 networkCost = System.currentTimeMillis() - networkStart
-                Log.w(TAG, "Network query timed out: cost=${System.currentTimeMillis() - start}ms")
+                Log.w(TAG, "Network query failed: category=timeout, cost=${networkCost}ms")
                 CheckResult(
                     shouldBlock = false,
                     label = "Timeout/Error",
@@ -154,7 +157,8 @@ class SpamNumberRepository : KoinComponent {
                 networkCost = System.currentTimeMillis() - networkStart
                 Log.w(
                     TAG,
-                    "Network query failed or timed out: cost=${System.currentTimeMillis() - start}ms"
+                    "Network query failed: category=${networkFailureCategory(exception)}, " +
+                        "cost=${networkCost}ms",
                 )
                 CheckResult(
                     shouldBlock = false,
@@ -169,10 +173,12 @@ class SpamNumberRepository : KoinComponent {
     }
 
     private suspend fun buildNetworkResult(
-        response: QueryResponse,
+        backendResponse: BackendQueryResponse,
         localCost: Long,
         networkCost: Long,
     ): CheckResult {
+        val response = backendResponse.response
+        val backendId = backendResponse.backendId
         val locationWhiteMatch = userListRepository.findWhiteListLocationMatch(response.data)
         if (locationWhiteMatch != null) {
             val label = locationWhiteMatch.remark
@@ -187,6 +193,7 @@ class SpamNumberRepository : KoinComponent {
                 locationInfo = response.data,
                 locationLookupAttempted = true,
                 querySource = response.source,
+                queryBackendId = backendId,
                 feedbackToken = response.feedbackToken,
             )
         }
@@ -206,6 +213,7 @@ class SpamNumberRepository : KoinComponent {
                 locationLookupAttempted = true,
                 forceBlock = locationBlackMatch.forceBlock,
                 querySource = response.source,
+                queryBackendId = backendId,
                 feedbackToken = response.feedbackToken,
             )
         }
@@ -227,6 +235,7 @@ class SpamNumberRepository : KoinComponent {
                 locationLookupAttempted = true,
                 forceBlock = tagBlackMatch.forceBlock,
                 querySource = response.source,
+                queryBackendId = backendId,
                 feedbackToken = response.feedbackToken,
             )
         }
@@ -244,6 +253,7 @@ class SpamNumberRepository : KoinComponent {
                     locationInfo = response.data,
                     locationLookupAttempted = true,
                     querySource = response.source,
+                    queryBackendId = backendId,
                     feedbackToken = response.feedbackToken,
                 )
             }
@@ -256,6 +266,7 @@ class SpamNumberRepository : KoinComponent {
                 locationInfo = response.data,
                 locationLookupAttempted = true,
                 querySource = response.source,
+                queryBackendId = backendId,
                 feedbackToken = response.feedbackToken,
             )
         }
@@ -269,6 +280,7 @@ class SpamNumberRepository : KoinComponent {
             locationInfo = response.data,
             locationLookupAttempted = true,
             querySource = response.source,
+            queryBackendId = backendId,
             feedbackToken = response.feedbackToken,
         )
     }
@@ -285,5 +297,14 @@ class SpamNumberRepository : KoinComponent {
 
     private fun locationRuleLabel(value: String): String {
         return "Location: $value"
+    }
+
+    /** 只返回稳定错误分类，禁止把 URL、Token、Header 或响应正文写入日志。 */
+    private fun networkFailureCategory(exception: Exception): String = when (exception) {
+        is BackendBlockedException -> "backend_blocked"
+        is BackendQueryException -> "backend_request"
+        is QueryApiException -> "server_response"
+        is IOException -> "network"
+        else -> "unexpected"
     }
 }
