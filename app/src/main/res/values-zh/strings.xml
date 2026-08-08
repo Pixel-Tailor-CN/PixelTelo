@@ -257,6 +257,7 @@
     <string name="title_self_hosted_config">配置自建服务</string>
     <string name="title_self_hosted_management">自建服务</string>
     <string name="msg_self_hosted_management_hint">当前正在使用此服务。你可以重新执行完整验证、修改配置，或切换回官方服务。</string>
+    <string name="msg_self_hosted_blocked_hint">此自建服务仍被选择，但当前不可用，联网识别已停止。请重新测试、修改配置，或切换回官方服务。</string>
     <string name="label_self_hosted_base_url">Base URL</string>
     <string name="hint_self_hosted_base_url">自建查询服务的 HTTPS 地址</string>
     <string name="label_self_hosted_token">Token</string>
@@ -277,6 +278,7 @@
     <string name="msg_self_hosted_validating">正在验证服务身份与查询能力…</string>
     <string name="setting_feedback_notification_self_hosted_summary">自建服务不支持查询结果反馈。你的原有偏好会被保留，切回官方服务后自动恢复。</string>
     <string name="error_self_hosted_url">服务地址或 TLS 模式配置无效。</string>
+    <string name="error_self_hosted_configuration_unavailable">已保存的自建服务配置不可用或已损坏，请重新测试或修改配置。</string>
     <string name="error_self_hosted_network">无法连接服务，请检查网络后重试。</string>
     <string name="error_self_hosted_tls">TLS 证书或主机名校验失败。</string>
     <string name="error_self_hosted_spki_pin">SPKI Pin 格式无效或与服务端证书不匹配。</string>

@@ -29,13 +29,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.isEditable
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.password
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import java.net.URI
 import java.text.DateFormat
@@ -125,7 +132,13 @@ fun SelfHostedQueryDialog(
                         Text(stringResource(R.string.setting_query_backend_self_hosted_unavailable_summary))
                     }
                     Text(
-                        stringResource(R.string.msg_self_hosted_management_hint),
+                        stringResource(
+                            if (blockedReason == null) {
+                                R.string.msg_self_hosted_management_hint
+                            } else {
+                                R.string.msg_self_hosted_blocked_hint
+                            },
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -216,6 +229,8 @@ private fun SelfHostedEditor(
     onDraftChange: (SelfHostedDraftUiState) -> Unit,
     onTokenChange: (TextFieldValue) -> Unit,
 ) {
+    val tokenLabel = stringResource(R.string.label_self_hosted_token)
+    val tokenFocusRequester = remember { FocusRequester() }
     OutlinedTextField(
         value = draft.baseUrl,
         onValueChange = { onDraftChange(draft.copy(baseUrl = it)) },
@@ -229,13 +244,29 @@ private fun SelfHostedEditor(
     OutlinedTextField(
         value = tokenValue,
         onValueChange = onTokenChange,
-        label = { Text(stringResource(R.string.label_self_hosted_token)) },
+        label = { Text(tokenLabel) },
         supportingText = { Text(stringResource(R.string.hint_self_hosted_token)) },
         singleLine = true,
         enabled = enabled,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(tokenFocusRequester)
+            .clearAndSetSemantics {
+                // 清除 CoreTextField 自动生成的 Autofill 原文，只重建不含输入内容的安全语义。
+                contentDescription = tokenLabel
+                password()
+                isEditable = enabled
+                if (enabled) {
+                    onClick {
+                        tokenFocusRequester.requestFocus()
+                        true
+                    }
+                } else {
+                    disabled()
+                }
+            },
     )
     Text(
         stringResource(R.string.label_self_hosted_tls_mode),
@@ -329,7 +360,6 @@ private fun TlsModeRow(
 /** 仅展示已验证配置中的脱敏 Host、版本和验证时间。 */
 @Composable
 fun SelfHostedBackendSummary(config: VerifiedSelfHostedConfig) {
-    val context = LocalContext.current
     val host = remember(config.baseUrl) { selfHostedDisplayHost(config.baseUrl) }
         ?: stringResource(R.string.label_self_hosted_host_unavailable)
     val verifiedAt = remember(config.verifiedAtEpochMillis) {
@@ -375,7 +405,7 @@ internal fun SelfHostedErrorCategory.messageRes(): Int = when (this) {
 
 @StringRes
 internal fun SelfHostedBlockReason.messageRes(): Int = when (this) {
-    SelfHostedBlockReason.Configuration -> R.string.error_self_hosted_url
+    SelfHostedBlockReason.Configuration -> R.string.error_self_hosted_configuration_unavailable
     SelfHostedBlockReason.Credentials -> R.string.error_self_hosted_token
     SelfHostedBlockReason.Tls -> R.string.error_self_hosted_tls
     SelfHostedBlockReason.SpkiPin -> R.string.error_self_hosted_spki_pin

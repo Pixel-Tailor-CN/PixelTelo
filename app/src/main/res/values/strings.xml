@@ -259,6 +259,7 @@
     <string name="title_self_hosted_config">Configure self-hosted service</string>
     <string name="title_self_hosted_management">Self-hosted service</string>
     <string name="msg_self_hosted_management_hint">This service is active. You can run the full validation again, modify its configuration, or switch back to the official service.</string>
+    <string name="msg_self_hosted_blocked_hint">This self-hosted service is still selected but is currently unavailable. Online identification has stopped until you test it again, modify its configuration, or switch to the official service.</string>
     <string name="label_self_hosted_base_url">Base URL</string>
     <string name="hint_self_hosted_base_url">HTTPS URL of your self-hosted query service</string>
     <string name="label_self_hosted_token">Token</string>
@@ -279,6 +280,7 @@
     <string name="msg_self_hosted_validating">Validating service identity and query capabilities…</string>
     <string name="setting_feedback_notification_self_hosted_summary">Self-hosted services do not support query feedback. Your preference is preserved and will be restored when you switch back to the official service.</string>
     <string name="error_self_hosted_url">The service URL or TLS mode configuration is invalid.</string>
+    <string name="error_self_hosted_configuration_unavailable">The saved self-hosted configuration is unavailable or damaged. Test the service again or modify its configuration.</string>
     <string name="error_self_hosted_network">Unable to reach the service. Check your network and try again.</string>
     <string name="error_self_hosted_tls">TLS certificate or hostname verification failed.</string>
     <string name="error_self_hosted_spki_pin">The SPKI Pin is invalid or does not match the service certificate.</string>
