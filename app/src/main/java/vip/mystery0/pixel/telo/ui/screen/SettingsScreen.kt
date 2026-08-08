@@ -61,6 +61,8 @@ import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
+import vip.mystery0.pixel.telo.data.query.QueryBackendState
+import vip.mystery0.pixel.telo.data.query.SelfHostedConnectionState
 import vip.mystery0.pixel.telo.data.repository.QuerySourceItem
 import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.ui.screen.settings.AboutPreferences
@@ -71,6 +73,7 @@ import vip.mystery0.pixel.telo.ui.screen.settings.InterceptBehaviorPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.LocationOverlayPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.OnlineQueryPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.PermissionsPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.SelfHostedQueryDialog
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
@@ -81,6 +84,8 @@ import java.time.LocalDateTime
 @Composable
 fun SettingsScreen(viewModel: SettingViewModel) {
     val context = LocalContext.current
+    val queryBackendState by viewModel.queryBackendState.collectAsState()
+    val selfHostedConnectionState by viewModel.selfHostedConnectionState.collectAsState()
     val autoCheckPermissionDeniedMessage = stringResource(
         R.string.msg_auto_check_update_requires_notification_permission
     )
@@ -611,6 +616,29 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         }
     }
 
+    val selfHostedDraft = viewModel.selfHostedDraft
+    if (viewModel.showSelfHostedConfigDialog && selfHostedDraft != null) {
+        val currentConfig = when (val state = selfHostedConnectionState) {
+            is SelfHostedConnectionState.Ready -> state.config
+            is SelfHostedConnectionState.Blocked -> state.config
+            SelfHostedConnectionState.NotConfigured -> null
+        }
+        SelfHostedQueryDialog(
+            initialDraft = selfHostedDraft,
+            editing = viewModel.selfHostedConfigEditing,
+            currentConfig = currentConfig,
+            blockedReason = (queryBackendState as? QueryBackendState.Blocked)?.reason,
+            validationInProgress = viewModel.selfHostedValidationInProgress,
+            validationError = viewModel.selfHostedValidationError,
+            onUpdateDraft = viewModel::updateSelfHostedDraft,
+            onValidateAndEnable = viewModel::validateAndEnableSelfHosted,
+            onRevalidate = viewModel::revalidateSelfHosted,
+            onEdit = viewModel::editSelfHostedConfig,
+            onUseOfficial = viewModel::useOfficialBackend,
+            onDismiss = viewModel::closeSelfHostedConfig,
+        )
+    }
+
     // 联网查询数据源设置 BottomSheet：有草稿时可编辑，无缓存时展示加载/失败与重试
     if (viewModel.showQuerySourceSheet) {
         val sourceState by viewModel.querySourceState.collectAsState()
@@ -741,6 +769,8 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                 PreferenceCategory(title = { Text(stringResource(R.string.category_online_query)) })
                 OnlineQueryPreferences(
                     viewModel = viewModel,
+                    backendState = queryBackendState,
+                    selfHostedConnectionState = selfHostedConnectionState,
                     feedbackPermissions = feedbackPermissions,
                     onRequestFeedbackPermissions = feedbackPermissionLauncher::launch
                 )

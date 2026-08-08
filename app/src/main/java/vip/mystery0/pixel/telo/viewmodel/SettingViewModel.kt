@@ -26,6 +26,15 @@ import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
+import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
+import vip.mystery0.pixel.telo.data.query.QueryBackendState
+import vip.mystery0.pixel.telo.data.query.QueryBackendType
+import vip.mystery0.pixel.telo.data.query.SelfHostedConnectionState
+import vip.mystery0.pixel.telo.data.query.SelfHostedDraft
+import vip.mystery0.pixel.telo.data.query.SelfHostedErrorCategory
+import vip.mystery0.pixel.telo.data.query.SelfHostedTlsMode
+import vip.mystery0.pixel.telo.data.query.SelfHostedValidationResult
+import vip.mystery0.pixel.telo.data.query.VerifiedSelfHostedConfig
 import vip.mystery0.pixel.telo.data.remote.SyncResponse
 import vip.mystery0.pixel.telo.data.repository.BackupOptions
 import vip.mystery0.pixel.telo.data.repository.BackupPreview
@@ -35,6 +44,7 @@ import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.data.repository.QueryRepository
 import vip.mystery0.pixel.telo.data.repository.QuerySourceItem
 import vip.mystery0.pixel.telo.data.repository.QuerySourceState
+import vip.mystery0.pixel.telo.data.repository.SelfHostedConfigRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
@@ -68,6 +78,19 @@ enum class LocationOverlayStyle {
     CARD,
     MINIMAL,
 }
+
+/**
+ * 自建查询服务 Dialog 的短生命周期草稿。
+ *
+ * 该状态不接入 SavedState，也不写入持久化存储；明文 Token 只在用户提交验证时短暂传入 ViewModel。
+ */
+data class SelfHostedDraftUiState(
+    val baseUrl: String = "",
+    val token: String = "",
+    val tlsMode: SelfHostedTlsMode = SelfHostedTlsMode.SYSTEM,
+    val spkiPin: String = "",
+    val allowPreRelease: Boolean = false,
+)
 
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
@@ -103,6 +126,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
     private val backupRepository: BackupRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val queryRepository: QueryRepository by inject()
+    private val queryBackendProvider: QueryBackendProvider by inject()
+    private val selfHostedConfigRepository: SelfHostedConfigRepository by inject()
     private val prefs: SharedPreferences by inject()
     private val context: Context by inject()
 
@@ -517,6 +542,162 @@ class SettingViewModel : ViewModel(), KoinComponent {
         }
     }
 
+    // ---- 实时查询 Backend 设置 ----
+    /** Provider 发布的 Backend 状态，设置页与 source 设置共同消费同一事实来源。 */
+    val queryBackendState: StateFlow<QueryBackendState> = queryBackendProvider.state
+
+    /** 已验证配置的非敏感状态，用于展示 Host、版本与最近验证时间。 */
+    val selfHostedConnectionState: StateFlow<SelfHostedConnectionState> =
+        selfHostedConfigRepository.connectionState
+
+    /** 自建服务配置/管理 Dialog 是否展示。 */
+    var showSelfHostedConfigDialog by mutableStateOf(false)
+        private set
+
+    /** 当前 Dialog 是否处于配置编辑模式；false 时展示已启用服务的管理动作。 */
+    var selfHostedConfigEditing by mutableStateOf(false)
+        private set
+
+    /** 验证期间统一禁用所有会发起新命令的操作。 */
+    var selfHostedValidationInProgress by mutableStateOf(false)
+        private set
+
+    /** 只保存稳定分类，不保存底层异常、URL 或响应正文。 */
+    var selfHostedValidationError by mutableStateOf<SelfHostedErrorCategory?>(null)
+        private set
+
+    /**
+     * ViewModel 只在打开时持有不含 Token 的初始草稿，并在提交验证的极短窗口接收完整草稿。
+     * Dialog 实际编辑状态由普通 `remember` 持有；关闭时该引用会被清除。
+     */
+    var selfHostedDraft by mutableStateOf<SelfHostedDraftUiState?>(null)
+        private set
+
+    /** 打开自建 Backend 管理；当前未选择自建服务时直接进入配置编辑。 */
+    fun openSelfHostedConfig() {
+        if (selfHostedValidationInProgress) return
+        selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
+        selfHostedConfigEditing = !queryBackendProvider.state.value.isSelfHostedSelected()
+        selfHostedValidationError = null
+        showSelfHostedConfigDialog = true
+    }
+
+    /** 从管理视图进入配置编辑，Token 始终重新输入，不从凭据存储回填。 */
+    fun editSelfHostedConfig() {
+        if (!showSelfHostedConfigDialog || selfHostedValidationInProgress) return
+        selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
+        selfHostedConfigEditing = true
+        selfHostedValidationError = null
+    }
+
+    /** 接收一次准备提交的普通内存草稿；不会持久化或写入 SavedState。 */
+    fun updateSelfHostedDraft(draft: SelfHostedDraftUiState) {
+        if (!showSelfHostedConfigDialog || selfHostedValidationInProgress) return
+        selfHostedDraft = draft
+        selfHostedValidationError = null
+    }
+
+    /** 关闭 Dialog，并主动断开所有草稿引用。验证进行中时拒绝关闭，避免后台静默切换 Backend。 */
+    fun closeSelfHostedConfig() {
+        if (selfHostedValidationInProgress) return
+        clearSelfHostedDialogState()
+    }
+
+    /** 完整验证草稿；只有 Provider 原子提交成功后，设置页才会关闭。 */
+    fun validateAndEnableSelfHosted() {
+        val draft = selfHostedDraft ?: return
+        if (selfHostedValidationInProgress) return
+        selfHostedValidationInProgress = true
+        selfHostedValidationError = null
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                queryBackendProvider.validateAndEnable(
+                    SelfHostedDraft(
+                        baseUrl = draft.baseUrl,
+                        token = draft.token,
+                        tlsMode = draft.tlsMode,
+                        spkiPin = if (draft.tlsMode == SelfHostedTlsMode.SPKI_PIN) {
+                            draft.spkiPin
+                        } else {
+                            ""
+                        },
+                        allowPreRelease = BuildConfig.DEBUG && draft.allowPreRelease,
+                    ),
+                )
+            }
+            // Provider 返回后立即清除 ViewModel 中的明文 Token；失败重试由 Dialog 再次提交本地草稿。
+            selfHostedDraft = selfHostedDraft?.copy(token = "")
+            selfHostedValidationInProgress = false
+            when (result) {
+                is SelfHostedValidationResult.Success -> clearSelfHostedDialogState()
+                is SelfHostedValidationResult.Failure -> {
+                    selfHostedValidationError = result.category
+                }
+            }
+        }
+    }
+
+    /** 使用已保存凭据执行完整重验证，不从 Dialog 读取或回填 Token。 */
+    fun revalidateSelfHosted() {
+        if (selfHostedValidationInProgress) return
+        selfHostedValidationInProgress = true
+        selfHostedValidationError = null
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { queryBackendProvider.revalidate() }
+            selfHostedValidationInProgress = false
+            when (result) {
+                is SelfHostedValidationResult.Success -> selfHostedValidationError = null
+                is SelfHostedValidationResult.Failure -> {
+                    selfHostedValidationError = result.category
+                }
+            }
+        }
+    }
+
+    /** 切换到官方 Backend；保留自建配置与用户原有反馈通知偏好。 */
+    fun useOfficialBackend() {
+        if (selfHostedValidationInProgress) return
+        selfHostedValidationInProgress = true
+        selfHostedValidationError = null
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { queryBackendProvider.useOfficial() }
+            selfHostedValidationInProgress = false
+            val state = queryBackendProvider.state.value
+            if (state is QueryBackendState.Ready && state.type == QueryBackendType.OFFICIAL) {
+                clearSelfHostedDialogState()
+            } else {
+                selfHostedValidationError = SelfHostedErrorCategory.STORAGE
+            }
+        }
+    }
+
+    private fun clearSelfHostedDialogState() {
+        selfHostedDraft = selfHostedDraft?.copy(token = "")
+        selfHostedDraft = null
+        selfHostedValidationError = null
+        selfHostedConfigEditing = false
+        showSelfHostedConfigDialog = false
+    }
+
+    private fun currentSelfHostedConfig(): VerifiedSelfHostedConfig? =
+        when (val state = selfHostedConfigRepository.connectionState.value) {
+            is SelfHostedConnectionState.Ready -> state.config
+            is SelfHostedConnectionState.Blocked -> state.config
+            SelfHostedConnectionState.NotConfigured -> null
+        }
+
+    private fun VerifiedSelfHostedConfig.toDraftUiState(): SelfHostedDraftUiState =
+        SelfHostedDraftUiState(
+            baseUrl = baseUrl,
+            tlsMode = tlsMode,
+            spkiPin = spkiPin,
+        )
+
+    private fun QueryBackendState.isSelfHostedSelected(): Boolean = when (this) {
+        is QueryBackendState.Ready -> type == QueryBackendType.SELF_HOSTED
+        is QueryBackendState.Blocked -> true
+    }
+
     // ---- 联网查询数据源设置 ----
     /** source 配置状态，驱动 BottomSheet 的加载/失败展示 */
     val querySourceState: StateFlow<QuerySourceState> = queryRepository.sourceState
@@ -572,17 +753,16 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     /** 打开 source 设置 BottomSheet，无缓存时触发一次刷新 */
     fun openQuerySourceSettings() {
+        val backendState = queryBackendProvider.state.value as? QueryBackendState.Ready ?: return
         val state = queryRepository.sourceState.value
+        // Provider 已切换但 Repository 尚未发布目标 Backend 时拒绝打开，避免短暂展示旧 source 草稿。
+        if (state.backendId != backendState.backendId) return
         querySourceDraftBackendId = state.backendId
         querySourceDraft = state.items
         showQuerySourceSheet = true
         val targetBackendId = state.backendId
-        if (targetBackendId == null) {
-            clearQuerySourceQuality()
-        } else {
-            loadQuerySourceQuality(targetBackendId)
-        }
-        if (state.backendId != null && querySourceDraft.isEmpty() && !state.refreshing) {
+        loadQuerySourceQuality(targetBackendId)
+        if (querySourceDraft.isEmpty() && !state.refreshing) {
             retryQuerySourceRefresh()
         }
     }

@@ -249,6 +249,44 @@
     <string name="msg_restored_summary">已恢复：%1$d 条拦截记录、%2$d 条黑名单、%3$d 条白名单</string>
 
     <!-- Query Sources -->
+    <string name="setting_query_backend">实时查询服务器</string>
+    <string name="setting_query_backend_official_summary">Pixel Telo 官方服务</string>
+    <string name="setting_query_backend_self_hosted_summary">%1$s · 版本 %2$s · 验证于 %3$s</string>
+    <string name="setting_query_backend_self_hosted_unavailable_summary">自建服务 · 需要重新配置</string>
+    <string name="label_self_hosted_host_unavailable">自建服务</string>
+    <string name="title_self_hosted_config">配置自建服务</string>
+    <string name="title_self_hosted_management">自建服务</string>
+    <string name="msg_self_hosted_management_hint">当前正在使用此服务。你可以重新执行完整验证、修改配置，或切换回官方服务。</string>
+    <string name="label_self_hosted_base_url">Base URL</string>
+    <string name="hint_self_hosted_base_url">自建查询服务的 HTTPS 地址</string>
+    <string name="label_self_hosted_token">Token</string>
+    <string name="hint_self_hosted_token">仅用于验证，设置摘要不会显示</string>
+    <string name="label_self_hosted_tls_mode">TLS 验证</string>
+    <string name="tls_mode_system">系统信任</string>
+    <string name="tls_mode_system_summary">使用 Android 系统证书与主机名校验</string>
+    <string name="tls_mode_spki_pin">系统信任 + SPKI Pin</string>
+    <string name="tls_mode_spki_pin_summary">额外要求服务端证书匹配一个精确的 SHA-256 SPKI Pin</string>
+    <string name="label_self_hosted_spki_pin">SPKI Pin</string>
+    <string name="hint_self_hosted_spki_pin">由你的服务管理员提供的 SHA-256 Pin</string>
+    <string name="setting_allow_prerelease_self_hosted">允许预发布服务端</string>
+    <string name="setting_allow_prerelease_self_hosted_summary">仅 Debug 可用，只影响本次验证，Release 构建不会启用</string>
+    <string name="action_test_and_enable_self_hosted">测试并启用</string>
+    <string name="action_revalidate_self_hosted">重新测试</string>
+    <string name="action_modify_self_hosted">修改配置</string>
+    <string name="action_use_official_backend">切换回官方服务</string>
+    <string name="msg_self_hosted_validating">正在验证服务身份与查询能力…</string>
+    <string name="setting_feedback_notification_self_hosted_summary">自建服务不支持查询结果反馈。你的原有偏好会被保留，切回官方服务后自动恢复。</string>
+    <string name="error_self_hosted_url">服务地址或 TLS 模式配置无效。</string>
+    <string name="error_self_hosted_network">无法连接服务，请检查网络后重试。</string>
+    <string name="error_self_hosted_tls">TLS 证书或主机名校验失败。</string>
+    <string name="error_self_hosted_spki_pin">SPKI Pin 格式无效或与服务端证书不匹配。</string>
+    <string name="error_self_hosted_token">Token 缺失或被服务端拒绝。</string>
+    <string name="error_self_hosted_server_version">服务端版本不受支持。</string>
+    <string name="error_self_hosted_protocol">服务协议或必需的查询能力不兼容。</string>
+    <string name="error_self_hosted_identity">服务身份缺失、无效或已发生变化。</string>
+    <string name="error_self_hosted_storage">无法保存配置变更，未启用未经验证的服务。</string>
+    <string name="error_self_hosted_cancelled">验证已取消，请重试。</string>
+
     <string name="setting_query_sources">联网查询数据源</string>
     <string name="setting_query_sources_summary">启用、停用并排序联网号码查询使用的数据源</string>
     <string name="title_query_sources">联网查询数据源</string>

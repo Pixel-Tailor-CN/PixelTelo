@@ -251,6 +251,44 @@
     <string name="msg_restored_summary">Restored: %1$d intercept records, %2$d blacklist, %3$d whitelist entries</string>
 
     <!-- Query Sources -->
+    <string name="setting_query_backend">Real-time query server</string>
+    <string name="setting_query_backend_official_summary">Official Pixel Telo service</string>
+    <string name="setting_query_backend_self_hosted_summary">%1$s · version %2$s · verified %3$s</string>
+    <string name="setting_query_backend_self_hosted_unavailable_summary">Self-hosted service · configuration required</string>
+    <string name="label_self_hosted_host_unavailable">Self-hosted service</string>
+    <string name="title_self_hosted_config">Configure self-hosted service</string>
+    <string name="title_self_hosted_management">Self-hosted service</string>
+    <string name="msg_self_hosted_management_hint">This service is active. You can run the full validation again, modify its configuration, or switch back to the official service.</string>
+    <string name="label_self_hosted_base_url">Base URL</string>
+    <string name="hint_self_hosted_base_url">HTTPS URL of your self-hosted query service</string>
+    <string name="label_self_hosted_token">Token</string>
+    <string name="hint_self_hosted_token">Required for validation; never shown in the settings summary</string>
+    <string name="label_self_hosted_tls_mode">TLS verification</string>
+    <string name="tls_mode_system">System trust</string>
+    <string name="tls_mode_system_summary">Use Android system certificates and hostname verification.</string>
+    <string name="tls_mode_spki_pin">System trust + SPKI Pin</string>
+    <string name="tls_mode_spki_pin_summary">Also require the server certificate to match one exact SHA-256 SPKI Pin.</string>
+    <string name="label_self_hosted_spki_pin">SPKI Pin</string>
+    <string name="hint_self_hosted_spki_pin">SHA-256 Pin supplied by your server administrator</string>
+    <string name="setting_allow_prerelease_self_hosted">Allow pre-release server</string>
+    <string name="setting_allow_prerelease_self_hosted_summary">Debug only. Applies to this validation and is never enabled in release builds.</string>
+    <string name="action_test_and_enable_self_hosted">Test and enable</string>
+    <string name="action_revalidate_self_hosted">Test again</string>
+    <string name="action_modify_self_hosted">Modify configuration</string>
+    <string name="action_use_official_backend">Switch to official service</string>
+    <string name="msg_self_hosted_validating">Validating service identity and query capabilities…</string>
+    <string name="setting_feedback_notification_self_hosted_summary">Self-hosted services do not support query feedback. Your preference is preserved and will be restored when you switch back to the official service.</string>
+    <string name="error_self_hosted_url">The service URL or TLS mode configuration is invalid.</string>
+    <string name="error_self_hosted_network">Unable to reach the service. Check your network and try again.</string>
+    <string name="error_self_hosted_tls">TLS certificate or hostname verification failed.</string>
+    <string name="error_self_hosted_spki_pin">The SPKI Pin is invalid or does not match the service certificate.</string>
+    <string name="error_self_hosted_token">The Token is missing or was rejected by the service.</string>
+    <string name="error_self_hosted_server_version">The server version is unsupported.</string>
+    <string name="error_self_hosted_protocol">The service protocol or required query capability is incompatible.</string>
+    <string name="error_self_hosted_identity">The service identity is missing, invalid, or has changed.</string>
+    <string name="error_self_hosted_storage">The configuration change could not be saved. No unverified service was enabled.</string>
+    <string name="error_self_hosted_cancelled">Validation was cancelled. Try again.</string>
+
     <string name="setting_query_sources">Online query sources</string>
     <string name="setting_query_sources_summary">Enable, disable, and reorder the data sources used by online number queries.</string>
     <string name="title_query_sources">Online Query Sources</string>

@@ -3,6 +3,7 @@ package vip.mystery0.pixel.telo.ui.screen.settings
 import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.ThumbsUpDown
@@ -14,6 +15,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -21,27 +23,85 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.query.QueryBackendState
+import vip.mystery0.pixel.telo.data.query.QueryBackendType
+import vip.mystery0.pixel.telo.data.query.SelfHostedConnectionState
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 /** 在线查询分类下的设置项。 */
 @Composable
 fun OnlineQueryPreferences(
     viewModel: SettingViewModel,
+    backendState: QueryBackendState,
+    selfHostedConnectionState: SelfHostedConnectionState,
     feedbackPermissions: List<String>,
     onRequestFeedbackPermissions: (Array<String>) -> Unit,
 ) {
     val context = LocalContext.current
     var showTimeoutDialog by remember { mutableStateOf(false) }
+    val querySourceState by viewModel.querySourceState.collectAsState()
+    val selfHostedSelected = when (backendState) {
+        is QueryBackendState.Ready -> backendState.type == QueryBackendType.SELF_HOSTED
+        is QueryBackendState.Blocked -> true
+    }
+    val selfHostedConfig = when (selfHostedConnectionState) {
+        is SelfHostedConnectionState.Ready -> selfHostedConnectionState.config
+        is SelfHostedConnectionState.Blocked -> selfHostedConnectionState.config
+        SelfHostedConnectionState.NotConfigured -> null
+    }
+    val sourceMatchesBackend = backendState is QueryBackendState.Ready &&
+        querySourceState.backendId == backendState.backendId
+
+    Preference(
+        title = { Text(stringResource(R.string.setting_query_backend)) },
+        summary = {
+            if (selfHostedSelected) {
+                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
+                    if (selfHostedConfig != null) {
+                        SelfHostedBackendSummary(selfHostedConfig)
+                    } else {
+                        Text(
+                            stringResource(
+                                R.string.setting_query_backend_self_hosted_unavailable_summary,
+                            ),
+                        )
+                    }
+                    if (backendState is QueryBackendState.Blocked) {
+                        Text(
+                            stringResource(backendState.reason.messageRes()),
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            } else {
+                Text(stringResource(R.string.setting_query_backend_official_summary))
+            }
+        },
+        icon = { Icon(Icons.Default.Cloud, contentDescription = null) },
+        onClick = viewModel::openSelfHostedConfig,
+    )
 
     Preference(
         title = { Text(stringResource(R.string.setting_query_sources)) },
-        summary = { Text(stringResource(R.string.setting_query_sources_summary)) },
+        summary = {
+            Text(
+                stringResource(
+                    if (backendState is QueryBackendState.Ready && !sourceMatchesBackend) {
+                        R.string.msg_query_sources_loading
+                    } else {
+                        R.string.setting_query_sources_summary
+                    },
+                ),
+            )
+        },
         icon = { Icon(Icons.Default.Dns, contentDescription = null) },
-        onClick = viewModel::openQuerySourceSettings
+        enabled = sourceMatchesBackend,
+        onClick = viewModel::openQuerySourceSettings,
     )
 
     SwitchPreference(
@@ -62,8 +122,19 @@ fun OnlineQueryPreferences(
             }
         },
         title = { Text(stringResource(R.string.setting_feedback_notification)) },
-        summary = { Text(stringResource(R.string.setting_feedback_notification_summary)) },
-        icon = { Icon(Icons.Default.ThumbsUpDown, contentDescription = null) }
+        summary = {
+            Text(
+                stringResource(
+                    if (selfHostedSelected) {
+                        R.string.setting_feedback_notification_self_hosted_summary
+                    } else {
+                        R.string.setting_feedback_notification_summary
+                    },
+                ),
+            )
+        },
+        icon = { Icon(Icons.Default.ThumbsUpDown, contentDescription = null) },
+        enabled = !selfHostedSelected,
     )
 
     Preference(
