@@ -36,12 +36,38 @@
     * `READ_CONTACTS` (Directory Provider 必需)
     * `ANSWER_PHONE_CALLS`
 
+### F04: 可选自建实时查询
+
+* **固定边界**: 自建服务只替代实时号码查询，官方离线数据库同步保持固定且始终可用。
+* **配置验证**:
+    * Base URL 只接受根路径 HTTPS；示例使用 `https://mast.example.com/`。
+    * 支持系统信任 TLS，以及面向自签名证书的精确 SPKI SHA-256 Pinning；两种模式都必须校验证书
+      有效期和域名/IP SAN。
+    * 启用前必须验证服务名称、最低 SemVer、API Version 2、Instance ID、`query_v2` capability 和
+      响应身份 Header。
+* **Backend 切换**: 配置完整验证并安全提交后才原子发布新的 Backend Snapshot；进行中的请求继续使用
+  旧 Snapshot。自建配置损坏或安全校验失败时保持用户选择但停止联网，不静默切回官方。
+* **Fail Open**: 自建查询的所有失败都允许来电通过，且不得用官方实时查询做第二次请求。
+* **source 隔离**: 官方与每个自建 Instance 按 Backend ID 独立保存 source 顺序、启用状态和可用性。
+* **反馈隔离**: 自建结果不保存反馈 Token、不显示反馈入口、不发送反馈请求；历史官方反馈仍只提交到
+  官方 Client。
+
+### F05: 自建凭据与隐私
+
+* Token 必须由 Android Keystore AES-GCM 保护，密文文件从 Auto Backup 和设备迁移中排除。
+* UI 状态、Room、默认 SharedPreferences、App 导出备份、日志和异常展示不得包含明文 Token。
+* 日志不得输出完整号码、完整自建 URL、Pin、Authorization Header、完整请求/响应或私人联调地址；
+  仅允许稳定错误分类、耗时、HTTP 状态和脱敏 ID。
+* 配置界面只展示脱敏 Host、服务版本和验证时间，不展示完整 URL、Token、Pin 或 Instance ID。
+
 ## 3. 性能需求
 
 ### P01: 延迟约束
 
-* **100ms 规则 (Local)**: 来电时的本地数据库查询 (**Room**) 必须在 **100ms** 内完成。
-* **3s 规则 (Online)**: 若本地未命中，允许进行在线查询，但必须在 **3s** 内超时。超时后强制放行并记录日志。
+* **50ms 目标 (Local)**: 来电时的本地数据库查询 (**Room**) 优先满足 **50ms** 目标；超过 100ms
+  必须记录警告，硬性上限为 3 秒。
+* **1–10s 规则 (Online)**: 若本地未命中，允许进行在线查询。超时由用户在 1 至 10 秒内配置，默认
+  5 秒；超范围旧配置自动修正。超时后强制放行并记录脱敏分类与耗时。
 * **网络权限**: APP 必须保留网络请求权限以支持在线查询和数据库更新。
 
 ## 4. 技术约束与质量

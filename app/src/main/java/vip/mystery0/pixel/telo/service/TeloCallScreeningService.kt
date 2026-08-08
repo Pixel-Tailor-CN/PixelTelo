@@ -32,7 +32,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     override fun onScreenCall(callDetails: Call.Details) {
         val phoneNumber = callDetails.handle?.schemeSpecificPart ?: return
 
-        Log.d(TAG, "Incoming call detected: $phoneNumber")
+        Log.d(TAG, "Incoming call detected")
 
         val response = CallResponse.Builder()
         val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, true)
@@ -45,9 +45,9 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                 val result = spamNumberRepository.checkSpam(phoneNumber)
                 Log.i(
                     TAG,
-                    "Screen result: number=$phoneNumber, shouldBlock=${result.shouldBlock}, " +
+                    "Screen result: shouldBlock=${result.shouldBlock}, " +
                         "notifyOnly=$notifyOnly, resultType=${result.resultType}, " +
-                        "forceBlock=${result.forceBlock}, label=${result.label}, " +
+                        "forceBlock=${result.forceBlock}, " +
                         "localCost=${result.localCost}ms, networkCost=${result.networkCost}ms"
                 )
                 val repeatStrategy = repeatCallStrategy(phoneNumber, callTime, result)
@@ -246,8 +246,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         if (isRepeatCall) {
             Log.i(
                 TAG,
-                "Repeat marked call strategy applied: number=$phoneNumber, " +
-                    "strategy=$strategy, " +
+                "Repeat marked call strategy applied: strategy=$strategy, " +
                     "window=${windowMinutes}min, interval=${callTime - lastMarkedCallTime}ms"
             )
         }

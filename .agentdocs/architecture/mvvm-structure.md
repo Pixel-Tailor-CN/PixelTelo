@@ -19,38 +19,65 @@ Pixel Telo 遵循 **MVVM (Model-View-ViewModel)** 架构模式，严格遵守 **
 
 3. **数据层 (Repository)**
     * **模式**: Repository 模式。
-    * **职责**: 数据的单一事实来源 (Single Source of Truth)。在本地存储 (**Room**) 和远程数据 (*
-      *Retrofit**) 之间进行调度。
+    * **职责**: 数据的单一事实来源 (Single Source of Truth)。在本地存储 (**Room**) 和远程数据
+      (**Retrofit**) 之间进行调度。
     * **组件**:
         * **本地**: Room Database (SQLite)。
         * **远程**: Retrofit + OkHttp。
 
-## 联网查询数据流（v2 查询与反馈）
+## 联网查询数据流（官方与自建 Backend）
 
-* **远程契约**: `data/remote/QueryApi.kt` 承载 mast v2 的 source 与号码查询接口；
-  `OfficialFeedbackApi` 独立承载官方反馈接口。`SyncApi` 只保留离线数据库同步接口。
-* **QueryRepository** (Koin 单例) 统一负责：
-    * 拉取并合并 source 清单，配置按 Backend ID 隔离后以 JSON Map 存入 `SharedPreferences`
-      （`query_source_configs`）；旧 `query_source_config` 只迁移为 `official` 配置。
-    * `sourceState: StateFlow<QuerySourceState>` 始终发布当前 Backend 的缓存或加载状态，驱动首页与
-      设置页；Backend 切换后先切换状态归属，再异步刷新对应 source 清单。
-    * 每次 Backend 激活都创建带唯一 `activationId` 的新 Snapshot，包括重新切回官方 Backend；旧请求的
-      source 状态发布必须通过 Provider 的原子门禁，与 Backend 切换共享同一短锁窗口，避免 check-then-
-      publish 竞态与 ABA。
-    * 合并规则：首次初始化跟随服务端 `default_sources`；已初始化时保留用户顺序与启停状态；
-      新 source 追加到末尾且默认停用；已下线 source 保留配置但标记不可用；清单请求失败沿用缓存。
-    * `queryNumber()` 一次读取不可变 `QueryBackendSnapshot` 及其 Backend 专属 source，仅发送“用户启用
-      且最近已知可用”的有序列表；响应以 `BackendQueryResponse` 携带可信归属，自建响应强制清除反馈
-      token。响应中的 invalid source warning 只更新同一 Backend 的配置。
-    * `submitFeedback()` 始终调用官方反馈 API，并映射 `200` 成功、`409` 已提交、`410` 过期、
-      `400` 无效；其余 HTTP/IO 错误视为可重试失败。
-* **SpamNumberRepository** 保留黑白名单、本地离线库与最终拦截决策，仅把联网查询阶段委托给
-  `QueryRepository.queryNumber()`，并把 Backend ID 写入 `CheckResult`。**实时来电查询不得临时请求
-  source 清单**。
-* **反馈持久化**: `BlockedCall` (Room v6) 新增 `querySource`、`feedbackToken`、`feedbackStatus`
-  三个字段；只有原本会落库的记录才保存反馈凭证，token 不写入日志与备份文件。
-  `BlockedCallRepository.attachQueryResult()`/`updateFeedbackStatus()` 返回更新后的实体，
-  调用方必须基于返回值继续操作，避免旧对象覆盖新字段。
+### 网络 Client 隔离
+
+网络层按用途划分为三个隔离边界：
+
+* **官方离线同步 Client**：固定 Base URL，只创建 `SyncApi`，只供 `SyncRepository` 下载和检查
+  `mast.db`；不接收 Backend、Token、Pin 或自建 URL。
+* **官方实时查询 Client**：固定 Base URL，创建 `QueryApi` 与 `OfficialFeedbackApi`。反馈 API 与官方
+  查询共用该官方网络栈，但不进入自建 Client。
+* **自建实时查询 Client**：由 `SelfHostedQueryClientFactory` 根据已验证配置动态创建，不注册为固定
+  Koin Retrofit 单例，也不复用官方 Client 的 Dispatcher、ConnectionPool、Cookie、Authenticator 或
+  TLS 状态。示例 Base URL 只使用 `https://mast.example.com/`。
+
+`AppModule` 使用 `officialSync`、`officialQuery`、`officialFeedback` qualifier 明确依赖归属；其中
+`officialFeedback` 是官方查询 Retrofit 创建的独立 API 契约。自建 Client 关闭自动 Redirect，Bearer
+Token 只发送到与已验证配置完全相同的 scheme、host 和有效端口。
+
+### Backend Snapshot 与查询链路
+
+* `QueryBackendProvider` 是活动 Backend 的单一事实来源。每次激活都会发布新的不可变
+  `QueryBackendSnapshot`，包含 Backend ID、唯一 `activationId`、`QueryApi`、反馈能力和可选自建身份。
+* `snapshot()` 只在短锁内读取已构造引用；配置验证、Keystore 和磁盘操作位于独立命令边界。
+  进行中的请求持续使用开始时取得的旧 Snapshot，不会在 Backend 切换后改变目标 Client。
+* 运行期版本、API Version、Instance ID 或身份 Header 校验失败时，Provider 撤销自建 Snapshot、持久化
+  `Blocked` 状态，并让后续调用直接得到不可用状态。来电路径对此 **Fail Open**，且不会读取官方
+  Snapshot 或再次请求官方实时查询。
+* `QueryRepository.queryNumber()` 一次读取 Snapshot 和该 Backend 专属 source 配置，只发送用户启用且
+  最近已知可用的 source；实时来电查询不会临时刷新 source 清单。
+* `SpamNumberRepository` 继续负责黑白名单、本地离线库和最终拦截决策。联网查询沿用用户配置并夹紧到
+  1 至 10 秒的超时；自建失败统一放行并只记录稳定分类与耗时。
+
+### source 与反馈隔离
+
+* source 配置按 Backend ID 以 JSON Map 保存到 `query_source_configs`。旧
+  `query_source_config` 只迁移到 `official`；自建 ID 为规范化 Instance ID 派生的
+  `selfhost:<uuid>`，不会继承官方 source。
+* `sourceState` 始终归属于当前 Snapshot。Backend 切换先发布目标缓存或空状态，再异步刷新；所有迟到
+  发布都要同时通过 Snapshot 引用和 `activationId` 门禁，避免跨 Backend 及 ABA 污染。
+* `BackendQueryResponse` 从 Snapshot 派生可信 Backend ID 和反馈能力。自建响应即使返回反馈 Token，
+  也会在这一边界被强制清除。
+* `BlockedCall`（Room v9）持久化 `queryBackendId`。Repository、首页 UI 与
+  `FeedbackActionReceiver` 三层都只允许 `queryBackendId == "official"` 的有效 Token 进入官方反馈 API；
+  自建记录固定为 `UNAVAILABLE`。
+
+### 凭据与配置
+
+* `SelfHostedCredentialStore` 使用 Android Keystore AES-GCM 保存 Token 密文；凭据 SharedPreferences
+  同时从 Auto Backup 与设备迁移中排除。
+* `SelfHostedConfigRepository` 只持久化规范化 URL、TLS 模式、Pin、服务身份、验证时间、阻止原因和
+  Backend 指针，不序列化明文 Token。Backend 与 TLS 模式使用稳定磁盘 codec，不依赖 enum 源码名称。
+* 新配置先写候选凭据和候选配置，再通过 journal 原子切换活动指针；恢复无法可靠裁决、Keystore
+  失效或配置损坏时保持自建选择但阻止联网，要求用户重新完整验证，不自动切回官方。
 
 ## 拦截记录分页与联系人解析
 

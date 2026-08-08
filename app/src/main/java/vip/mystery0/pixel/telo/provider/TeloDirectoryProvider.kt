@@ -77,13 +77,13 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
         sortOrder: String?
     ): Cursor? {
         val match = MATCHER.match(uri)
-        Log.d(TAG, "Query received: uri=$uri, match=$match")
+        Log.d(TAG, "Query received: match=$match")
         return when (match) {
             MATCH_DIRECTORIES -> handleDirectoriesQuery(projection)
             MATCH_PHONE_LOOKUP -> handlePhoneLookup(uri, projection)
             MATCH_CONTACT_LOOKUP -> handleContactLookup(uri, projection)
             else -> {
-                Log.w(TAG, "Unsupported query uri: $uri")
+                Log.w(TAG, "Unsupported query: match=$match")
                 null
             }
         }
@@ -124,14 +124,14 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
     private fun queryPhoneNumber(filter: String, projection: Array<out String>?): Cursor {
         val columns = projection ?: PHONE_COLUMNS
         val emptyCursor = MatrixCursor(columns)
-        Log.d(TAG, "Looking up number: $filter")
+        Log.d(TAG, "Looking up number")
 
         return runBlocking(Dispatchers.IO) {
             val (shouldFilter, spamLabel) = spamNumberRepository.checkSpam(filter)
             if (shouldFilter) {
-                Log.i(TAG, "Found spam number: $filter")
+                Log.i(TAG, "Spam number found")
             } else {
-                Log.i(TAG, "Not spam number: $filter")
+                Log.i(TAG, "Spam number not found")
                 return@runBlocking emptyCursor
             }
 
