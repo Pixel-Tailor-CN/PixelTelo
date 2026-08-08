@@ -31,18 +31,31 @@ interface BlockedCallDao {
     @Query("SELECT * FROM blocked_calls WHERE id = :id LIMIT 1")
     suspend fun findById(id: Long): BlockedCall?
 
-    /** 按 source 统计自 since 以来联网命中的去重号码数与指定反馈状态的记录数 */
+    /**
+     * 按目标 Backend 和 source 统计自 since 以来联网命中的去重号码数与指定反馈状态的记录数。
+     * v9 前记录没有 Backend 归属，只在查看官方 Backend 时作为 legacy official 数据计入。
+     */
     @Query(
         """
         SELECT querySource AS source,
                COUNT(DISTINCT phoneNumber) AS phoneCount,
                SUM(CASE WHEN feedbackStatus = :negativeStatus THEN 1 ELSE 0 END) AS negativeCount
         FROM blocked_calls
-        WHERE blockTime >= :since AND querySource IS NOT NULL
+        WHERE blockTime >= :since
+          AND querySource IS NOT NULL
+          AND (
+              queryBackendId = :backendId
+              OR (queryBackendId IS NULL AND :backendId = :officialBackendId)
+          )
         GROUP BY querySource
         """
     )
-    suspend fun getSourceQualityStats(since: Long, negativeStatus: String): List<QuerySourceQuality>
+    suspend fun getSourceQualityStats(
+        since: Long,
+        backendId: String,
+        officialBackendId: String,
+        negativeStatus: String,
+    ): List<QuerySourceQuality>
 
     /** 统计自 since 之后、指定结果类型的拦截记录数量（resultType 按枚举 name 存储） */
     @Query("SELECT COUNT(*) FROM blocked_calls WHERE blockTime > :since AND resultType IN (:resultTypes)")

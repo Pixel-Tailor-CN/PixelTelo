@@ -16,6 +16,7 @@ import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -535,6 +536,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var querySourceQuality by mutableStateOf<Map<String, QuerySourceQuality>>(emptyMap())
         private set
 
+    /** 当前质量统计加载任务；Backend 切换或面板关闭时取消。 */
+    private var querySourceQualityJob: Job? = null
+
     init {
         viewModelScope.launch {
             querySourceState.collect { state ->
@@ -555,6 +559,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 querySourceDraftBackendId = if (showQuerySourceSheet) state.backendId else null
                 if (showQuerySourceSheet) {
                     querySourceDraft = state.items
+                    val targetBackendId = state.backendId
+                    if (targetBackendId == null) {
+                        clearQuerySourceQuality()
+                    } else {
+                        loadQuerySourceQuality(targetBackendId)
+                    }
                 }
             }
         }
@@ -566,24 +576,46 @@ class SettingViewModel : ViewModel(), KoinComponent {
         querySourceDraftBackendId = state.backendId
         querySourceDraft = state.items
         showQuerySourceSheet = true
-        loadQuerySourceQuality()
+        val targetBackendId = state.backendId
+        if (targetBackendId == null) {
+            clearQuerySourceQuality()
+        } else {
+            loadQuerySourceQuality(targetBackendId)
+        }
         if (state.backendId != null && querySourceDraft.isEmpty() && !state.refreshing) {
             retryQuerySourceRefresh()
         }
     }
 
-    /** 加载近 7 天各 source 的号码数与“结果不准确”标记数 */
-    private fun loadQuerySourceQuality() {
-        viewModelScope.launch {
+    /** 加载指定 Backend 近 7 天各 source 的号码数与“结果不准确”标记数。 */
+    private fun loadQuerySourceQuality(backendId: String) {
+        querySourceQualityJob?.cancel()
+        querySourceQuality = emptyMap()
+        querySourceQualityJob = viewModelScope.launch {
             val since = System.currentTimeMillis() - QUALITY_STATS_WINDOW_MILLIS
-            querySourceQuality = blockedCallRepository.getSourceQualityStats(since)
+            val quality = blockedCallRepository.getSourceQualityStats(since, backendId)
+            if (
+                showQuerySourceSheet &&
+                querySourceDraftBackendId == backendId &&
+                queryRepository.sourceState.value.backendId == backendId
+            ) {
+                querySourceQuality = quality
+            }
         }
+    }
+
+    /** 清除旧 Backend 统计，避免加载期间短暂展示跨 Backend 数据。 */
+    private fun clearQuerySourceQuality() {
+        querySourceQualityJob?.cancel()
+        querySourceQualityJob = null
+        querySourceQuality = emptyMap()
     }
 
     fun closeQuerySourceSettings() {
         showQuerySourceSheet = false
         querySourceDraft = emptyList()
         querySourceDraftBackendId = null
+        clearQuerySourceQuality()
     }
 
     /** 启停草稿中的 source；不可用 source 禁止重新启用 */

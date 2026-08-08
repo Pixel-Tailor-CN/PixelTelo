@@ -122,9 +122,17 @@ class BlockedCallRepository : KoinComponent {
         return blockedCallDao.findById(call.id) ?: updated
     }
 
-    /** 按 source 统计自 since 以来的查询质量数据，key 为 source ID */
-    suspend fun getSourceQualityStats(since: Long): Map<String, QuerySourceQuality> {
-        return blockedCallDao.getSourceQualityStats(since, FeedbackStatus.NEGATIVE.name)
+    /** 按指定 Backend 和 source 统计自 since 以来的查询质量数据，key 为 source ID。 */
+    suspend fun getSourceQualityStats(
+        since: Long,
+        backendId: String,
+    ): Map<String, QuerySourceQuality> {
+        return blockedCallDao.getSourceQualityStats(
+            since = since,
+            backendId = backendId,
+            officialBackendId = OFFICIAL_BACKEND_ID,
+            negativeStatus = FeedbackStatus.NEGATIVE.name,
+        )
             .associateBy { it.source }
     }
 
