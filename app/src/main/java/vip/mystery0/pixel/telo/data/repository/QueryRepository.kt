@@ -95,6 +95,7 @@ class QueryRepository(
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile
     private var ignoreUnverifiedSourceConfigs = false
+    private var publishedActivationId: Long? = null
     private val _sourceState = MutableStateFlow(readInitialState())
     val sourceState: StateFlow<QuerySourceState> = _sourceState.asStateFlow()
 
@@ -244,28 +245,42 @@ class QueryRepository(
         when (state) {
             is QueryBackendState.Blocked -> {
                 configMutex.withLock {
-                    _sourceState.value = QuerySourceState()
+                    backendProvider.publishIfStateCurrent(state) {
+                        publishedActivationId = null
+                        _sourceState.value = QuerySourceState()
+                    }
                 }
             }
 
             is QueryBackendState.Ready -> {
                 val snapshot = backendProvider.snapshot()
-                if (snapshot == null || snapshot.backendId != state.backendId) {
+                if (
+                    snapshot == null ||
+                    snapshot.backendId != state.backendId ||
+                    snapshot.activationId != state.activationId
+                ) {
                     configMutex.withLock {
-                        _sourceState.value = QuerySourceState()
+                        backendProvider.publishIfStateCurrent(state) {
+                            publishedActivationId = null
+                            _sourceState.value = QuerySourceState()
+                        }
                     }
                     return
                 }
                 val backendChanged = configMutex.withLock {
-                    if (_sourceState.value.backendId == snapshot.backendId) {
-                        false
-                    } else {
-                        _sourceState.value = readStoredConfig(snapshot.backendId).toState(
-                            backendId = snapshot.backendId,
-                            refreshing = true,
-                        )
-                        true
+                    val targetState = readStoredConfig(snapshot.backendId).toState(
+                        backendId = snapshot.backendId,
+                        refreshing = true,
+                    )
+                    var changed = false
+                    backendProvider.publishIfCurrent(snapshot) {
+                        if (publishedActivationId != snapshot.activationId) {
+                            publishedActivationId = snapshot.activationId
+                            _sourceState.value = targetState
+                            changed = true
+                        }
                     }
+                    changed
                 }
                 if (backendChanged) {
                     refreshMutex.withLock {
@@ -278,6 +293,7 @@ class QueryRepository(
 
     private fun readInitialState(): QuerySourceState {
         val snapshot = backendProvider.snapshot() ?: return QuerySourceState()
+        publishedActivationId = snapshot.activationId
         return readStoredConfig(snapshot.backendId).toState(snapshot.backendId)
     }
 
@@ -286,8 +302,10 @@ class QueryRepository(
         transform: (QuerySourceState) -> QuerySourceState,
     ) {
         configMutex.withLock {
-            if (isPublishedBackend(snapshot)) {
-                _sourceState.value = transform(_sourceState.value)
+            backendProvider.publishIfCurrent(snapshot) {
+                if (isPublishedSnapshot(snapshot)) {
+                    _sourceState.value = transform(_sourceState.value)
+                }
             }
         }
     }
@@ -447,14 +465,18 @@ class QueryRepository(
     ): Boolean {
         val backendId = snapshot.backendId
         if (!writeStoredConfig(backendId, config)) return false
-        if (isPublishedBackend(snapshot)) {
-            _sourceState.value = config.toState(backendId, refreshing, refreshFailed)
+        backendProvider.publishIfCurrent(snapshot) {
+            if (isPublishedSnapshot(snapshot)) {
+                _sourceState.value = config.toState(backendId, refreshing, refreshFailed)
+            }
         }
         return true
     }
 
-    private fun isPublishedBackend(snapshot: QueryBackendSnapshot): Boolean =
-        _sourceState.value.backendId == snapshot.backendId && backendProvider.isCurrent(snapshot)
+    /** 调用方必须已位于 [QueryBackendProvider.publishIfCurrent] 的原子发布窗口内。 */
+    private fun isPublishedSnapshot(snapshot: QueryBackendSnapshot): Boolean =
+        _sourceState.value.backendId == snapshot.backendId &&
+            publishedActivationId == snapshot.activationId
 
     private fun StoredSourceConfig.toState(
         backendId: String,

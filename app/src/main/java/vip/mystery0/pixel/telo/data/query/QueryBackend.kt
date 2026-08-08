@@ -39,12 +39,15 @@ data class SelfHostedIdentity(
  */
 data class QueryBackendSnapshot(
     val backendId: String,
+    /** Provider 生命周期内单调变化的激活标识，用于隔离相同 Backend ID 的不同运行代次。 */
+    val activationId: Long,
     val type: QueryBackendType,
     val queryApi: QueryApi,
     val feedbackSupported: Boolean,
     val selfHostedIdentity: SelfHostedIdentity? = null,
 ) {
     init {
+        require(activationId >= 0L) { "Backend activation ID must not be negative" }
         when (type) {
             QueryBackendType.OFFICIAL -> {
                 require(backendId == OFFICIAL_BACKEND_ID) {

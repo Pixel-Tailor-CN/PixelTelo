@@ -34,6 +34,9 @@ Pixel Telo 遵循 **MVVM (Model-View-ViewModel)** 架构模式，严格遵守 **
       （`query_source_configs`）；旧 `query_source_config` 只迁移为 `official` 配置。
     * `sourceState: StateFlow<QuerySourceState>` 始终发布当前 Backend 的缓存或加载状态，驱动首页与
       设置页；Backend 切换后先切换状态归属，再异步刷新对应 source 清单。
+    * 每次 Backend 激活都创建带唯一 `activationId` 的新 Snapshot，包括重新切回官方 Backend；旧请求的
+      source 状态发布必须通过 Provider 的原子门禁，与 Backend 切换共享同一短锁窗口，避免 check-then-
+      publish 竞态与 ABA。
     * 合并规则：首次初始化跟随服务端 `default_sources`；已初始化时保留用户顺序与启停状态；
       新 source 追加到末尾且默认停用；已下线 source 保留配置但标记不可用；清单请求失败沿用缓存。
     * `queryNumber()` 一次读取不可变 `QueryBackendSnapshot` 及其 Backend 专属 source，仅发送“用户启用

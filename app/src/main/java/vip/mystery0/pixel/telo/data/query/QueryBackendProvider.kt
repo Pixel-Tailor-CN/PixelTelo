@@ -23,6 +23,7 @@ sealed interface QueryBackendState {
     data class Ready(
         val type: QueryBackendType,
         val backendId: String,
+        val activationId: Long,
     ) : QueryBackendState
 
     /** 用户选择了自建 Backend，但其安全状态不允许继续联网。 */
@@ -62,11 +63,11 @@ enum class SelfHostedErrorCategory {
 /**
  * 管理官方与自建查询 Client 的原子切换，并只发布已经完整验证的不可变快照。
  *
- * 官方快照在 Provider 生命周期内固定；自建 Backend 一旦被安全阻止，[snapshot] 必须返回
- * `null`，调用方据此直接 Fail Open，绝不会隐式回退到官方服务。
+ * 官方 Query API 在 Provider 生命周期内固定，但每次激活都会创建新的 Snapshot；自建 Backend 一旦
+ * 被安全阻止，[snapshot] 必须返回 `null`，调用方据此直接 Fail Open，绝不会隐式回退到官方服务。
  */
 class QueryBackendProvider(
-    officialQueryApi: QueryApi,
+    private val officialQueryApi: QueryApi,
     private val configRepository: SelfHostedConfigRepository,
     private val clientFactory: SelfHostedQueryClientFactory,
 ) {
@@ -76,17 +77,16 @@ class QueryBackendProvider(
     private val snapshotLock = Any()
     private val validationMutex = Mutex()
     private val commandGeneration = AtomicLong(0L)
-    private val officialSnapshot = QueryBackendSnapshot(
-        backendId = OFFICIAL_BACKEND_ID,
-        type = QueryBackendType.OFFICIAL,
-        queryApi = officialQueryApi,
-        feedbackSupported = true,
-    )
+    private val initialOfficialSnapshot = createOfficialSnapshot(INITIAL_ACTIVATION_ID)
     private var activeGeneration = 0L
     private var activeClient: SelfHostedClientBundle? = null
-    private var currentSnapshot: QueryBackendSnapshot? = officialSnapshot
+    private var currentSnapshot: QueryBackendSnapshot? = initialOfficialSnapshot
     private val _state = MutableStateFlow<QueryBackendState>(
-        QueryBackendState.Ready(QueryBackendType.OFFICIAL, OFFICIAL_BACKEND_ID),
+        QueryBackendState.Ready(
+            QueryBackendType.OFFICIAL,
+            OFFICIAL_BACKEND_ID,
+            INITIAL_ACTIVATION_ID,
+        ),
     )
 
     val state: StateFlow<QueryBackendState> = _state.asStateFlow()
@@ -99,12 +99,33 @@ class QueryBackendProvider(
     fun snapshot(): QueryBackendSnapshot? = synchronized(snapshotLock) { currentSnapshot }
 
     /**
-     * 原子判断调用方持有的 Snapshot 是否仍为当前实例，不返回或替换新的 Snapshot。
+     * 仅当原始 [snapshot] 仍是当前激活实例时，在同一短锁窗口内执行 [publish]。
      *
-     * 使用引用身份而非值相等，确保相同 Backend ID 重建 Client 后，旧请求不能发布迟到的 UI 状态。
+     * [publish] 必须是非挂起、不可重入 Provider 的常量时间状态发布，禁止磁盘或网络操作。
      */
-    fun isCurrent(snapshot: QueryBackendSnapshot): Boolean = synchronized(snapshotLock) {
-        currentSnapshot === snapshot
+    fun publishIfCurrent(snapshot: QueryBackendSnapshot, publish: () -> Unit): Boolean =
+        synchronized(snapshotLock) {
+            if (currentSnapshot !== snapshot) return@synchronized false
+            publish()
+            true
+        }
+
+    /** 仅当 StateFlow 仍持有同一个状态事件时，原子执行短小状态发布。 */
+    fun publishIfStateCurrent(state: QueryBackendState, publish: () -> Unit): Boolean =
+        synchronized(snapshotLock) {
+            if (_state.value !== state) return@synchronized false
+            publish()
+            true
+        }
+
+    private fun createOfficialSnapshot(activationId: Long): QueryBackendSnapshot {
+        return QueryBackendSnapshot(
+            backendId = OFFICIAL_BACKEND_ID,
+            activationId = activationId,
+            type = QueryBackendType.OFFICIAL,
+            queryApi = officialQueryApi,
+            feedbackSupported = true,
+        )
     }
 
     /** 完整验证草稿，只有所有远端与本地提交步骤成功后才发布自建快照。 */
@@ -174,9 +195,14 @@ class QueryBackendProvider(
                 clientToClose = activeClient
                 activeClient = null
                 activeGeneration = if (selected) generation else commandGeneration.incrementAndGet()
-                currentSnapshot = if (selected) officialSnapshot else null
+                val officialSnapshot = if (selected) createOfficialSnapshot(generation) else null
+                currentSnapshot = officialSnapshot
                 _state.value = if (selected) {
-                    QueryBackendState.Ready(QueryBackendType.OFFICIAL, OFFICIAL_BACKEND_ID)
+                    QueryBackendState.Ready(
+                        QueryBackendType.OFFICIAL,
+                        OFFICIAL_BACKEND_ID,
+                        checkNotNull(officialSnapshot).activationId,
+                    )
                 } else {
                     QueryBackendState.Blocked(SelfHostedBlockReason.Configuration)
                 }
@@ -221,6 +247,7 @@ class QueryBackendProvider(
             )
             QueryBackendSnapshot(
                 backendId = selfHostedBackendId(identity.instanceId),
+                activationId = generation,
                 type = QueryBackendType.SELF_HOSTED,
                 queryApi = runtimeClient.queryApi,
                 feedbackSupported = false,
@@ -258,7 +285,11 @@ class QueryBackendProvider(
                 activeClient = runtimeClient
                 activeGeneration = generation
                 currentSnapshot = runtimeSnapshot
-                _state.value = QueryBackendState.Ready(runtimeSnapshot.type, runtimeSnapshot.backendId)
+                _state.value = QueryBackendState.Ready(
+                    runtimeSnapshot.type,
+                    runtimeSnapshot.backendId,
+                    runtimeSnapshot.activationId,
+                )
             }
             SelfHostedValidationResult.Success(verifiedConfig)
         }
@@ -429,13 +460,18 @@ class QueryBackendProvider(
             val identity = SelfHostedIdentity(config.instanceId, config.version, config.apiVersion)
             val snapshot = QueryBackendSnapshot(
                 backendId = selfHostedBackendId(identity.instanceId),
+                activationId = generation,
                 type = QueryBackendType.SELF_HOSTED,
                 queryApi = client.queryApi,
                 feedbackSupported = false,
                 selfHostedIdentity = identity,
             )
             currentSnapshot = snapshot
-            _state.value = QueryBackendState.Ready(snapshot.type, snapshot.backendId)
+            _state.value = QueryBackendState.Ready(
+                snapshot.type,
+                snapshot.backendId,
+                snapshot.activationId,
+            )
         }
     }
 
@@ -577,6 +613,7 @@ class QueryBackendProvider(
     )
 
     private companion object {
+        const val INITIAL_ACTIVATION_ID = 0L
         const val SELF_HOSTED_SERVICE = "pixel-telo-mast-selfhost"
         const val HTTP_UNAUTHORIZED = 401
         const val HTTP_FORBIDDEN = 403
