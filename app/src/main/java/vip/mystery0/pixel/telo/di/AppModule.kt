@@ -17,6 +17,7 @@ import vip.mystery0.pixel.telo.data.MIGRATION_4_5
 import vip.mystery0.pixel.telo.data.MIGRATION_5_6
 import vip.mystery0.pixel.telo.data.MIGRATION_6_7
 import vip.mystery0.pixel.telo.data.MIGRATION_7_8
+import vip.mystery0.pixel.telo.data.remote.OfficialFeedbackApi
 import vip.mystery0.pixel.telo.data.remote.QueryApi
 import vip.mystery0.pixel.telo.data.remote.SyncApi
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
@@ -76,7 +77,8 @@ val appModule = module {
 
     single { get<Retrofit>().create(SyncApi::class.java) }
     single { get<Retrofit>().create(QueryApi::class.java) }
-    single { QueryRepository(get(), get()) }
+    single { get<Retrofit>().create(OfficialFeedbackApi::class.java) }
+    single { QueryRepository(get(), get(), get()) }
 
     single { SyncRepository(androidContext(), get(), get()) }
 

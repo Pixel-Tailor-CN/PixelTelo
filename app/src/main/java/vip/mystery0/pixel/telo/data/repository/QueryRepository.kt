@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import vip.mystery0.pixel.telo.data.remote.FeedbackRequest
+import vip.mystery0.pixel.telo.data.remote.OfficialFeedbackApi
 import vip.mystery0.pixel.telo.data.remote.QueryApi
 import vip.mystery0.pixel.telo.data.remote.QueryErrorResponse
 import vip.mystery0.pixel.telo.data.remote.QueryRequest
@@ -60,6 +61,7 @@ private data class StoredSourceConfig(
 
 class QueryRepository(
     private val queryApi: QueryApi,
+    private val officialFeedbackApi: OfficialFeedbackApi,
     private val preferences: SharedPreferences,
 ) {
     companion object {
@@ -145,7 +147,7 @@ class QueryRepository(
 
     suspend fun submitFeedback(token: String, positive: Boolean): FeedbackSubmitResult {
         return try {
-            queryApi.submitFeedback(FeedbackRequest(token, positive))
+            officialFeedbackApi.submitFeedback(FeedbackRequest(token, positive))
             FeedbackSubmitResult.Accepted
         } catch (exception: HttpException) {
             when (exception.code()) {

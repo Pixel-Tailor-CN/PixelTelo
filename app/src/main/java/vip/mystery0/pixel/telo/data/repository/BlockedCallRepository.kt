@@ -76,7 +76,7 @@ class BlockedCallRepository : KoinComponent {
      * 返回更新后的实体，调用方必须基于返回值继续操作，避免旧对象覆盖新字段。
      */
     suspend fun attachQueryResult(call: BlockedCall, response: QueryResponse): BlockedCall {
-        val token = response.feedbackToken.takeIf { it.isNotBlank() }
+        val token = response.feedbackToken?.takeIf { it.isNotBlank() }
         val updated = call.copy(
             province = response.data?.province.cleanLocationPart() ?: call.province,
             city = response.data?.city.cleanLocationPart() ?: call.city,
