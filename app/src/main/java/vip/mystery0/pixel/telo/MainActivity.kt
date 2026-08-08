@@ -114,7 +114,16 @@ class MainActivity : ComponentActivity() {
                                                 AppDestinations.SETTINGS.ordinal
                                             )
                                         }
-                                    }
+                                    },
+                                    onNavigateToSelfHostedSettings = {
+                                        // 打开自建服务管理入口后再切换页面，避免用户在设置中二次查找。
+                                        settingViewModel.openSelfHostedConfig()
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(
+                                                AppDestinations.SETTINGS.ordinal
+                                            )
+                                        }
+                                    },
                                 )
                             }
 

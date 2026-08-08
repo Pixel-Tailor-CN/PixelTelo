@@ -307,6 +307,16 @@
     <string name="warning_source_unavailable_title">Query Source Unavailable</string>
     <string name="warning_source_unavailable_message">Enabled sources no longer provided by the server: %1$s. Please adjust your query sources.</string>
     <string name="action_adjust_sources">Adjust sources</string>
+    <string name="warning_self_hosted_title">Self-hosted service requires attention</string>
+    <string name="warning_self_hosted_configuration">The self-hosted service configuration is unavailable or damaged.</string>
+    <string name="warning_self_hosted_credentials">The self-hosted service credentials need to be verified.</string>
+    <string name="warning_self_hosted_tls">The self-hosted service TLS verification failed.</string>
+    <string name="warning_self_hosted_spki_pin">The self-hosted service certificate Pin verification failed.</string>
+    <string name="warning_self_hosted_server_version">The self-hosted service version is no longer supported.</string>
+    <string name="warning_self_hosted_api_version">The self-hosted service API is incompatible.</string>
+    <string name="warning_self_hosted_instance_changed">The self-hosted service identity has changed.</string>
+    <string name="warning_self_hosted_identity_headers">The self-hosted service identity headers are invalid.</string>
+    <string name="action_open_query_backend_settings">Open query server settings</string>
 
     <!-- Query Feedback -->
     <string name="label_query_source">"Query source: %1$s"</string>

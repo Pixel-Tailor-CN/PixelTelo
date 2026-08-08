@@ -85,12 +85,14 @@ import vip.mystery0.pixel.telo.viewmodel.CurrentListState
 import vip.mystery0.pixel.telo.viewmodel.FeedbackSubmissionState
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
+import vip.mystery0.pixel.telo.viewmodel.SelfHostedWarning
 
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
     onNavigateToSettings: () -> Unit,
-    onNavigateToSourceSettings: () -> Unit
+    onNavigateToSourceSettings: () -> Unit,
+    onNavigateToSelfHostedSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -101,6 +103,7 @@ fun HomeScreen(
     val isDefaultApp by viewModel.isDefaultApp.collectAsState()
     val retryQueryState by viewModel.retryQueryState.collectAsState()
     val sourceState by viewModel.sourceState.collectAsState()
+    val selfHostedWarning by viewModel.selfHostedWarning.collectAsState()
 
     val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
     val roleLauncher = rememberLauncherForActivityResult(
@@ -169,6 +172,14 @@ fun HomeScreen(
                 SourceUnavailableWarningCard(
                     sources = sourceState.unavailableEnabledSources,
                     onClick = onNavigateToSourceSettings
+                )
+            }
+        }
+        selfHostedWarning?.let { warning ->
+            item {
+                SelfHostedWarningCard(
+                    warning = warning,
+                    onClick = onNavigateToSelfHostedSettings,
                 )
             }
         }
@@ -508,6 +519,44 @@ fun SourceUnavailableWarningCard(sources: List<String>, onClick: () -> Unit) {
             Text(stringResource(R.string.action_adjust_sources))
         }
     }
+}
+
+/**
+ * 自建查询服务被安全阻止时的提示卡片。
+ *
+ * 卡片只显示本地化的安全分类；地址、Token、Pin、Header、服务端正文及异常堆栈均不进入 UI。
+ */
+@Composable
+fun SelfHostedWarningCard(warning: SelfHostedWarning, onClick: () -> Unit) {
+    WarningCard(
+        containerColor = MaterialTheme.colorScheme.errorContainer,
+        icon = Icons.Default.Warning,
+        iconColor = MaterialTheme.colorScheme.error,
+        title = stringResource(R.string.warning_self_hosted_title),
+        message = stringResource(warning.messageResId()),
+    ) {
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+            ),
+        ) {
+            Text(stringResource(R.string.action_open_query_backend_settings))
+        }
+    }
+}
+
+/** 返回首页安全卡片使用的非敏感分类文案。 */
+private fun SelfHostedWarning.messageResId(): Int = when (this) {
+    SelfHostedWarning.CONFIGURATION -> R.string.warning_self_hosted_configuration
+    SelfHostedWarning.CREDENTIALS -> R.string.warning_self_hosted_credentials
+    SelfHostedWarning.TLS -> R.string.warning_self_hosted_tls
+    SelfHostedWarning.SPKI_PIN -> R.string.warning_self_hosted_spki_pin
+    SelfHostedWarning.SERVER_VERSION -> R.string.warning_self_hosted_server_version
+    SelfHostedWarning.API_VERSION -> R.string.warning_self_hosted_api_version
+    SelfHostedWarning.INSTANCE_CHANGED -> R.string.warning_self_hosted_instance_changed
+    SelfHostedWarning.IDENTITY_HEADERS -> R.string.warning_self_hosted_identity_headers
 }
 
 /**

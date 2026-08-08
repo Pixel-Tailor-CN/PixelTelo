@@ -305,6 +305,16 @@
     <string name="warning_source_unavailable_title">数据源已下线</string>
     <string name="warning_source_unavailable_message">已启用的数据源 %1$s 已被服务端下线，请调整数据源配置。</string>
     <string name="action_adjust_sources">调整数据源</string>
+    <string name="warning_self_hosted_title">自建服务需要处理</string>
+    <string name="warning_self_hosted_configuration">自建服务配置不可用或已损坏。</string>
+    <string name="warning_self_hosted_credentials">自建服务凭据需要重新验证。</string>
+    <string name="warning_self_hosted_tls">自建服务 TLS 验证失败。</string>
+    <string name="warning_self_hosted_spki_pin">自建服务证书 Pin 验证失败。</string>
+    <string name="warning_self_hosted_server_version">自建服务版本已不受支持。</string>
+    <string name="warning_self_hosted_api_version">自建服务 API 不兼容。</string>
+    <string name="warning_self_hosted_instance_changed">自建服务身份已发生变化。</string>
+    <string name="warning_self_hosted_identity_headers">自建服务身份 Header 无效。</string>
+    <string name="action_open_query_backend_settings">打开查询服务设置</string>
 
     <!-- Query Feedback -->
     <string name="label_query_source">"查询来源: %1$s"</string>

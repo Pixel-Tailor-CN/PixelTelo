@@ -29,6 +29,9 @@ import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
+import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
+import vip.mystery0.pixel.telo.data.query.QueryBackendState
+import vip.mystery0.pixel.telo.data.query.SelfHostedBlockReason
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.ContactRepository
@@ -61,6 +64,22 @@ enum class CurrentListState {
     BOTH,
 }
 
+/**
+ * 首页可安全展示的自建查询服务告警分类。
+ *
+ * 该模型只保留稳定的安全分类，避免 UI 持有 URL、Token、Pin、响应正文或异常堆栈。
+ */
+enum class SelfHostedWarning {
+    CONFIGURATION,
+    CREDENTIALS,
+    TLS,
+    SPKI_PIN,
+    SERVER_VERSION,
+    API_VERSION,
+    INSTANCE_CHANGED,
+    IDENTITY_HEADERS,
+}
+
 data class BlockedCallListItem(
     val call: BlockedCall,
     val currentListState: CurrentListState,
@@ -77,11 +96,30 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val userListRepository: UserListRepository by inject()
     private val queryRepository: QueryRepository by inject()
+    private val queryBackendProvider: QueryBackendProvider by inject()
     private val contactRepository: ContactRepository by inject()
     private val context: Context by inject()
 
     /** 联网查询 source 配置状态，用于首页“已启用 source 下线”提示 */
     val sourceState: StateFlow<QuerySourceState> = queryRepository.sourceState
+
+    /**
+     * 自建服务被安全阻止时的首页告警。
+     *
+     * 仅消费 Provider 已发布的持久阻止状态，不进行网络探测或健康轮询。普通网络故障、超时和
+     * 服务端瞬时响应错误不会进入该状态，因此不会形成常驻首页告警。
+     */
+    val selfHostedWarning: StateFlow<SelfHostedWarning?> = queryBackendProvider.state
+        .map { state ->
+            (state as? QueryBackendState.Blocked)?.reason?.toHomeWarning()
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = (queryBackendProvider.state.value as? QueryBackendState.Blocked)
+                ?.reason
+                ?.toHomeWarning(),
+        )
 
     init {
         // 应用启动时后台刷新一次 source 清单，不阻塞首页首帧；失败沿用缓存
@@ -290,6 +328,18 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     /** 快捷加入标签白名单。@return true=成功插入，false=已存在 */
     suspend fun quickAddTagToWhiteList(tag: String): Boolean =
         userListRepository.add(tag, false, ListType.WHITE, null, tagMatch = true)
+}
+
+/** 将 Provider 的持久安全阻止原因转换为不含敏感信息的首页展示分类。 */
+private fun SelfHostedBlockReason.toHomeWarning(): SelfHostedWarning = when (this) {
+    SelfHostedBlockReason.Configuration -> SelfHostedWarning.CONFIGURATION
+    SelfHostedBlockReason.Credentials -> SelfHostedWarning.CREDENTIALS
+    SelfHostedBlockReason.Tls -> SelfHostedWarning.TLS
+    SelfHostedBlockReason.SpkiPin -> SelfHostedWarning.SPKI_PIN
+    SelfHostedBlockReason.ServerVersion -> SelfHostedWarning.SERVER_VERSION
+    SelfHostedBlockReason.ApiVersion -> SelfHostedWarning.API_VERSION
+    SelfHostedBlockReason.InstanceChanged -> SelfHostedWarning.INSTANCE_CHANGED
+    SelfHostedBlockReason.IdentityHeaders -> SelfHostedWarning.IDENTITY_HEADERS
 }
 
 fun buildBlockedCallListItem(
