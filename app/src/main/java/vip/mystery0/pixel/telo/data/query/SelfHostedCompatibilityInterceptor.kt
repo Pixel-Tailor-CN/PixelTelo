@@ -138,7 +138,7 @@ internal class SelfHostedCompatibilityInterceptor private constructor(
     }
 }
 
-/** 校验并规范化三个身份 Header；重复但值完全一致的 Header 可安全合并。 */
+/** 校验并规范化三个身份 Header；每个 Header 必须存在且只能出现一次。 */
 internal fun validateSelfHostedIdentityHeaders(
     headers: Headers,
     allowPreRelease: Boolean,
@@ -171,10 +171,10 @@ internal fun validateSelfHostedIdentityHeaders(
 
 private fun Headers.requireSingleIdentityValue(name: String): String {
     val values = values(name)
-    if (values.isEmpty() || values.any { it.isEmpty() } || values.any { it != values.first() }) {
+    if (values.size != 1 || values.single().isEmpty()) {
         throw SelfHostedCompatibilityException(SelfHostedBlockReason.IdentityHeaders)
     }
-    return values.first()
+    return values.single()
 }
 
 internal fun canonicalUuid(value: String): String {

@@ -17,11 +17,19 @@ import vip.mystery0.pixel.telo.data.query.SelfHostedTlsMode
 import vip.mystery0.pixel.telo.data.query.SELF_HOSTED_QUERY_CAPABILITY
 import vip.mystery0.pixel.telo.data.query.VerifiedSelfHostedConfig
 
-/** 显式完整重验证使用的配置与凭据；调用方使用后必须清空 [token]。 */
-internal data class SelfHostedRevalidationMaterial(
+/** 显式完整重验证使用的配置与凭据；Token 只能向调用方转移一次。 */
+internal class SelfHostedRevalidationMaterial(
     val config: VerifiedSelfHostedConfig,
-    val token: CharArray,
-)
+    token: CharArray,
+) {
+    private var ownedToken: CharArray? = token
+
+    /** 转移 Token 所有权；调用方完成验证后必须清空返回数组。 */
+    @Synchronized
+    fun takeToken(): CharArray = checkNotNull(ownedToken) {
+        "Self-hosted revalidation token was already transferred"
+    }.also { ownedToken = null }
+}
 
 /**
  * 持久化自建服务非敏感配置及活动 Backend。
@@ -39,6 +47,7 @@ class SelfHostedConfigRepository(
         Context.MODE_PRIVATE,
     )
     private var processBlockedReason: SelfHostedBlockReason? = null
+    private var backendSelectionBlocked = false
     private val _connectionState = MutableStateFlow(readInitialState())
 
     val connectionState: StateFlow<SelfHostedConnectionState> = _connectionState.asStateFlow()
@@ -54,14 +63,35 @@ class SelfHostedConfigRepository(
     @Synchronized
     internal fun currentBackendType(): QueryBackendType = readCurrentBackendType()
 
-    /** 仅供后续已验证的 Backend 切换流程选择官方 Backend，保留自建配置和凭据。 */
+    /**
+     * 选择官方 Backend，使用 journal 消除 `commit()` 返回 false 时的持久化歧义。
+     *
+     * 任一步失败都会保留恢复证据并在当前进程 Fail Closed；下次启动会先完成 journal，
+     * 绝不会让 Repository 已显示 official 而 Provider 仍继续使用旧自建 Client。
+     */
     @Synchronized
-    internal fun selectOfficialBackend(): Result<Unit> = runCatching {
-        check(
-            preferences.edit()
-                .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_OFFICIAL)
-                .commit(),
-        ) { "Unable to select official backend" }
+    internal fun selectOfficialBackend(): Result<Unit> {
+        val journal = StoredBackendSelectionJournal(targetBackendType = BACKEND_TYPE_OFFICIAL)
+        return try {
+            check(
+                preferences.edit()
+                    .putString(BACKEND_SELECTION_JOURNAL_KEY, json.encodeToString(journal))
+                    .commit(),
+            ) { "Unable to persist backend selection journal" }
+            check(
+                preferences.edit()
+                    .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_OFFICIAL)
+                    .remove(BACKEND_SELECTION_JOURNAL_KEY)
+                    .remove(ACTIVATION_JOURNAL_KEY)
+                    .commit(),
+            ) { "Unable to select official backend" }
+            backendSelectionBlocked = false
+            Result.success(Unit)
+        } catch (exception: Exception) {
+            backendSelectionBlocked = true
+            markBlocked(SelfHostedBlockReason.Configuration)
+            Result.failure(exception)
+        }
     }
 
     /**
@@ -112,6 +142,7 @@ class SelfHostedConfigRepository(
                 .putString(ACTIVE_SLOT_KEY, candidateSlot)
                 .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_SELF_HOSTED)
                 .putString(LAST_KNOWN_GOOD_CONFIG_KEY, json.encodeToString(candidateRecord))
+                .remove(BACKEND_SELECTION_JOURNAL_KEY)
                 .commit()
             if (!activated) {
                 failClosed(config, SelfHostedBlockReason.Configuration)
@@ -121,6 +152,7 @@ class SelfHostedConfigRepository(
             // journal 清理失败可在下次启动根据活动指针确认后重试，不影响新活动项。
             preferences.edit().remove(ACTIVATION_JOURNAL_KEY).commit()
             processBlockedReason = null
+            backendSelectionBlocked = false
             _connectionState.value = SelfHostedConnectionState.Ready(config)
             clearInactiveCandidatesAfterRecovery(candidateSlot)
             Result.success(Unit)
@@ -204,7 +236,10 @@ class SelfHostedConfigRepository(
     }
 
     private fun readInitialState(): SelfHostedConnectionState {
+        recoverBackendSelectionJournal()
         migrateCurrentBackendTypeIfNeeded()
+        // 强制解析一次选择值，使未知或类型损坏的值在恢复 Client 前进入 fail-closed。
+        readCurrentBackendType()
         recoverActivationJournal()
         val activeSlot = activeSlot()
         val record = activeSlot?.let(::readRecord)
@@ -352,6 +387,39 @@ class SelfHostedConfigRepository(
         return runCatching { json.decodeFromString<StoredActivationJournal>(raw) }.getOrNull()
     }
 
+    /** 启动时优先完成 Backend 选择 journal；恢复失败时保留 journal 并 Fail Closed。 */
+    private fun recoverBackendSelectionJournal() {
+        val raw = runCatching { preferences.getString(BACKEND_SELECTION_JOURNAL_KEY, null) }
+            .getOrElse {
+                backendSelectionBlocked = true
+                processBlockedReason = SelfHostedBlockReason.Configuration
+                return
+            } ?: return
+        val journal = runCatching { json.decodeFromString<StoredBackendSelectionJournal>(raw) }
+            .getOrElse {
+                backendSelectionBlocked = true
+                processBlockedReason = SelfHostedBlockReason.Configuration
+                return
+            }
+        if (journal.targetBackendType != BACKEND_TYPE_OFFICIAL) {
+            backendSelectionBlocked = true
+            processBlockedReason = SelfHostedBlockReason.Configuration
+            return
+        }
+        if (
+            preferences.edit()
+                .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_OFFICIAL)
+                .remove(BACKEND_SELECTION_JOURNAL_KEY)
+                .remove(ACTIVATION_JOURNAL_KEY)
+                .commit()
+        ) {
+            backendSelectionBlocked = false
+        } else {
+            backendSelectionBlocked = true
+            processBlockedReason = SelfHostedBlockReason.Configuration
+        }
+    }
+
     /** 仅当配置和凭据均可恢复时，才允许 journal 将其认定为可用活动项。 */
     private fun isSlotUsable(slot: String, record: StoredConfigRecord?): Boolean {
         if (record?.credentialSlot != slot || record.toVerifiedConfig() == null) return false
@@ -397,36 +465,54 @@ class SelfHostedConfigRepository(
         clearInactiveCandidatesAfterRecovery(activeSlot())
     }
 
-    private fun readCurrentBackendType(): QueryBackendType = when (
-        preferences.getString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_OFFICIAL)
-    ) {
-        BACKEND_TYPE_SELF_HOSTED -> QueryBackendType.SELF_HOSTED
-        else -> QueryBackendType.OFFICIAL
+    private fun readCurrentBackendType(): QueryBackendType {
+        if (backendSelectionBlocked) return QueryBackendType.SELF_HOSTED
+        val storedValue = runCatching { preferences.getString(CURRENT_BACKEND_TYPE_KEY, null) }
+            .getOrElse {
+                processBlockedReason = SelfHostedBlockReason.Configuration
+                return QueryBackendType.SELF_HOSTED
+            }
+        return when (storedValue) {
+            BACKEND_TYPE_OFFICIAL -> QueryBackendType.OFFICIAL
+            BACKEND_TYPE_SELF_HOSTED -> QueryBackendType.SELF_HOSTED
+            null -> if (hasLegacySelfHostedSelectionEvidence()) {
+                processBlockedReason = SelfHostedBlockReason.Configuration
+                QueryBackendType.SELF_HOSTED
+            } else {
+                QueryBackendType.OFFICIAL
+            }
+            else -> {
+                processBlockedReason = SelfHostedBlockReason.Configuration
+                QueryBackendType.SELF_HOSTED
+            }
+        }
     }
 
-    /** 为引入顶层 Backend 选择的升级路径保留既有可用自建状态。 */
+    /** 为引入顶层 Backend 选择的升级路径保留任何旧自建选择证据。 */
     private fun migrateCurrentBackendTypeIfNeeded() {
         if (preferences.contains(CURRENT_BACKEND_TYPE_KEY)) return
 
-        val slot = activeSlot()
+        val hasSelfHostedEvidence = hasLegacySelfHostedSelectionEvidence()
+        val slot = runCatching(::activeSlot).getOrNull()
         val record = slot?.let(::readRecord)
-        val migratedType = if (slot != null && isSlotUsable(slot, record)) {
+        val migratedType = if (hasSelfHostedEvidence) {
+            if (slot == null || record?.toVerifiedConfig() == null) {
+                processBlockedReason = SelfHostedBlockReason.Configuration
+            } else if (!isSlotUsable(slot, record)) {
+                processBlockedReason = SelfHostedBlockReason.Credentials
+            }
             QueryBackendType.SELF_HOSTED
         } else {
-            if (slot != null) {
-                processBlockedReason = if (record?.toVerifiedConfig() == null) {
-                    SelfHostedBlockReason.Configuration
-                } else {
-                    SelfHostedBlockReason.Credentials
-                }
-            }
             QueryBackendType.OFFICIAL
         }
         if (!preferences.edit().putString(CURRENT_BACKEND_TYPE_KEY, migratedType.toStoredValue()).commit()) {
-            // 迁移提交失败时禁止将存量自建配置当作可安全访问的 Backend。
-            if (slot != null) processBlockedReason = SelfHostedBlockReason.Configuration
+            // 有旧自建证据时，即使迁移提交失败也必须保持自建选择并阻止联网。
+            if (hasSelfHostedEvidence) processBlockedReason = SelfHostedBlockReason.Configuration
         }
     }
+
+    private fun hasLegacySelfHostedSelectionEvidence(): Boolean =
+        preferences.contains(ACTIVE_SLOT_KEY) || preferences.contains(LAST_KNOWN_GOOD_CONFIG_KEY)
 
     private fun QueryBackendType.toStoredValue(): String = when (this) {
         QueryBackendType.OFFICIAL -> BACKEND_TYPE_OFFICIAL
@@ -440,6 +526,11 @@ class SelfHostedConfigRepository(
         val previousSlot: String?,
         val previousBackendType: String = BACKEND_TYPE_OFFICIAL,
         val candidateSlot: String,
+    )
+
+    @Serializable
+    private data class StoredBackendSelectionJournal(
+        val targetBackendType: String,
     )
 
     @Serializable
@@ -527,6 +618,7 @@ class SelfHostedConfigRepository(
         const val CURRENT_BACKEND_TYPE_KEY = "current_backend_type"
         const val LAST_KNOWN_GOOD_CONFIG_KEY = "last_known_good_config"
         const val ACTIVATION_JOURNAL_KEY = "activation_journal"
+        const val BACKEND_SELECTION_JOURNAL_KEY = "backend_selection_journal"
         const val RECORD_KEY_PREFIX = "verified_config_"
         const val BACKEND_TYPE_OFFICIAL = "official"
         const val BACKEND_TYPE_SELF_HOSTED = "self_hosted"

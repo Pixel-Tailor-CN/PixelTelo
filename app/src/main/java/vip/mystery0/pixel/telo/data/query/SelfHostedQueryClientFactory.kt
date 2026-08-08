@@ -2,10 +2,12 @@ package vip.mystery0.pixel.telo.data.query
 
 import java.io.IOException
 import java.security.SecureRandom
+import java.security.cert.CertPathValidatorException
+import java.security.cert.CertificateException
 import java.util.Base64
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLException
+import javax.net.ssl.SSLPeerUnverifiedException
 import kotlinx.serialization.json.Json
 import okhttp3.Authenticator
 import okhttp3.CookieJar
@@ -41,24 +43,45 @@ class SelfHostedQueryClientFactory(
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
     /** 创建仅用于完整连接验证的临时 Client。 */
-    fun createDraftClient(draft: SelfHostedDraft): Result<SelfHostedClientBundle> = runCatching {
-        val baseUrl = normalizeSelfHostedBaseUrl(draft.baseUrl)
-            .getOrElse { throw configurationFailure(SelfHostedBlockReason.Configuration, it) }
-        val normalizedPin = normalizePinForMode(draft.tlsMode, draft.spkiPin)
+    fun createDraftClient(draft: SelfHostedDraft): Result<SelfHostedClientBundle> {
         val token = draft.token.toCharArray()
-        try {
-            createClient(
-                baseUrl = baseUrl,
+        return try {
+            createDraftClient(
+                baseUrl = draft.baseUrl,
                 tlsMode = draft.tlsMode,
-                normalizedPin = normalizedPin,
-                token = token,
+                spkiPin = draft.spkiPin,
                 allowPreRelease = draft.allowPreRelease,
-                verifiedIdentity = null,
-                onBlocked = null,
+                token = token,
             )
         } finally {
             token.fill('\u0000')
         }
+    }
+
+    /**
+     * 使用调用方持有的可清零 Token 创建临时 Client。
+     *
+     * Factory 只在 Client 内复制 Token，不接管 [token]；调用方必须在完整验证结束后清空它。
+     */
+    internal fun createDraftClient(
+        baseUrl: String,
+        tlsMode: SelfHostedTlsMode,
+        spkiPin: String,
+        allowPreRelease: Boolean,
+        token: CharArray,
+    ): Result<SelfHostedClientBundle> = runCatching {
+        val normalizedBaseUrl = normalizeSelfHostedBaseUrl(baseUrl)
+            .getOrElse { throw configurationFailure(SelfHostedBlockReason.Configuration, it) }
+        val normalizedPin = normalizePinForMode(tlsMode, spkiPin)
+        createClient(
+            baseUrl = normalizedBaseUrl,
+            tlsMode = tlsMode,
+            normalizedPin = normalizedPin,
+            token = token,
+            allowPreRelease = allowPreRelease,
+            verifiedIdentity = null,
+            onBlocked = null,
+        )
     }
 
     /** 创建运行期 Client；TLS 安全失败会触发 [onBlocked]，后续流程据此 Fail Closed。 */
@@ -258,25 +281,18 @@ private class TlsFailureBlockingInterceptor(
 internal fun Throwable.tlsBlockReason(): SelfHostedBlockReason? {
     var current: Throwable? = this
     val visited = HashSet<Throwable>()
+    var foundStructuredTlsFailure = false
     while (current != null && visited.add(current)) {
-        if (current is SelfHostedCertificateException) return current.reason
+        when (current) {
+            is SelfHostedCertificateException -> return current.reason
+            is SSLPeerUnverifiedException,
+            is CertificateException,
+            is CertPathValidatorException,
+            -> foundStructuredTlsFailure = true
+        }
         current = current.cause
     }
-    return if (this is SSLException || causeChainContainsSslException()) {
-        SelfHostedBlockReason.Tls
-    } else {
-        null
-    }
-}
-
-private fun Throwable.causeChainContainsSslException(): Boolean {
-    var current = cause
-    val visited = HashSet<Throwable>()
-    while (current != null && visited.add(current)) {
-        if (current is SSLException) return true
-        current = current.cause
-    }
-    return false
+    return if (foundStructuredTlsFailure) SelfHostedBlockReason.Tls else null
 }
 
 private fun HttpUrl.hasSameOrigin(other: HttpUrl): Boolean =

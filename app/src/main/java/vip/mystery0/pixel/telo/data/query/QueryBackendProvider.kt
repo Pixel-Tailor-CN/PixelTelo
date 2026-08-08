@@ -70,7 +70,10 @@ class QueryBackendProvider(
     private val configRepository: SelfHostedConfigRepository,
     private val clientFactory: SelfHostedQueryClientFactory,
 ) {
-    private val lock = Any()
+    /** 串行化配置命令与同步持久化；绝不供 [snapshot] 使用。 */
+    private val commandLock = Any()
+    /** 只保护已构造好的 Client/Snapshot 引用和 StateFlow 发布，临界区必须保持极短。 */
+    private val snapshotLock = Any()
     private val validationMutex = Mutex()
     private val commandGeneration = AtomicLong(0L)
     private val officialSnapshot = QueryBackendSnapshot(
@@ -93,34 +96,54 @@ class QueryBackendProvider(
     }
 
     /** 返回单次操作使用的快照；安全阻止状态固定返回 `null`。 */
-    fun snapshot(): QueryBackendSnapshot? = synchronized(lock) { currentSnapshot }
+    fun snapshot(): QueryBackendSnapshot? = synchronized(snapshotLock) { currentSnapshot }
 
     /** 完整验证草稿，只有所有远端与本地提交步骤成功后才发布自建快照。 */
     suspend fun validateAndEnable(draft: SelfHostedDraft): SelfHostedValidationResult =
         validationMutex.withLock {
             val generation = commandGeneration.incrementAndGet()
-            validateAndPublish(draft, generation)
+            val normalizedDraft = normalizeDraft(
+                baseUrl = draft.baseUrl,
+                tlsMode = draft.tlsMode,
+                spkiPin = draft.spkiPin,
+                allowPreRelease = draft.allowPreRelease,
+            ).getOrElse { exception -> return@withLock validationFailure(exception) }
+            val token = draft.token.toCharArray()
+            try {
+                validateAndPublish(normalizedDraft, token, generation)
+            } finally {
+                token.fill('\u0000')
+            }
         }
 
     /** 使用当前已保存的配置与凭据重新执行完整验证，不绕过 Blocked 状态。 */
     suspend fun revalidate(): SelfHostedValidationResult = validationMutex.withLock {
         val generation = commandGeneration.incrementAndGet()
-        val material = configRepository.loadRevalidationMaterial().getOrElse { exception ->
+        val materialResult = synchronized(commandLock) {
+            configRepository.loadRevalidationMaterial()
+        }
+        val material = materialResult.getOrElse { exception ->
             val failure = validationFailure(exception)
             blockAfterRevalidationFailure(failure)
             return@withLock failure
         }
+        val token = material.takeToken()
         try {
             val allowPreRelease = BuildConfig.DEBUG &&
                 SemanticVersion.parse(material.config.version, allowPreRelease = false) == null
+            val normalizedDraft = normalizeDraft(
+                baseUrl = material.config.baseUrl,
+                tlsMode = material.config.tlsMode,
+                spkiPin = material.config.spkiPin,
+                allowPreRelease = allowPreRelease,
+            ).getOrElse { exception ->
+                val failure = validationFailure(exception)
+                blockAfterRevalidationFailure(failure)
+                return@withLock failure
+            }
             val result = validateAndPublish(
-                draft = SelfHostedDraft(
-                    baseUrl = material.config.baseUrl,
-                    token = material.token.concatToString(),
-                    tlsMode = material.config.tlsMode,
-                    spkiPin = material.config.spkiPin,
-                    allowPreRelease = allowPreRelease,
-                ),
+                draft = normalizedDraft,
+                token = token,
                 generation = generation,
             )
             if (result is SelfHostedValidationResult.Failure) {
@@ -128,7 +151,7 @@ class QueryBackendProvider(
             }
             result
         } finally {
-            material.token.fill('\u0000')
+            token.fill('\u0000')
         }
     }
 
@@ -136,30 +159,38 @@ class QueryBackendProvider(
     fun useOfficial() {
         val generation = commandGeneration.incrementAndGet()
         var clientToClose: SelfHostedClientBundle? = null
-        synchronized(lock) {
-            if (configRepository.selectOfficialBackend().isFailure) return
-            clientToClose = activeClient
-            activeClient = null
-            activeGeneration = generation
-            currentSnapshot = officialSnapshot
-            _state.value = QueryBackendState.Ready(QueryBackendType.OFFICIAL, OFFICIAL_BACKEND_ID)
+        synchronized(commandLock) {
+            val selected = configRepository.selectOfficialBackend().isSuccess
+            synchronized(snapshotLock) {
+                clientToClose = activeClient
+                activeClient = null
+                activeGeneration = if (selected) generation else commandGeneration.incrementAndGet()
+                currentSnapshot = if (selected) officialSnapshot else null
+                _state.value = if (selected) {
+                    QueryBackendState.Ready(QueryBackendType.OFFICIAL, OFFICIAL_BACKEND_ID)
+                } else {
+                    QueryBackendState.Blocked(SelfHostedBlockReason.Configuration)
+                }
+            }
         }
         clientToClose?.close?.invoke()
     }
 
     private suspend fun validateAndPublish(
-        draft: SelfHostedDraft,
+        draft: NormalizedSelfHostedDraft,
+        token: CharArray,
         generation: Long,
     ): SelfHostedValidationResult {
-        val normalizedDraft = normalizeDraft(draft).getOrElse { exception ->
-            return validationFailure(exception)
-        }
-        val temporaryClient = clientFactory.createDraftClient(normalizedDraft).getOrElse { exception ->
-            return validationFailure(exception)
-        }
+        val temporaryClient = clientFactory.createDraftClient(
+            baseUrl = draft.baseUrl,
+            tlsMode = draft.tlsMode,
+            spkiPin = draft.spkiPin,
+            allowPreRelease = draft.allowPreRelease,
+            token = token,
+        ).getOrElse { exception -> return validationFailure(exception) }
 
         val verifiedConfig = try {
-            validateRemote(temporaryClient, normalizedDraft)
+            validateRemote(temporaryClient, draft)
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: Exception) {
@@ -168,16 +199,11 @@ class QueryBackendProvider(
             temporaryClient.close()
         }
 
-        val token = normalizedDraft.token.toCharArray()
-        val runtimeClient = try {
-            clientFactory.createVerifiedClient(
-                config = verifiedConfig,
-                token = token,
-                onBlocked = { reason -> markRuntimeBlocked(generation, reason) },
-            ).getOrElse { exception -> return validationFailure(exception) }
-        } finally {
-            token.fill('\u0000')
-        }
+        val runtimeClient = clientFactory.createVerifiedClient(
+            config = verifiedConfig,
+            token = token,
+            onBlocked = { reason -> markRuntimeBlocked(generation, reason) },
+        ).getOrElse { exception -> return validationFailure(exception) }
         val runtimeSnapshot = try {
             val identity = SelfHostedIdentity(
                 instanceId = verifiedConfig.instanceId,
@@ -198,37 +224,34 @@ class QueryBackendProvider(
 
         var previousClient: SelfHostedClientBundle? = null
         var blockedClient: SelfHostedClientBundle? = null
-        val commitToken = normalizedDraft.token.toCharArray()
-        val result = try {
-            synchronized(lock) {
-                if (commandGeneration.get() != generation) {
-                    return@synchronized SelfHostedValidationResult.Failure(
-                        category = SelfHostedErrorCategory.CANCELLED,
-                        safeMessage = null,
-                    )
-                }
-
-                val commitResult = configRepository.commitVerified(
-                    config = verifiedConfig,
-                    token = commitToken,
+        val result = synchronized(commandLock) {
+            if (commandGeneration.get() != generation) {
+                return@synchronized SelfHostedValidationResult.Failure(
+                    category = SelfHostedErrorCategory.CANCELLED,
+                    safeMessage = null,
                 )
-                if (commitResult.isFailure) {
-                    blockedClient = synchronizeBlockedStateAfterCommitFailure()
-                    return@synchronized SelfHostedValidationResult.Failure(
-                        category = SelfHostedErrorCategory.STORAGE,
-                        safeMessage = null,
-                    )
-                }
+            }
 
+            val commitResult = configRepository.commitVerified(
+                config = verifiedConfig,
+                token = token,
+            )
+            if (commitResult.isFailure) {
+                blockedClient = synchronizeBlockedStateAfterCommitFailure()
+                return@synchronized SelfHostedValidationResult.Failure(
+                    category = SelfHostedErrorCategory.STORAGE,
+                    safeMessage = null,
+                )
+            }
+
+            synchronized(snapshotLock) {
                 previousClient = activeClient
                 activeClient = runtimeClient
                 activeGeneration = generation
                 currentSnapshot = runtimeSnapshot
                 _state.value = QueryBackendState.Ready(runtimeSnapshot.type, runtimeSnapshot.backendId)
-                SelfHostedValidationResult.Success(verifiedConfig)
             }
-        } finally {
-            commitToken.fill('\u0000')
+            SelfHostedValidationResult.Success(verifiedConfig)
         }
 
         if (result !is SelfHostedValidationResult.Success) {
@@ -242,7 +265,7 @@ class QueryBackendProvider(
 
     private suspend fun validateRemote(
         client: SelfHostedClientBundle,
-        draft: SelfHostedDraft,
+        draft: NormalizedSelfHostedDraft,
     ): VerifiedSelfHostedConfig {
         val infoResponse = client.selfHostedApi.getInfo()
         if (!infoResponse.isSuccessful) {
@@ -313,36 +336,42 @@ class QueryBackendProvider(
         )
     }
 
-    private fun normalizeDraft(draft: SelfHostedDraft): Result<SelfHostedDraft> = runCatching {
-        val baseUrl = normalizeSelfHostedBaseUrl(draft.baseUrl).getOrElse { exception ->
+    private fun normalizeDraft(
+        baseUrl: String,
+        tlsMode: SelfHostedTlsMode,
+        spkiPin: String,
+        allowPreRelease: Boolean,
+    ): Result<NormalizedSelfHostedDraft> = runCatching {
+        val normalizedBaseUrl = normalizeSelfHostedBaseUrl(baseUrl).getOrElse { exception ->
             throw SelfHostedConfigurationException(SelfHostedBlockReason.Configuration).also {
                 it.initCause(exception)
             }
         }.toString()
-        val normalizedPin = when (draft.tlsMode) {
+        val normalizedPin = when (tlsMode) {
             SelfHostedTlsMode.SYSTEM -> {
-                if (draft.spkiPin.isNotEmpty()) {
+                if (spkiPin.isNotEmpty()) {
                     throw SelfHostedConfigurationException(SelfHostedBlockReason.Configuration)
                 }
                 ""
             }
 
-            SelfHostedTlsMode.SPKI_PIN -> normalizeSpkiPin(draft.spkiPin)
+            SelfHostedTlsMode.SPKI_PIN -> normalizeSpkiPin(spkiPin)
                 .getOrElse { exception ->
                     throw SelfHostedConfigurationException(SelfHostedBlockReason.SpkiPin).also {
                         it.initCause(exception)
                     }
                 }
         }
-        draft.copy(
-            baseUrl = baseUrl,
+        NormalizedSelfHostedDraft(
+            baseUrl = normalizedBaseUrl,
+            tlsMode = tlsMode,
             spkiPin = normalizedPin,
-            allowPreRelease = BuildConfig.DEBUG && draft.allowPreRelease,
+            allowPreRelease = BuildConfig.DEBUG && allowPreRelease,
         )
     }
 
     /** 启动恢复只解密凭据并构建 Client，不发送任何网络请求。 */
-    private fun restoreSelectedBackend() {
+    private fun restoreSelectedBackend(): Unit = synchronized(commandLock) {
         if (configRepository.currentBackendType() == QueryBackendType.OFFICIAL) return
 
         val connectionState = configRepository.connectionState.value
@@ -385,7 +414,7 @@ class QueryBackendProvider(
             return
         }
 
-        synchronized(lock) {
+        synchronized(snapshotLock) {
             activeClient = client
             activeGeneration = generation
             val identity = SelfHostedIdentity(config.instanceId, config.version, config.apiVersion)
@@ -403,20 +432,24 @@ class QueryBackendProvider(
 
     private fun markRuntimeBlocked(generation: Long, reason: SelfHostedBlockReason) {
         var clientToClose: SelfHostedClientBundle? = null
-        synchronized(lock) {
-            if (activeGeneration != generation || currentSnapshot?.type != QueryBackendType.SELF_HOSTED) return
+        synchronized(commandLock) {
+            synchronized(snapshotLock) {
+                if (activeGeneration != generation || currentSnapshot?.type != QueryBackendType.SELF_HOSTED) {
+                    return
+                }
+                clientToClose = activeClient
+                activeClient = null
+                activeGeneration = commandGeneration.incrementAndGet()
+                currentSnapshot = null
+                _state.value = QueryBackendState.Blocked(reason)
+            }
             configRepository.markBlocked(reason)
-            clientToClose = activeClient
-            activeClient = null
-            activeGeneration = commandGeneration.incrementAndGet()
-            currentSnapshot = null
-            _state.value = QueryBackendState.Blocked(reason)
         }
         clientToClose?.close?.invoke()
     }
 
     private fun publishBlocked(reason: SelfHostedBlockReason) {
-        synchronized(lock) {
+        synchronized(snapshotLock) {
             activeClient = null
             activeGeneration = commandGeneration.incrementAndGet()
             currentSnapshot = null
@@ -428,12 +461,14 @@ class QueryBackendProvider(
         val selectedSelfHosted = configRepository.currentBackendType() == QueryBackendType.SELF_HOSTED
         val blocked = configRepository.connectionState.value as? SelfHostedConnectionState.Blocked
         if (selectedSelfHosted && blocked != null) {
-            val clientToClose = activeClient
-            activeClient = null
-            activeGeneration = commandGeneration.incrementAndGet()
-            currentSnapshot = null
-            _state.value = QueryBackendState.Blocked(blocked.reason)
-            return clientToClose
+            return synchronized(snapshotLock) {
+                val clientToClose = activeClient
+                activeClient = null
+                activeGeneration = commandGeneration.incrementAndGet()
+                currentSnapshot = null
+                _state.value = QueryBackendState.Blocked(blocked.reason)
+                clientToClose
+            }
         }
         return null
     }
@@ -442,14 +477,16 @@ class QueryBackendProvider(
     private fun blockAfterRevalidationFailure(failure: SelfHostedValidationResult.Failure) {
         val reason = failure.category.toBlockReasonForRevalidation() ?: return
         var clientToClose: SelfHostedClientBundle? = null
-        synchronized(lock) {
-            if (currentSnapshot?.type != QueryBackendType.SELF_HOSTED) return
+        synchronized(commandLock) {
+            synchronized(snapshotLock) {
+                if (currentSnapshot?.type != QueryBackendType.SELF_HOSTED) return
+                clientToClose = activeClient
+                activeClient = null
+                activeGeneration = commandGeneration.incrementAndGet()
+                currentSnapshot = null
+                _state.value = QueryBackendState.Blocked(reason)
+            }
             configRepository.markBlocked(reason)
-            clientToClose = activeClient
-            activeClient = null
-            activeGeneration = commandGeneration.incrementAndGet()
-            currentSnapshot = null
-            _state.value = QueryBackendState.Blocked(reason)
         }
         clientToClose?.close?.invoke()
     }
@@ -521,6 +558,14 @@ class QueryBackendProvider(
     private class SelfHostedValidationException(
         val category: SelfHostedErrorCategory,
     ) : IOException("Self-hosted service validation failed")
+
+    /** 已完成 URL/Pin 规范化且不包含 Token 的临时验证元数据。 */
+    private data class NormalizedSelfHostedDraft(
+        val baseUrl: String,
+        val tlsMode: SelfHostedTlsMode,
+        val spkiPin: String,
+        val allowPreRelease: Boolean,
+    )
 
     private companion object {
         const val SELF_HOSTED_SERVICE = "pixel-telo-mast-selfhost"
