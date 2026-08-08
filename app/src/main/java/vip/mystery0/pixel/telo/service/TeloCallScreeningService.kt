@@ -10,6 +10,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
@@ -67,6 +68,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         province = result.locationInfo?.province,
                         city = result.locationInfo?.city,
                         querySource = result.querySource,
+                        queryBackendId = result.queryBackendId,
                         feedbackToken = result.feedbackToken
                     )
                 } else if (repeatStrategy != null) {
@@ -94,6 +96,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         province = result.locationInfo?.province,
                         city = result.locationInfo?.city,
                         querySource = result.querySource,
+                        queryBackendId = result.queryBackendId,
                         feedbackToken = result.feedbackToken
                     )
                     markFeedbackPromptIfEligible(recordId, result)
@@ -113,6 +116,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             province = result.locationInfo?.province,
                             city = result.locationInfo?.city,
                             querySource = result.querySource,
+                            queryBackendId = result.queryBackendId,
                             feedbackToken = result.feedbackToken
                         )
                         markFeedbackPromptIfEligible(recordId, result)
@@ -133,6 +137,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             province = result.locationInfo?.province,
                             city = result.locationInfo?.city,
                             querySource = result.querySource,
+                            queryBackendId = result.queryBackendId,
                             feedbackToken = result.feedbackToken
                         )
                     }
@@ -148,7 +153,8 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             result.resultType,
                             result.localCost,
                             result.networkCost,
-                            label = null
+                            label = null,
+                            queryBackendId = result.queryBackendId,
                         )
                     } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
                         val recordId = blockedCallRepository.insert(
@@ -161,6 +167,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             province = result.locationInfo?.province,
                             city = result.locationInfo?.city,
                             querySource = result.querySource,
+                            queryBackendId = result.queryBackendId,
                             feedbackToken = result.feedbackToken
                         )
                         markFeedbackPromptIfEligible(recordId, result)
@@ -184,6 +191,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
      * 被拒接的来电不响铃，不进入此路径。
      */
     private fun markFeedbackPromptIfEligible(recordId: Long, result: CheckResult) {
+        if (result.queryBackendId != OFFICIAL_BACKEND_ID) return
         if (result.feedbackToken.isNullOrBlank()) return
         QueryFeedbackNotifier.markPendingFeedback(this, prefs, recordId)
     }

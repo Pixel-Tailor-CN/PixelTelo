@@ -28,6 +28,7 @@ import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
+import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.ContactRepository
@@ -172,8 +173,8 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             try {
                 val backendResponse = spamNumberRepository.queryNetwork(call.phoneNumber)
                 val response = backendResponse.response
-                // 查询成功后立即写回 source 与反馈 token，用户不写备注也不丢失反馈凭证
-                val updated = repository.attachQueryResult(call, response)
+                // 立即写回可信 Backend 归属、source 与反馈 token，避免用户关闭对话框后丢失凭证
+                val updated = repository.attachQueryResult(call, backendResponse)
                 _retryQueryState.value = RetryQueryState.Success(updated, response)
             } catch (e: Exception) {
                 _retryQueryState.value = RetryQueryState.Failure(
@@ -228,7 +229,16 @@ class HomeViewModel() : ViewModel(), KoinComponent {
      * 终态写入 Room；网络异常等可重试错误只更新 UI 状态，保持 PENDING 允许重试。
      */
     fun submitFeedback(call: BlockedCall, positive: Boolean) {
-        val token = call.feedbackToken ?: return
+        if (call.queryBackendId != OFFICIAL_BACKEND_ID) {
+            markFeedbackUnavailableIfNeeded(call)
+            return
+        }
+        if (call.feedbackStatus != FeedbackStatus.PENDING) return
+        val token = call.feedbackToken?.takeIf { it.isNotBlank() }
+        if (token == null) {
+            markFeedbackUnavailableIfNeeded(call)
+            return
+        }
         if (feedbackSubmissionState is FeedbackSubmissionState.Submitting) return
         viewModelScope.launch {
             feedbackSubmissionState = FeedbackSubmissionState.Submitting(call.id)
@@ -250,6 +260,18 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             }
             val updated = repository.updateFeedbackStatus(call, newStatus)
             // 详情 BottomSheet 正展示同一条记录时同步替换，避免旧对象覆盖新状态
+            if (quickAddCall?.id == updated.id) {
+                quickAddCall = updated
+            }
+            feedbackSubmissionState = FeedbackSubmissionState.Idle
+        }
+    }
+
+    /** 清理不满足官方反馈门禁的异常旧记录，并同步当前详情实体。 */
+    private fun markFeedbackUnavailableIfNeeded(call: BlockedCall) {
+        if (call.feedbackStatus == FeedbackStatus.UNAVAILABLE && call.feedbackToken == null) return
+        viewModelScope.launch {
+            val updated = repository.updateFeedbackStatus(call, FeedbackStatus.UNAVAILABLE)
             if (quickAddCall?.id == updated.id) {
                 quickAddCall = updated
             }

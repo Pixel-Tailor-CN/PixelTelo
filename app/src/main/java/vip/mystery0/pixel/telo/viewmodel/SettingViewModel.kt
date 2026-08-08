@@ -508,6 +508,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 province = result.locationInfo?.province,
                 city = result.locationInfo?.city,
                 querySource = result.querySource,
+                queryBackendId = result.queryBackendId,
                 feedbackToken = result.feedbackToken
             )
             hideTestDialog()

@@ -54,6 +54,31 @@ interface BlockedCallDao {
     @Update
     suspend fun update(blockedCall: BlockedCall)
 
+    /**
+     * 仅当反馈归属、Token 与状态仍和调用方读取时一致，才局部更新反馈字段。
+     *
+     * `IS` 提供 null-safe 比较，避免旧实体在 retry 写入新 Backend 后整行覆盖最新归属。
+     */
+    @Query(
+        """
+        UPDATE blocked_calls
+        SET feedbackToken = :newFeedbackToken,
+            feedbackStatus = :newFeedbackStatus
+        WHERE id = :id
+          AND queryBackendId IS :expectedQueryBackendId
+          AND feedbackToken IS :expectedFeedbackToken
+          AND feedbackStatus = :expectedFeedbackStatus
+        """
+    )
+    suspend fun compareAndSetFeedbackState(
+        id: Long,
+        expectedQueryBackendId: String?,
+        expectedFeedbackToken: String?,
+        expectedFeedbackStatus: String,
+        newFeedbackToken: String?,
+        newFeedbackStatus: String,
+    ): Int
+
     @Delete
     suspend fun delete(blockedCall: BlockedCall)
 }

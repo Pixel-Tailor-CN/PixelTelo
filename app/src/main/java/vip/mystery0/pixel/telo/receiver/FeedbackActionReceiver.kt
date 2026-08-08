@@ -13,6 +13,7 @@ import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
+import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.FeedbackSubmitResult
 import vip.mystery0.pixel.telo.data.repository.QueryRepository
@@ -56,6 +57,19 @@ class FeedbackActionReceiver : BroadcastReceiver(), KoinComponent {
 
     private suspend fun submit(context: Context, recordId: Long, positive: Boolean) {
         val call = blockedCallRepository.findById(recordId) ?: return
+        // 历史异常自建记录即使残留 PENDING 与 Token，也绝不能进入官方反馈接口。
+        if (call.queryBackendId != OFFICIAL_BACKEND_ID) {
+            val updated = if (
+                call.feedbackStatus != FeedbackStatus.UNAVAILABLE || call.feedbackToken != null
+            ) {
+                blockedCallRepository.updateFeedbackStatus(call, FeedbackStatus.UNAVAILABLE)
+            } else {
+                call
+            }
+            QueryFeedbackNotifier.showFeedbackResult(context, updated)
+            Log.w(TAG, "Rejected feedback for non-official record: recordId=$recordId")
+            return
+        }
         // 用户可能已在记录详情中提交过，非 PENDING 时直接展示当前状态
         if (call.feedbackStatus != FeedbackStatus.PENDING) {
             QueryFeedbackNotifier.showFeedbackResult(context, call)
@@ -63,7 +77,11 @@ class FeedbackActionReceiver : BroadcastReceiver(), KoinComponent {
         }
         val token = call.feedbackToken
         if (token.isNullOrBlank()) {
-            QueryFeedbackNotifier.showFeedbackResult(context, call)
+            val updated = blockedCallRepository.updateFeedbackStatus(
+                call,
+                FeedbackStatus.UNAVAILABLE,
+            )
+            QueryFeedbackNotifier.showFeedbackResult(context, updated)
             return
         }
 

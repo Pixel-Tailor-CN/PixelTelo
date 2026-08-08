@@ -24,6 +24,8 @@ data class BlockedCall(
     val city: String? = null,
     /** 联网查询最终命中的服务端 source，纯本地结果为 null */
     val querySource: String? = null,
+    /** 联网结果所属的稳定 Backend ID；纯本地结果或无法判定的旧记录为 null */
+    val queryBackendId: String? = null,
     /** 服务端签发的一次性反馈 token，不写入备份与日志 */
     val feedbackToken: String? = null,
     /** 本地反馈状态 */

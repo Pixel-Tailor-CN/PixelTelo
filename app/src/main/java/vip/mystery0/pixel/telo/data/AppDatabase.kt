@@ -96,9 +96,25 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+/**
+ * 从 v8 升级到 v9：拦截记录新增实时查询 Backend 归属。
+ *
+ * 旧版本只有官方查询会签发反馈 Token，因此仅将非空 Token 的旧记录归属到官方；
+ * 没有反馈凭据的纯本地或其他旧记录无法可靠推断来源，继续保持 null。
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `queryBackendId` TEXT")
+        db.execSQL(
+            "UPDATE `blocked_calls` SET `queryBackendId` = 'official' " +
+                "WHERE `feedbackToken` IS NOT NULL AND TRIM(`feedbackToken`) <> ''"
+        )
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

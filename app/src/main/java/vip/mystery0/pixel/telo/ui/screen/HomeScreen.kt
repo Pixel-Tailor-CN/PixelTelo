@@ -76,6 +76,7 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.formatMills
@@ -520,6 +521,7 @@ private fun FeedbackSection(
     submissionState: FeedbackSubmissionState,
     onSubmit: (Boolean) -> Unit,
 ) {
+    if (call.queryBackendId != OFFICIAL_BACKEND_ID) return
     when (call.feedbackStatus) {
         FeedbackStatus.UNAVAILABLE -> Unit
 
