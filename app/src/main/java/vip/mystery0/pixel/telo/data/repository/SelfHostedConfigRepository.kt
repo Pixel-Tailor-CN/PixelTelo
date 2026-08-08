@@ -35,12 +35,6 @@ class SelfHostedConfigRepository(
 
     val connectionState: StateFlow<SelfHostedConnectionState> = _connectionState.asStateFlow()
 
-    init {
-        if (!preferences.contains(CURRENT_BACKEND_TYPE_KEY)) {
-            preferences.edit().putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_OFFICIAL).commit()
-        }
-    }
-
     /** 返回可用于构建 Client 的活动配置；进程内或持久化阻止时均拒绝返回。 */
     @Synchronized
     fun loadVerifiedConfig(): VerifiedSelfHostedConfig? {
@@ -74,6 +68,7 @@ class SelfHostedConfigRepository(
         token: CharArray,
     ): Result<Unit> {
         val previousSlot = activeSlot()
+        val previousBackendType = readCurrentBackendType()
         val candidateSlot = UUID.randomUUID().toString()
         val candidateRecord = StoredConfigRecord(
             credentialSlot = candidateSlot,
@@ -96,7 +91,11 @@ class SelfHostedConfigRepository(
             ) { "Unable to persist self-hosted configuration" }
 
             journalWriteAttempted = true
-            val journal = StoredActivationJournal(previousSlot, candidateSlot)
+            val journal = StoredActivationJournal(
+                previousSlot = previousSlot,
+                previousBackendType = previousBackendType.toStoredValue(),
+                candidateSlot = candidateSlot,
+            )
             check(preferences.edit().putString(ACTIVATION_JOURNAL_KEY, json.encodeToString(journal)).commit()) {
                 "Unable to persist self-hosted activation journal"
             }
@@ -173,6 +172,7 @@ class SelfHostedConfigRepository(
     }
 
     private fun readInitialState(): SelfHostedConnectionState {
+        migrateCurrentBackendTypeIfNeeded()
         recoverActivationJournal()
         val activeSlot = activeSlot()
         val record = activeSlot?.let(::readRecord)
@@ -221,7 +221,11 @@ class SelfHostedConfigRepository(
 
             journal.previousSlot != null && activeSlot == journal.previousSlot &&
                 isSlotUsable(journal.previousSlot, previous) -> {
-                finalizeRecoveredRollback(journal.previousSlot, journal.candidateSlot)
+                finalizeRecoveredRollback(
+                    previousSlot = journal.previousSlot,
+                    previousBackendType = journal.previousBackendType,
+                    candidateSlot = journal.candidateSlot,
+                )
             }
 
             journal.previousSlot == null && activeSlot == null -> {
@@ -235,11 +239,15 @@ class SelfHostedConfigRepository(
                 if (
                     preferences.edit()
                         .putString(ACTIVE_SLOT_KEY, journal.previousSlot)
-                        .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_SELF_HOSTED)
+                        .putString(CURRENT_BACKEND_TYPE_KEY, journal.previousBackendType)
                         .putString(LAST_KNOWN_GOOD_CONFIG_KEY, json.encodeToString(previous))
                         .commit()
                 ) {
-                    finalizeRecoveredRollback(journal.previousSlot, journal.candidateSlot)
+                    finalizeRecoveredRollback(
+                        previousSlot = journal.previousSlot,
+                        previousBackendType = journal.previousBackendType,
+                        candidateSlot = journal.candidateSlot,
+                    )
                 }
             }
 
@@ -264,12 +272,16 @@ class SelfHostedConfigRepository(
         }
     }
 
-    private fun finalizeRecoveredRollback(previousSlot: String, candidateSlot: String) {
+    private fun finalizeRecoveredRollback(
+        previousSlot: String,
+        previousBackendType: String,
+        candidateSlot: String,
+    ) {
         val previous = readRecord(previousSlot)
         if (
             previous != null && preferences.edit()
                 .putString(ACTIVE_SLOT_KEY, previousSlot)
-                .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_SELF_HOSTED)
+                .putString(CURRENT_BACKEND_TYPE_KEY, previousBackendType)
                 .putString(LAST_KNOWN_GOOD_CONFIG_KEY, json.encodeToString(previous))
                 .remove(ACTIVATION_JOURNAL_KEY)
                 .commit()
@@ -347,11 +359,41 @@ class SelfHostedConfigRepository(
         else -> QueryBackendType.OFFICIAL
     }
 
+    /** 为引入顶层 Backend 选择的升级路径保留既有可用自建状态。 */
+    private fun migrateCurrentBackendTypeIfNeeded() {
+        if (preferences.contains(CURRENT_BACKEND_TYPE_KEY)) return
+
+        val slot = activeSlot()
+        val record = slot?.let(::readRecord)
+        val migratedType = if (slot != null && isSlotUsable(slot, record)) {
+            QueryBackendType.SELF_HOSTED
+        } else {
+            if (slot != null) {
+                processBlockedReason = if (record?.toVerifiedConfig() == null) {
+                    SelfHostedBlockReason.Configuration
+                } else {
+                    SelfHostedBlockReason.Credentials
+                }
+            }
+            QueryBackendType.OFFICIAL
+        }
+        if (!preferences.edit().putString(CURRENT_BACKEND_TYPE_KEY, migratedType.toStoredValue()).commit()) {
+            // 迁移提交失败时禁止将存量自建配置当作可安全访问的 Backend。
+            if (slot != null) processBlockedReason = SelfHostedBlockReason.Configuration
+        }
+    }
+
+    private fun QueryBackendType.toStoredValue(): String = when (this) {
+        QueryBackendType.OFFICIAL -> BACKEND_TYPE_OFFICIAL
+        QueryBackendType.SELF_HOSTED -> BACKEND_TYPE_SELF_HOSTED
+    }
+
     private fun recordKey(slot: String): String = "$RECORD_KEY_PREFIX$slot"
 
     @Serializable
     private data class StoredActivationJournal(
         val previousSlot: String?,
+        val previousBackendType: String = BACKEND_TYPE_OFFICIAL,
         val candidateSlot: String,
     )
 
