@@ -1,5 +1,8 @@
 package vip.mystery0.pixel.telo.data.query
 
+/** 当前 App 支持的自建查询协议版本。 */
+const val SELF_HOSTED_API_VERSION = 2
+
 /** 自建服务的 TLS 验证模式。 */
 enum class SelfHostedTlsMode {
     /** 使用 Android 系统信任链和主机名校验。 */
@@ -32,7 +35,11 @@ data class VerifiedSelfHostedConfig(
     val apiVersion: Int,
     val capabilities: List<String>,
     val verifiedAtEpochMillis: Long,
-)
+) {
+    init {
+        requireSupportedSelfHostedApiVersion(apiVersion)
+    }
+}
 
 /**
  * 阻止自建 Backend 的安全分类。
@@ -60,6 +67,22 @@ sealed interface SelfHostedBlockReason {
 
     /** 必需身份 Header 缺失、非法或存在冲突值。 */
     data object IdentityHeaders : SelfHostedBlockReason
+}
+
+/**
+ * 自建配置构造期的稳定失败类型。
+ *
+ * 后续验证流程应读取 [reason] 更新 UI 状态，而不是展示异常文本。
+ */
+class SelfHostedConfigurationException(
+    val reason: SelfHostedBlockReason,
+) : IllegalArgumentException()
+
+/** 仅接受当前受支持的自建查询协议版本，并保留可安全展示的失败分类。 */
+internal fun requireSupportedSelfHostedApiVersion(apiVersion: Int) {
+    if (apiVersion != SELF_HOSTED_API_VERSION) {
+        throw SelfHostedConfigurationException(SelfHostedBlockReason.ApiVersion)
+    }
 }
 
 /** 当前自建服务的可用状态。 */

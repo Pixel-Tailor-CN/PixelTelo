@@ -26,7 +26,11 @@ data class SelfHostedIdentity(
     val instanceId: String,
     val version: String,
     val apiVersion: Int,
-)
+) {
+    init {
+        requireSupportedSelfHostedApiVersion(apiVersion)
+    }
+}
 
 /**
  * 单次操作使用的不可变 Backend 快照。
@@ -41,19 +45,70 @@ data class QueryBackendSnapshot(
     val selfHostedIdentity: SelfHostedIdentity? = null,
 ) {
     init {
-        require(backendId.isNotBlank()) { "Backend ID must not be blank" }
-        require((type == QueryBackendType.SELF_HOSTED) == (selfHostedIdentity != null)) {
-            "Self-hosted identity must match backend type"
-        }
-        require(feedbackSupported == (type == QueryBackendType.OFFICIAL)) {
-            "Only official backend supports feedback"
+        when (type) {
+            QueryBackendType.OFFICIAL -> {
+                require(backendId == OFFICIAL_BACKEND_ID) {
+                    "Official backend ID must be $OFFICIAL_BACKEND_ID"
+                }
+                require(selfHostedIdentity == null) {
+                    "Official backend must not have self-hosted identity"
+                }
+                require(feedbackSupported) {
+                    "Official backend must support feedback"
+                }
+            }
+
+            QueryBackendType.SELF_HOSTED -> {
+                val identity = requireNotNull(selfHostedIdentity) {
+                    "Self-hosted backend must have identity"
+                }
+                require(backendId == selfHostedBackendId(identity.instanceId)) {
+                    "Self-hosted backend ID must be derived from instance ID"
+                }
+                require(!feedbackSupported) {
+                    "Self-hosted backend must not support feedback"
+                }
+            }
         }
     }
 }
 
 /** 携带可信 Backend 归属的实时查询响应。 */
-data class BackendQueryResponse(
-    val backendId: String,
+@ConsistentCopyVisibility
+data class BackendQueryResponse private constructor(
+    private val backendSnapshot: QueryBackendSnapshot,
     val response: QueryResponse,
-    val feedbackSupported: Boolean,
-)
+) {
+    /** 响应所属 Backend 的稳定标识，由 [backendSnapshot] 派生。 */
+    val backendId: String
+        get() = backendSnapshot.backendId
+
+    /** 是否允许反馈，由已验证的 Backend 快照派生，调用方不能自行指定。 */
+    val feedbackSupported: Boolean
+        get() = backendSnapshot.feedbackSupported
+
+    init {
+        require(backendSnapshot.feedbackSupported || response.feedbackToken == null) {
+            "Self-hosted response must not contain feedback token"
+        }
+    }
+
+    companion object {
+        /**
+         * 从单次请求开始时读取的 Backend 快照创建响应。
+         *
+         * 自建服务即使错误返回反馈凭据，也会在此边界清除，避免流入官方反馈接口。
+         */
+        fun from(
+            backendSnapshot: QueryBackendSnapshot,
+            response: QueryResponse,
+        ): BackendQueryResponse {
+            val safeResponse = if (backendSnapshot.feedbackSupported) {
+                response
+            } else {
+                response.copy(feedbackToken = null)
+            }
+            return BackendQueryResponse(backendSnapshot, safeResponse)
+        }
+    }
+}
