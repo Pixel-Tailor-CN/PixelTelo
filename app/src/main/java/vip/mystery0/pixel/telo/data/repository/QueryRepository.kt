@@ -124,7 +124,7 @@ class QueryRepository(
     ): Result<Unit> {
         val backendId = snapshot.backendId
         if (publishRefreshing) {
-            updateStateForBackend(backendId) {
+            updateStateForBackend(snapshot) {
                 it.copy(refreshing = true, refreshFailed = false)
             }
         }
@@ -138,18 +138,18 @@ class QueryRepository(
                     response.availableSources,
                     response.defaultSources,
                 )
-                if (!persistAndPublish(backendId, refreshed, refreshing = false)) {
+                if (!persistAndPublish(snapshot, refreshed, refreshing = false)) {
                     throw SourceConfigStorageException()
                 }
             }
             Result.success(Unit)
         } catch (exception: CancellationException) {
             withContext(NonCancellable) {
-                updateStateForBackend(backendId) { it.copy(refreshing = false) }
+                updateStateForBackend(snapshot) { it.copy(refreshing = false) }
             }
             throw exception
         } catch (exception: Exception) {
-            updateStateForBackend(backendId) {
+            updateStateForBackend(snapshot) {
                 it.copy(refreshing = false, refreshFailed = true)
             }
             Result.failure(exception)
@@ -179,7 +179,7 @@ class QueryRepository(
                     defaultSources = current.defaultSources,
                     availableIds = items.filter { it.available }.map { it.id }.distinct(),
                 )
-                persistAndPublish(backendId, saved)
+                persistAndPublish(snapshot, saved)
             }
         }
     }
@@ -214,7 +214,7 @@ class QueryRepository(
             }
             throw exception
         }
-        updateInvalidSources(snapshot.backendId, response)
+        updateInvalidSources(snapshot, response)
         return BackendQueryResponse.from(snapshot, response)
     }
 
@@ -282,11 +282,11 @@ class QueryRepository(
     }
 
     private suspend fun updateStateForBackend(
-        backendId: String,
+        snapshot: QueryBackendSnapshot,
         transform: (QuerySourceState) -> QuerySourceState,
     ) {
         configMutex.withLock {
-            if (isPublishedBackend(backendId)) {
+            if (isPublishedBackend(snapshot)) {
                 _sourceState.value = transform(_sourceState.value)
             }
         }
@@ -420,37 +420,41 @@ class QueryRepository(
         }.getOrNull()
     }
 
-    private suspend fun updateInvalidSources(backendId: String, response: QueryResponse) {
+    private suspend fun updateInvalidSources(
+        snapshot: QueryBackendSnapshot,
+        response: QueryResponse,
+    ) {
         val invalidIds = response.warnings
             .flatMap { it.invalidSources }
             .toSet()
         if (invalidIds.isEmpty()) return
 
         configMutex.withLock {
+            val backendId = snapshot.backendId
             val current = readStoredConfig(backendId)
             val updated = current.copy(
                 availableIds = current.availableIds.filterNot { it in invalidIds },
             )
-            persistAndPublish(backendId, updated)
+            persistAndPublish(snapshot, updated)
         }
     }
 
     private fun persistAndPublish(
-        backendId: String,
+        snapshot: QueryBackendSnapshot,
         config: StoredSourceConfig,
         refreshing: Boolean = _sourceState.value.refreshing,
         refreshFailed: Boolean = _sourceState.value.refreshFailed,
     ): Boolean {
+        val backendId = snapshot.backendId
         if (!writeStoredConfig(backendId, config)) return false
-        if (isPublishedBackend(backendId)) {
+        if (isPublishedBackend(snapshot)) {
             _sourceState.value = config.toState(backendId, refreshing, refreshFailed)
         }
         return true
     }
 
-    private fun isPublishedBackend(backendId: String): Boolean =
-        _sourceState.value.backendId == backendId &&
-            backendProvider.snapshot()?.backendId == backendId
+    private fun isPublishedBackend(snapshot: QueryBackendSnapshot): Boolean =
+        _sourceState.value.backendId == snapshot.backendId && backendProvider.isCurrent(snapshot)
 
     private fun StoredSourceConfig.toState(
         backendId: String,

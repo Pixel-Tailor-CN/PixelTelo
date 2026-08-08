@@ -98,6 +98,15 @@ class QueryBackendProvider(
     /** 返回单次操作使用的快照；安全阻止状态固定返回 `null`。 */
     fun snapshot(): QueryBackendSnapshot? = synchronized(snapshotLock) { currentSnapshot }
 
+    /**
+     * 原子判断调用方持有的 Snapshot 是否仍为当前实例，不返回或替换新的 Snapshot。
+     *
+     * 使用引用身份而非值相等，确保相同 Backend ID 重建 Client 后，旧请求不能发布迟到的 UI 状态。
+     */
+    fun isCurrent(snapshot: QueryBackendSnapshot): Boolean = synchronized(snapshotLock) {
+        currentSnapshot === snapshot
+    }
+
     /** 完整验证草稿，只有所有远端与本地提交步骤成功后才发布自建快照。 */
     suspend fun validateAndEnable(draft: SelfHostedDraft): SelfHostedValidationResult =
         validationMutex.withLock {
