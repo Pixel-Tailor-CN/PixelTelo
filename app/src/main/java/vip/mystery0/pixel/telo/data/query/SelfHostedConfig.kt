@@ -102,8 +102,4 @@ sealed interface SelfHostedConnectionState {
         val reason: SelfHostedBlockReason,
     ) : SelfHostedConnectionState
 
-    /** 活动记录损坏且无法安全恢复配置内容时的阻止状态。 */
-    data class BlockedWithoutConfig(
-        val reason: SelfHostedBlockReason,
-    ) : SelfHostedConnectionState
 }

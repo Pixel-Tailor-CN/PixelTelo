@@ -16,10 +16,10 @@ import vip.mystery0.pixel.telo.data.query.SelfHostedTlsMode
 import vip.mystery0.pixel.telo.data.query.VerifiedSelfHostedConfig
 
 /**
- * 持久化已验证的自建服务非敏感配置，并维护其安全状态。
+ * 持久化自建服务非敏感配置及活动 Backend。
  *
- * Token 仅由 [SelfHostedCredentialStore] 加密保存。本类通过候选记录和活动指针进行
- * 分阶段提交：新密文、完整记录、活动指针依次同步落盘，避免失败覆盖旧活动配置。
+ * 凭据与配置文件之间不存在 Android 提供的跨文件事务。提交时以 journal 保留旧、
+ * 新槽位的关系；恢复阶段先解析 journal 和活动项，确认其归属后才回收孤儿密文。
  */
 class SelfHostedConfigRepository(
     context: Context,
@@ -30,19 +30,43 @@ class SelfHostedConfigRepository(
         CONFIG_PREFERENCES_NAME,
         Context.MODE_PRIVATE,
     )
+    private var processBlockedReason: SelfHostedBlockReason? = null
     private val _connectionState = MutableStateFlow(readInitialState())
 
     val connectionState: StateFlow<SelfHostedConnectionState> = _connectionState.asStateFlow()
 
-    /** 返回当前活动的已验证配置；损坏、缺失或不完整的记录会被视为无配置。 */
+    init {
+        if (!preferences.contains(CURRENT_BACKEND_TYPE_KEY)) {
+            preferences.edit().putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_OFFICIAL).commit()
+        }
+    }
+
+    /** 返回可用于构建 Client 的活动配置；进程内或持久化阻止时均拒绝返回。 */
     @Synchronized
-    fun loadVerifiedConfig(): VerifiedSelfHostedConfig? = readUsableActiveRecord()?.toVerifiedConfig()
+    fun loadVerifiedConfig(): VerifiedSelfHostedConfig? {
+        if (processBlockedReason != null) return null
+        return readUsableActiveRecord()?.toVerifiedConfig()
+    }
+
+    /** 返回独立持久化的当前 Backend 类型，OFFICIAL 不会删除自建配置。 */
+    @Synchronized
+    internal fun currentBackendType(): QueryBackendType = readCurrentBackendType()
+
+    /** 仅供后续已验证的 Backend 切换流程选择官方 Backend，保留自建配置和凭据。 */
+    @Synchronized
+    internal fun selectOfficialBackend(): Result<Unit> = runCatching {
+        check(
+            preferences.edit()
+                .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_OFFICIAL)
+                .commit(),
+        ) { "Unable to select official backend" }
+    }
 
     /**
-     * 原子启用一份新的已验证配置。
+     * 提交新配置时先保存候选密文、候选记录与激活 journal，最后写入活动指针。
      *
-     * SharedPreferences 无法跨文件提供事务，因此候选凭据和候选配置会在活动指针更新前
-     * 同步提交。任何前置步骤失败时，旧指针保持不变，并清理未被引用的候选密文。
+     * 最后一步返回 false 时，SharedPreferences 的内存状态无法可靠判定；此时保留
+     * journal、候选和旧项，进程内立即阻止访问，等待下次恢复按活动指针安全裁决。
      */
     @Synchronized
     fun commitVerified(
@@ -51,19 +75,19 @@ class SelfHostedConfigRepository(
     ): Result<Unit> {
         val previousSlot = activeSlot()
         val candidateSlot = UUID.randomUUID().toString()
+        val candidateRecord = StoredConfigRecord(
+            credentialSlot = candidateSlot,
+            config = StoredVerifiedConfig.from(config),
+            blockedReason = null,
+        )
         var candidateCredentialWriteAttempted = false
         var candidateRecordWriteAttempted = false
+        var journalWriteAttempted = false
 
         return try {
             candidateCredentialWriteAttempted = true
             credentialStore.save(candidateSlot, token).getOrThrow()
 
-            val candidateRecord = StoredConfigRecord(
-                credentialSlot = candidateSlot,
-                backendType = QueryBackendType.SELF_HOSTED.name,
-                config = StoredVerifiedConfig.from(config),
-                blockedReason = null,
-            )
             candidateRecordWriteAttempted = true
             check(
                 preferences.edit()
@@ -71,90 +95,202 @@ class SelfHostedConfigRepository(
                     .commit(),
             ) { "Unable to persist self-hosted configuration" }
 
-            check(preferences.edit().putString(ACTIVE_SLOT_KEY, candidateSlot).commit()) {
-                "Unable to activate self-hosted configuration"
+            journalWriteAttempted = true
+            val journal = StoredActivationJournal(previousSlot, candidateSlot)
+            check(preferences.edit().putString(ACTIVATION_JOURNAL_KEY, json.encodeToString(journal)).commit()) {
+                "Unable to persist self-hosted activation journal"
             }
-            _connectionState.value = SelfHostedConnectionState.Ready(config)
 
-            if (previousSlot != null && previousSlot != candidateSlot) {
-                clearInactiveCandidate(previousSlot)
+            val activated = preferences.edit()
+                .putString(ACTIVE_SLOT_KEY, candidateSlot)
+                .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_SELF_HOSTED)
+                .putString(LAST_KNOWN_GOOD_CONFIG_KEY, json.encodeToString(candidateRecord))
+                .commit()
+            if (!activated) {
+                failClosed(config, SelfHostedBlockReason.Configuration)
+                throw IllegalStateException("Unable to activate self-hosted configuration")
             }
+
+            // journal 清理失败可在下次启动根据活动指针确认后重试，不影响新活动项。
+            preferences.edit().remove(ACTIVATION_JOURNAL_KEY).commit()
+            processBlockedReason = null
+            _connectionState.value = SelfHostedConnectionState.Ready(config)
+            clearInactiveCandidatesAfterRecovery(candidateSlot)
             Result.success(Unit)
         } catch (exception: Exception) {
-            clearUncommittedCandidate(
-                candidateSlot,
-                candidateRecordWriteAttempted,
-                candidateCredentialWriteAttempted,
-            )
+            if (journalWriteAttempted) {
+                // 指针写入是否已生效存在歧义，绝不能删除 journal 或候选项。
+                if (processBlockedReason == null) {
+                    failClosed(lastKnownGoodConfig() ?: config, SelfHostedBlockReason.Configuration)
+                }
+            } else {
+                clearUnjournaledCandidate(
+                    candidateSlot,
+                    candidateRecordWriteAttempted,
+                    candidateCredentialWriteAttempted,
+                )
+            }
             Result.failure(exception)
         }
     }
 
-    /** 将当前配置标记为安全阻止状态，不保存底层异常文本。 */
+    /** 立即在进程内阻止后续自建访问；持久化失败也不会解除该阻止。 */
     @Synchronized
     fun markBlocked(reason: SelfHostedBlockReason) {
+        val config = activeConfig() ?: lastKnownGoodConfig()
+        if (config != null) {
+            failClosed(config, reason)
+        } else {
+            processBlockedReason = reason
+            _connectionState.value = SelfHostedConnectionState.NotConfigured
+        }
+
         val slot = activeSlot() ?: return
         val record = readRecord(slot) ?: return
-        val config = record.toVerifiedConfig() ?: return
         val updated = record.copy(blockedReason = reason.toStoredValue())
-        if (preferences.edit().putString(recordKey(slot), json.encodeToString(updated)).commit()) {
-            _connectionState.value = SelfHostedConnectionState.Blocked(config, reason)
-        }
+        preferences.edit().putString(recordKey(slot), json.encodeToString(updated)).commit()
     }
 
     /**
-     * 清除当前配置的安全阻止状态。
-     *
-     * 没有携带完整验证结果的调用无法安全解除阻止，因此真正恢复只能通过
-     * [commitVerified] 完成。本方法仅保留给无阻止状态的幂等清理调用。
+     * 仅允许完整重验证路径解除阻止。签名要求调用方同时提供重新验证后的配置和 Token，
+     * 从类型边界避免无证据调用将 Blocked 直接恢复为 Ready。
      */
     @Synchronized
-    fun clearBlockedState() {
-        val slot = activeSlot() ?: return
-        val record = readRecord(slot) ?: return
-        val config = record.toVerifiedConfig() ?: return
-        val token = credentialStore.load(slot).getOrNull()
-        if (record.blockedReason == null && token != null) {
-            _connectionState.value = SelfHostedConnectionState.Ready(config)
-        }
-        token?.fill('\u0000')
-    }
+    internal fun clearBlockedState(
+        config: VerifiedSelfHostedConfig,
+        token: CharArray,
+    ): Result<Unit> = commitVerified(config, token)
 
     /** 供后续构建已验证 Client 的内部调用读取 Token，调用方必须清空成功结果。 */
+    @Synchronized
     internal fun loadToken(): Result<CharArray> {
+        if (processBlockedReason != null) {
+            return Result.failure(IllegalStateException("Self-hosted configuration is blocked"))
+        }
         val record = readUsableActiveRecord()
             ?: return Result.failure(IllegalStateException("Self-hosted configuration is unavailable"))
         return credentialStore.load(record.credentialSlot)
     }
 
     private fun readInitialState(): SelfHostedConnectionState {
-        val activeSlot = activeSlot() ?: return SelfHostedConnectionState.NotConfigured
-        clearInactiveCandidates(activeSlot)
-        val record = readRecord(activeSlot)
+        recoverActivationJournal()
+        val activeSlot = activeSlot()
+        val record = activeSlot?.let(::readRecord)
+        val activeConfig = record
             ?.takeIf { it.credentialSlot == activeSlot }
-            ?: return SelfHostedConnectionState.BlockedWithoutConfig(SelfHostedBlockReason.Configuration)
-        val config = record.toVerifiedConfig()
-            ?: return SelfHostedConnectionState.BlockedWithoutConfig(SelfHostedBlockReason.Configuration)
-        val blockedReason = record.blockedReason?.toBlockReason()
-        if (blockedReason != null) {
-            return SelfHostedConnectionState.Blocked(config, blockedReason)
-        }
+            ?.toVerifiedConfig()
+        val lastKnownGood = lastKnownGoodConfig()
+        val config = activeConfig ?: lastKnownGood ?: return SelfHostedConnectionState.NotConfigured
 
-        val token = credentialStore.load(record.credentialSlot).getOrElse {
+        processBlockedReason?.let { reason ->
+            return SelfHostedConnectionState.Blocked(config, reason)
+        }
+        val storedReason = record?.blockedReason?.toBlockReason()
+        if (storedReason != null) {
+            processBlockedReason = storedReason
+            return SelfHostedConnectionState.Blocked(config, storedReason)
+        }
+        if (activeConfig == null) {
+            processBlockedReason = SelfHostedBlockReason.Configuration
+            return SelfHostedConnectionState.Blocked(config, SelfHostedBlockReason.Configuration)
+        }
+        if (!isSlotUsable(activeSlot, record)) {
+            processBlockedReason = SelfHostedBlockReason.Credentials
             return SelfHostedConnectionState.Blocked(config, SelfHostedBlockReason.Credentials)
         }
-        token.fill('\u0000')
+
+        clearInactiveCandidatesAfterRecovery(activeSlot)
         return SelfHostedConnectionState.Ready(config)
     }
 
-    private fun readActiveRecord(): StoredConfigRecord? {
-        val slot = activeSlot() ?: return null
-        return readRecord(slot)?.takeIf { it.credentialSlot == slot }
+    /** 先验证 journal 与活动项，再决定保留、回滚或回收候选项。 */
+    private fun recoverActivationJournal() {
+        val journal = readActivationJournal() ?: run {
+            // 没有活动指针的首次配置中断同样需要回收孤儿项。
+            if (activeSlot() == null) clearInactiveCandidatesAfterRecovery(null)
+            return
+        }
+        val activeSlot = activeSlot()
+        val candidate = readRecord(journal.candidateSlot)
+        val previous = journal.previousSlot?.let(::readRecord)
+
+        when {
+            activeSlot == journal.candidateSlot && isSlotUsable(journal.candidateSlot, candidate) -> {
+                finalizeRecoveredActivation(journal.candidateSlot, candidate!!)
+            }
+
+            journal.previousSlot != null && activeSlot == journal.previousSlot &&
+                isSlotUsable(journal.previousSlot, previous) -> {
+                finalizeRecoveredRollback(journal.previousSlot, journal.candidateSlot)
+            }
+
+            journal.previousSlot == null && activeSlot == null -> {
+                // 首次提交未完成，候选未被任何活动指针引用。
+                preferences.edit().remove(ACTIVATION_JOURNAL_KEY).commit()
+                clearInactiveCandidatesAfterRecovery(null)
+            }
+
+            journal.previousSlot != null && isSlotUsable(journal.previousSlot, previous) -> {
+                // 指针异常时优先恢复旧的、已验证且可解密的配置。
+                if (
+                    preferences.edit()
+                        .putString(ACTIVE_SLOT_KEY, journal.previousSlot)
+                        .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_SELF_HOSTED)
+                        .putString(LAST_KNOWN_GOOD_CONFIG_KEY, json.encodeToString(previous))
+                        .commit()
+                ) {
+                    finalizeRecoveredRollback(journal.previousSlot, journal.candidateSlot)
+                }
+            }
+
+            else -> {
+                // 未能可靠裁决时保留 journal 和所有引用项，并在状态层 fail-closed。
+                val fallback = candidate?.toVerifiedConfig() ?: previous?.toVerifiedConfig() ?: lastKnownGoodConfig()
+                if (fallback != null) processBlockedReason = SelfHostedBlockReason.Configuration
+            }
+        }
     }
 
+    private fun finalizeRecoveredActivation(slot: String, record: StoredConfigRecord) {
+        if (
+            preferences.edit()
+                .putString(ACTIVE_SLOT_KEY, slot)
+                .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_SELF_HOSTED)
+                .putString(LAST_KNOWN_GOOD_CONFIG_KEY, json.encodeToString(record))
+                .remove(ACTIVATION_JOURNAL_KEY)
+                .commit()
+        ) {
+            clearInactiveCandidatesAfterRecovery(slot)
+        }
+    }
+
+    private fun finalizeRecoveredRollback(previousSlot: String, candidateSlot: String) {
+        val previous = readRecord(previousSlot)
+        if (
+            previous != null && preferences.edit()
+                .putString(ACTIVE_SLOT_KEY, previousSlot)
+                .putString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_SELF_HOSTED)
+                .putString(LAST_KNOWN_GOOD_CONFIG_KEY, json.encodeToString(previous))
+                .remove(ACTIVATION_JOURNAL_KEY)
+                .commit()
+        ) {
+            preferences.edit().remove(recordKey(candidateSlot)).commit()
+            credentialStore.clear(candidateSlot)
+            clearInactiveCandidatesAfterRecovery(previousSlot)
+        }
+    }
+
+    private fun activeConfig(): VerifiedSelfHostedConfig? = readUsableActiveRecord()?.toVerifiedConfig()
+
+    private fun lastKnownGoodConfig(): VerifiedSelfHostedConfig? = preferences
+        .getString(LAST_KNOWN_GOOD_CONFIG_KEY, null)
+        ?.let { raw -> runCatching { json.decodeFromString<StoredConfigRecord>(raw) }.getOrNull() }
+        ?.toVerifiedConfig()
+
     private fun readUsableActiveRecord(): StoredConfigRecord? {
-        val record = readActiveRecord() ?: return null
-        return record.takeIf { it.blockedReason == null && it.toVerifiedConfig() != null }
+        val slot = activeSlot() ?: return null
+        val record = readRecord(slot) ?: return null
+        return record.takeIf { it.credentialSlot == slot && it.blockedReason == null && it.toVerifiedConfig() != null }
     }
 
     private fun activeSlot(): String? = preferences.getString(ACTIVE_SLOT_KEY, null)
@@ -164,31 +300,27 @@ class SelfHostedConfigRepository(
         return runCatching { json.decodeFromString<StoredConfigRecord>(raw) }.getOrNull()
     }
 
-    private fun recordKey(slot: String): String = "$RECORD_KEY_PREFIX$slot"
-
-    /** 活动指针切换成功后，旧候选项清理失败不能影响已启用的新配置。 */
-    private fun clearInactiveCandidate(slot: String) {
-        val recordCleared = preferences.edit().remove(recordKey(slot)).commit()
-        val credentialCleared = credentialStore.clear(slot).isSuccess
-        if (!recordCleared || !credentialCleared) {
-            clearInactiveCandidates(activeSlot())
-        }
+    private fun readActivationJournal(): StoredActivationJournal? {
+        val raw = preferences.getString(ACTIVATION_JOURNAL_KEY, null) ?: return null
+        return runCatching { json.decodeFromString<StoredActivationJournal>(raw) }.getOrNull()
     }
 
-    private fun clearUncommittedCandidate(
-        slot: String,
-        recordWriteAttempted: Boolean,
-        credentialWriteAttempted: Boolean,
-    ) {
-        val recordCleared = !recordWriteAttempted || preferences.edit().remove(recordKey(slot)).commit()
-        val credentialCleared = !credentialWriteAttempted || credentialStore.clear(slot).isSuccess
-        if (!recordCleared || !credentialCleared) {
-            clearInactiveCandidates(activeSlot())
-        }
+    /** 仅当配置和凭据均可恢复时，才允许 journal 将其认定为可用活动项。 */
+    private fun isSlotUsable(slot: String, record: StoredConfigRecord?): Boolean {
+        if (record?.credentialSlot != slot || record.toVerifiedConfig() == null) return false
+        val token = credentialStore.load(slot).getOrNull() ?: return false
+        token.fill('\u0000')
+        return true
     }
 
-    /** 每次恢复与失败回滚时回收未被活动指针引用的临时记录和密文。 */
-    private fun clearInactiveCandidates(activeSlot: String?) {
+    private fun failClosed(config: VerifiedSelfHostedConfig, reason: SelfHostedBlockReason) {
+        processBlockedReason = reason
+        _connectionState.value = SelfHostedConnectionState.Blocked(config, reason)
+    }
+
+    /** 仅回收无 journal 保护且未被活动指针引用的候选项。 */
+    private fun clearInactiveCandidatesAfterRecovery(activeSlot: String?) {
+        if (readActivationJournal() != null) return
         preferences.all.keys
             .asSequence()
             .filter { it.startsWith(RECORD_KEY_PREFIX) }
@@ -198,17 +330,38 @@ class SelfHostedConfigRepository(
         credentialStore.clearInactiveSlots(activeSlot)
     }
 
+    private fun clearUnjournaledCandidate(
+        slot: String,
+        recordWriteAttempted: Boolean,
+        credentialWriteAttempted: Boolean,
+    ) {
+        if (recordWriteAttempted) preferences.edit().remove(recordKey(slot)).commit()
+        if (credentialWriteAttempted) credentialStore.clear(slot)
+        clearInactiveCandidatesAfterRecovery(activeSlot())
+    }
+
+    private fun readCurrentBackendType(): QueryBackendType = when (
+        preferences.getString(CURRENT_BACKEND_TYPE_KEY, BACKEND_TYPE_OFFICIAL)
+    ) {
+        BACKEND_TYPE_SELF_HOSTED -> QueryBackendType.SELF_HOSTED
+        else -> QueryBackendType.OFFICIAL
+    }
+
+    private fun recordKey(slot: String): String = "$RECORD_KEY_PREFIX$slot"
+
+    @Serializable
+    private data class StoredActivationJournal(
+        val previousSlot: String?,
+        val candidateSlot: String,
+    )
+
     @Serializable
     private data class StoredConfigRecord(
         val credentialSlot: String,
-        val backendType: String,
         val config: StoredVerifiedConfig,
         val blockedReason: String?,
     ) {
-        fun toVerifiedConfig(): VerifiedSelfHostedConfig? = runCatching {
-            require(backendType == QueryBackendType.SELF_HOSTED.name)
-            config.toVerifiedConfig()
-        }.getOrNull()
+        fun toVerifiedConfig(): VerifiedSelfHostedConfig? = runCatching { config.toVerifiedConfig() }.getOrNull()
     }
 
     @Serializable
@@ -224,7 +377,11 @@ class SelfHostedConfigRepository(
     ) {
         fun toVerifiedConfig(): VerifiedSelfHostedConfig = VerifiedSelfHostedConfig(
             baseUrl = baseUrl,
-            tlsMode = SelfHostedTlsMode.valueOf(tlsMode),
+            tlsMode = when (tlsMode) {
+                TLS_MODE_SYSTEM -> SelfHostedTlsMode.SYSTEM
+                TLS_MODE_SPKI_PIN -> SelfHostedTlsMode.SPKI_PIN
+                else -> throw IllegalArgumentException("Unknown TLS mode")
+            },
             spkiPin = spkiPin,
             instanceId = instanceId,
             version = version,
@@ -236,7 +393,10 @@ class SelfHostedConfigRepository(
         companion object {
             fun from(config: VerifiedSelfHostedConfig) = StoredVerifiedConfig(
                 baseUrl = config.baseUrl,
-                tlsMode = config.tlsMode.name,
+                tlsMode = when (config.tlsMode) {
+                    SelfHostedTlsMode.SYSTEM -> TLS_MODE_SYSTEM
+                    SelfHostedTlsMode.SPKI_PIN -> TLS_MODE_SPKI_PIN
+                },
                 spkiPin = config.spkiPin,
                 instanceId = config.instanceId,
                 version = config.version,
@@ -273,6 +433,13 @@ class SelfHostedConfigRepository(
     private companion object {
         const val CONFIG_PREFERENCES_NAME = "self_hosted_config"
         const val ACTIVE_SLOT_KEY = "active_slot"
+        const val CURRENT_BACKEND_TYPE_KEY = "current_backend_type"
+        const val LAST_KNOWN_GOOD_CONFIG_KEY = "last_known_good_config"
+        const val ACTIVATION_JOURNAL_KEY = "activation_journal"
         const val RECORD_KEY_PREFIX = "verified_config_"
+        const val BACKEND_TYPE_OFFICIAL = "official"
+        const val BACKEND_TYPE_SELF_HOSTED = "self_hosted"
+        const val TLS_MODE_SYSTEM = "system"
+        const val TLS_MODE_SPKI_PIN = "spki_pin"
     }
 }
