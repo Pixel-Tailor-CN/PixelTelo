@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.telephony.TelephonyManager
+import android.telephony.SubscriptionManager
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,10 +31,20 @@ class CallStateReceiver : BroadcastReceiver(), KoinComponent {
     private val prefs: SharedPreferences by inject()
     private val blockedCallRepository: BlockedCallRepository by inject()
     private val incomingCallOverlay: IncomingCallOverlay by inject()
+    private val callStateVibrationController: CallStateVibrationController by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+        val subscriptionId = intent.getIntExtra(
+            SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX,
+            SubscriptionManager.INVALID_SUBSCRIPTION_ID
+        )
+        runCatching {
+            callStateVibrationController.onPhoneStateChanged(state, subscriptionId)
+        }.onFailure {
+            Log.w(TAG, "Failed to handle call state vibration", it)
+        }
         if (state != TelephonyManager.EXTRA_STATE_IDLE) return
 
         incomingCallOverlay.hide()

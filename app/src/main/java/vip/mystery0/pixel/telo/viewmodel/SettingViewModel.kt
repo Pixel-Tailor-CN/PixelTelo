@@ -46,6 +46,7 @@ import vip.mystery0.pixel.telo.data.repository.QuerySourceState
 import vip.mystery0.pixel.telo.data.repository.SelfHostedConfigRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
+import vip.mystery0.pixel.telo.receiver.CallStateVibrationController
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 import java.io.InputStream
 import java.io.OutputStream
@@ -105,6 +106,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val KEY_REPEAT_CALL_STRATEGY = "repeat_call_strategy"
         const val KEY_REPEAT_CALL_WINDOW_MINUTES = "repeat_call_window_minutes"
         const val KEY_FEEDBACK_NOTIFICATION = "feedback_notification"
+        const val KEY_CALL_STATE_VIBRATION = "call_state_vibration"
         const val DEFAULT_NETWORK_TIMEOUT_SECONDS = 5
         const val MIN_NETWORK_TIMEOUT_SECONDS = 1
         const val MAX_NETWORK_TIMEOUT_SECONDS = 10
@@ -158,6 +160,19 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var forceDownload by mutableStateOf(false)
 
     // App Features
+    var callStateVibrationEnabled by mutableStateOf(
+        prefs.getBoolean(KEY_CALL_STATE_VIBRATION, false)
+    )
+        private set
+
+    fun updateCallStateVibrationEnabled(enabled: Boolean) {
+        callStateVibrationEnabled = enabled
+        prefs.edit { putBoolean(KEY_CALL_STATE_VIBRATION, enabled) }
+        if (!enabled) {
+            CallStateVibrationController.clearState(prefs)
+        }
+    }
+
     var notifyOnly by mutableStateOf(prefs.getBoolean(KEY_NOTIFY_ONLY, true))
 
     fun updateNotifyOnly(enabled: Boolean) {

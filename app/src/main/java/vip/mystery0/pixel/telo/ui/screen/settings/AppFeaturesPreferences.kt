@@ -1,5 +1,7 @@
 package vip.mystery0.pixel.telo.ui.screen.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,6 +11,7 @@ import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -26,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
@@ -37,6 +41,7 @@ import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 fun AppFeaturesPreferences(
     viewModel: SettingViewModel,
     onRequestNotificationPermission: () -> Unit,
+    onRequestPhoneStatePermission: () -> Unit,
 ) {
     val context = LocalContext.current
     var showAutoCheckIntervalDialog by remember { mutableStateOf(false) }
@@ -145,5 +150,24 @@ fun AppFeaturesPreferences(
         summary = { Text(stringResource(R.string.summary_test_intercept)) },
         icon = { Icon(Icons.Default.PhoneInTalk, contentDescription = null) },
         onClick = viewModel::showTestDialog
+    )
+
+    SwitchPreference(
+        value = viewModel.callStateVibrationEnabled,
+        onValueChange = { enabled ->
+            when {
+                !enabled -> viewModel.updateCallStateVibrationEnabled(false)
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_PHONE_STATE
+                ) == PackageManager.PERMISSION_GRANTED ->
+                    viewModel.updateCallStateVibrationEnabled(true)
+
+                else -> onRequestPhoneStatePermission()
+            }
+        },
+        title = { Text(stringResource(R.string.setting_call_state_vibration)) },
+        summary = { Text(stringResource(R.string.setting_call_state_vibration_summary)) },
+        icon = { Icon(Icons.Default.Vibration, contentDescription = null) }
     )
 }

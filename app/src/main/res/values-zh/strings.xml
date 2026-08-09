@@ -111,6 +111,9 @@
     <string name="label_network_cost">网络耗时: </string>
     <string name="action_record">记录</string>
     <string name="category_app_features">应用功能</string>
+    <string name="setting_call_state_vibration">通话状态震动</string>
+    <string name="setting_call_state_vibration_summary">仅支持可靠识别的来电接通与挂断；受 Android 系统限制，去电不会震动。</string>
+    <string name="msg_call_state_vibration_requires_phone_state_permission">需要电话状态权限才能启用通话状态震动。</string>
     <string name="setting_update_offline_data">更新离线数据</string>
     <string name="summary_current_version">当前版本: </string>
     <string name="setting_auto_check_update">自动检查更新</string>

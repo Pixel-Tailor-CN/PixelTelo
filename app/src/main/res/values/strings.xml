@@ -104,6 +104,9 @@
     <string name="label_network_cost">Network Cost: </string>
     <string name="action_record">Record</string>
     <string name="category_app_features">App Features</string>
+    <string name="setting_call_state_vibration">Call status vibration</string>
+    <string name="setting_call_state_vibration_summary">Only reliably detected incoming-call answers and hangups are supported. Due to Android system limitations, outgoing calls do not vibrate.</string>
+    <string name="msg_call_state_vibration_requires_phone_state_permission">Phone state permission is required to enable call status vibration.</string>
     <string name="setting_update_offline_data">Update Offline Data</string>
     <string name="summary_current_version">Current version: </string>
     <string name="setting_auto_check_update">Automatically check updates</string>

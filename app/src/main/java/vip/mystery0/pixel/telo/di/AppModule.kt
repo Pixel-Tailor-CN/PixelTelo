@@ -33,6 +33,7 @@ import vip.mystery0.pixel.telo.data.repository.SelfHostedConfigRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
+import vip.mystery0.pixel.telo.receiver.CallStateVibrationController
 import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.smartspacer.SmartspacerInterceptRepository
 
@@ -71,6 +72,7 @@ val appModule = module {
     single { SpamNumberRepository() }
     single { SmartspacerInterceptRepository() }
     single { IncomingCallOverlay(androidContext(), get()) }
+    single { CallStateVibrationController(androidContext(), get()) }
 
     single {
         Json { ignoreUnknownKeys = true }

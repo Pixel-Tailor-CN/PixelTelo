@@ -33,6 +33,20 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
 * 悬浮窗控制器由 Koin 以进程级单例提供，使 `CallScreeningService` 与 `CallStateReceiver`
   操作同一个窗口实例；设置页的位置预览仍使用独立实例，避免影响真实来电状态。
 
+### 通话状态震动
+
+* 设置页“应用功能”提供“通话状态震动”开关，默认关闭，并明确说明 Android 对去电状态的限制。
+* `CallStateVibrationController` 仅把 `RINGING → OFFHOOK` 识别为可靠的来电接通，并在该通话
+  `OFFHOOK → IDLE` 时识别为挂断；未接、拒接、拦截和去电均不震动。
+* 状态保存在 `SharedPreferences` 中，避免 Receiver 重建或重复广播造成重复震动；关闭开关时立即
+  清除瞬时状态。
+* 功能使用普通 `VIBRATE` 权限以及系统单次震动效果，不需要运行时授权，不启动常驻 Service。
+  设备不支持震动或震动调用失败时只记录 warning 日志，不得阻断悬浮窗移除与通话结束反馈流程。
+* 启用开关前必须取得 `READ_PHONE_STATE` 运行时权限，权限缺失或被撤销时保持关闭；瞬时状态按
+  subscription 隔离，并通过 wall clock 与 elapsed realtime 双重校验清理跨重启状态。等待接听
+  状态最多保留 12 小时，已接通状态在同一启动周期内不因超长通话而过期；应用启动时会再次校验
+  权限并持久化关闭已经失去权限的开关。
+
 ## 2. CallScreeningService
 
 ### 目的

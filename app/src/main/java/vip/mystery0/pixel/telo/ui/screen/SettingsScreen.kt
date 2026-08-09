@@ -92,6 +92,9 @@ fun SettingsScreen(viewModel: SettingViewModel) {
     val feedbackPermissionDeniedMessage = stringResource(
         R.string.msg_feedback_notification_requires_permissions
     )
+    val callStateVibrationPermissionDeniedMessage = stringResource(
+        R.string.msg_call_state_vibration_requires_phone_state_permission
+    )
     val feedbackPermissions = remember {
         buildList {
             add(Manifest.permission.READ_PHONE_STATE)
@@ -176,6 +179,22 @@ fun SettingsScreen(viewModel: SettingViewModel) {
         }
     }
 
+    val callStateVibrationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        permissionsState = permissionsState.toMutableMap().apply {
+            this[Manifest.permission.READ_PHONE_STATE] = isGranted
+        }
+        viewModel.updateCallStateVibrationEnabled(isGranted)
+        if (!isGranted) {
+            Toast.makeText(
+                context,
+                callStateVibrationPermissionDeniedMessage,
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     // 备份：通过系统文件保存对话框选择保存位置
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
@@ -218,6 +237,15 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             }
         ) {
             viewModel.updateFeedbackNotification(false)
+        }
+        if (
+            viewModel.callStateVibrationEnabled &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_PHONE_STATE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            viewModel.updateCallStateVibrationEnabled(false)
         }
     }
 
@@ -743,7 +771,12 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                         notificationPermissionLauncher.launch(
                             Manifest.permission.POST_NOTIFICATIONS
                         )
-                    }
+                    },
+                    onRequestPhoneStatePermission = {
+                        callStateVibrationPermissionLauncher.launch(
+                            Manifest.permission.READ_PHONE_STATE
+                        )
+                    },
                 )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
