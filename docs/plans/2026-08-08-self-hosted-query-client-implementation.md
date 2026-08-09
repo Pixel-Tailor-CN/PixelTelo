@@ -18,7 +18,7 @@
 - 只允许根路径 HTTPS；禁止 HTTP、userinfo、query、fragment、业务子路径和自动 Redirect。
 - 自建业务请求必须使用 Bearer Token；401 不重试，不使用 OkHttp Authenticator。
 - 自建服务只支持 API Version 2，最低 capability 为 `query_v2`。
-- Release 拒绝预发布服务端；Debug 仅通过默认关闭的调试开关允许预发布版本。
+- 所有构建均拒绝预发布服务端，不提供降低版本校验的调试开关。
 - 自建查询不保存反馈 Token、不显示反馈入口、不调用反馈 API。
 - 不新增权限，不新增相机扫码，不引入大型 SemVer 或安全依赖。
 - 代码注释、KDoc 和项目文档使用中文；日志文本使用英文且不得包含完整号码或凭据。
@@ -119,7 +119,7 @@ Expected: `BUILD SUCCESSFUL`，生成的 Debug `BuildConfig` 包含值 `0.1.2`�
 - Produces: `data class QueryBackendSnapshot(val backendId: String, val type: QueryBackendType, val queryApi: QueryApi, val feedbackSupported: Boolean, val selfHostedIdentity: SelfHostedIdentity? = null)`
 - Produces: `data class BackendQueryResponse(val backendId: String, val response: QueryResponse, val feedbackSupported: Boolean)`
 - Produces: `enum class SelfHostedTlsMode { SYSTEM, SPKI_PIN }`
-- Produces: `data class SelfHostedDraft(val baseUrl: String, val tlsMode: SelfHostedTlsMode, val spkiPin: String = "", val allowPreRelease: Boolean = false)`；明文 Token 通过独立一次性 `CharArray` 传递
+- Produces: `data class SelfHostedDraft(val baseUrl: String, val tlsMode: SelfHostedTlsMode, val spkiPin: String = "")`；明文 Token 通过独立一次性 `CharArray` 传递
 - Produces: `data class VerifiedSelfHostedConfig(...)`，包含规范化 URL、TLS 模式、Pin、Instance ID、Version、API Version、capabilities 和验证时间，不包含明文 Token
 - Produces: `sealed interface SelfHostedBlockReason`
 - Produces: `SelfHostedApi.getInfo(): Response<SelfHostedInfoResponse>`
@@ -429,9 +429,9 @@ Expected: `BUILD SUCCESSFUL`，Room KSP 校验迁移后的实体结构可编译�
 
 验证时禁用重复提交并显示进度。失败只展示 URL、网络、TLS、Pin、Token、版本、协议或身份分类文案；不直接展示底层异常、完整 URL 或响应正文。已启用配置提供“重新测试”“修改配置”“切换回官方服务”。
 
-- [x] **Step 4：增加 Debug 预发布开关**
+- [x] **Step 4：统一稳定版本校验**
 
-只在 `BuildConfig.DEBUG` 时显示“允许预发布服务端”，默认关闭且只影响当前草稿/验证，不降低 Release 校验。
+Debug 与 Release 均只接受稳定 SemVer，不显示或保留允许预发布服务端的开关与状态。
 
 - [x] **Step 5：处理反馈通知设置**
 
@@ -543,6 +543,16 @@ Expected: `BUILD SUCCESSFUL`，没有本功能新增的 Error；不运行单元�
 - [x] **Step 8：提交最终文档和收尾修改**
 
 建议提交信息：`docs: 更新自建查询客户端架构文档`。
+
+### 2026-08-09 来电查询结果复用
+
+- [x] `SpamNumberRepository` 对普通来电查询增加 1 分钟进程内联网结果缓存。
+- [x] 相同号码与相同 Backend activation/超时上下文的并发请求通过 single-flight 合并。
+- [x] 缓存容量限制为 32 条，并使用 `SystemClock.elapsedRealtime()` 判断有效期。
+- [x] 缓存键与请求绑定同一个 Snapshot，进行中共享请求同样限制为 32 条。
+- [x] 缓存键与请求统一使用移除常见格式字符后的 canonical number。
+- [x] `forceNetworkQuery=true` 与 `queryNetwork()` 保持强制联网语义，不读取复用缓存。
+- [x] 缓存仅复用联网响应或失败；用户规则在每次 `checkSpam()` 中重新执行。
 
 ### 2026-08-09 收尾验证记录
 

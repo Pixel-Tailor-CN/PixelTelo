@@ -34,7 +34,6 @@ internal class SelfHostedCompatibilityException(
  * [bind] 绑定身份，后续 `sources` 请求即按运行期规则校验。
  */
 internal class SelfHostedCompatibilityInterceptor private constructor(
-    private val allowPreRelease: Boolean,
     initialIdentity: SelfHostedIdentity?,
     private val onBlocked: ((SelfHostedBlockReason) -> Unit)?,
     private val runIfOpen: ((() -> Unit) -> Unit),
@@ -51,7 +50,6 @@ internal class SelfHostedCompatibilityInterceptor private constructor(
         val failure = runCatching {
             val identity = validateSelfHostedIdentityHeaders(
                 headers = response.headers,
-                allowPreRelease = allowPreRelease,
                 minimumVersion = minimumServerVersion,
             )
             binding.get()?.validate(identity)
@@ -88,7 +86,7 @@ internal class SelfHostedCompatibilityInterceptor private constructor(
         if (apiVersion != SELF_HOSTED_API_VERSION) {
             throw SelfHostedCompatibilityException(SelfHostedBlockReason.ApiVersion)
         }
-        val parsedVersion = SemanticVersion.parse(version, allowPreRelease)
+        val parsedVersion = SemanticVersion.parse(version, allowPreRelease = false)
             ?: throw SelfHostedCompatibilityException(SelfHostedBlockReason.ServerVersion)
         if (parsedVersion < minimumServerVersion) {
             throw SelfHostedCompatibilityException(SelfHostedBlockReason.ServerVersion)
@@ -115,9 +113,8 @@ internal class SelfHostedCompatibilityInterceptor private constructor(
 
     companion object {
         /** 创建 `info` 请求使用的 bootstrap 校验器。 */
-        fun bootstrap(allowPreRelease: Boolean): SelfHostedCompatibilityInterceptor =
+        fun bootstrap(): SelfHostedCompatibilityInterceptor =
             SelfHostedCompatibilityInterceptor(
-                allowPreRelease = BuildConfig.DEBUG && allowPreRelease,
                 initialIdentity = null,
                 onBlocked = null,
                 runIfOpen = { action -> action() },
@@ -129,8 +126,6 @@ internal class SelfHostedCompatibilityInterceptor private constructor(
             onBlocked: (SelfHostedBlockReason) -> Unit,
             runIfOpen: ((() -> Unit) -> Unit),
         ): SelfHostedCompatibilityInterceptor = SelfHostedCompatibilityInterceptor(
-            allowPreRelease = BuildConfig.DEBUG &&
-                SemanticVersion.parse(identity.version, allowPreRelease = false) == null,
             initialIdentity = identity,
             onBlocked = onBlocked,
             runIfOpen = runIfOpen,
@@ -141,13 +136,12 @@ internal class SelfHostedCompatibilityInterceptor private constructor(
 /** 校验并规范化三个身份 Header；每个 Header 必须存在且只能出现一次。 */
 internal fun validateSelfHostedIdentityHeaders(
     headers: Headers,
-    allowPreRelease: Boolean,
     minimumVersion: SemanticVersion = checkNotNull(
         SemanticVersion.parse(BuildConfig.MIN_SELFHOST_SERVER_VERSION, allowPreRelease = false),
     ),
 ): SelfHostedResponseIdentity {
     val version = headers.requireSingleIdentityValue(SELF_HOSTED_SERVER_VERSION_HEADER)
-    val parsedVersion = SemanticVersion.parse(version, allowPreRelease)
+    val parsedVersion = SemanticVersion.parse(version, allowPreRelease = false)
         ?: throw SelfHostedCompatibilityException(SelfHostedBlockReason.ServerVersion)
     if (parsedVersion < minimumVersion) {
         throw SelfHostedCompatibilityException(SelfHostedBlockReason.ServerVersion)

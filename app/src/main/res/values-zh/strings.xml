@@ -251,9 +251,10 @@
     <!-- Query Sources -->
     <string name="setting_query_backend">实时查询服务器</string>
     <string name="setting_query_backend_official_summary">Pixel Telo 官方服务</string>
-    <string name="setting_query_backend_self_hosted_summary">%1$s · 版本 %2$s · 验证于 %3$s</string>
+    <string name="setting_query_backend_self_hosted_address">服务地址：%1$s</string>
+    <string name="setting_query_backend_self_hosted_version">服务版本：%1$s</string>
+    <string name="setting_query_backend_self_hosted_verified_at">验证时间：%1$s</string>
     <string name="setting_query_backend_self_hosted_unavailable_summary">自建服务 · 需要重新配置</string>
-    <string name="label_self_hosted_host_unavailable">自建服务</string>
     <string name="title_self_hosted_config">配置自建服务</string>
     <string name="title_self_hosted_management">自建服务</string>
     <string name="msg_self_hosted_management_hint">当前正在使用此服务。你可以重新执行完整验证、修改配置，或切换回官方服务。</string>
@@ -269,8 +270,6 @@
     <string name="tls_mode_spki_pin_summary">仅信任精确匹配的 SHA-256 SPKI Pin；仍校验证书有效期及域名/IP SAN</string>
     <string name="label_self_hosted_spki_pin">SPKI Pin</string>
     <string name="hint_self_hosted_spki_pin">由你的服务管理员提供的 SHA-256 Pin</string>
-    <string name="setting_allow_prerelease_self_hosted">允许预发布服务端</string>
-    <string name="setting_allow_prerelease_self_hosted_summary">仅 Debug 可用，只影响本次验证，Release 构建不会启用</string>
     <string name="action_test_and_enable_self_hosted">测试并启用</string>
     <string name="action_revalidate_self_hosted">重新测试</string>
     <string name="action_modify_self_hosted">修改配置</string>

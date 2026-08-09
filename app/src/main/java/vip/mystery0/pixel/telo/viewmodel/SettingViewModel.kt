@@ -88,7 +88,6 @@ data class SelfHostedDraftUiState(
     val baseUrl: String = "",
     val tlsMode: SelfHostedTlsMode = SelfHostedTlsMode.SYSTEM,
     val spkiPin: String = "",
-    val allowPreRelease: Boolean = false,
 )
 
 class SettingViewModel : ViewModel(), KoinComponent {
@@ -617,7 +616,6 @@ class SettingViewModel : ViewModel(), KoinComponent {
                             } else {
                                 ""
                             },
-                            allowPreRelease = BuildConfig.DEBUG && draft.allowPreRelease,
                         ),
                         token = token,
                     )

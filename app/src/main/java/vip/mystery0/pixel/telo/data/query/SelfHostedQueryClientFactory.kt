@@ -53,7 +53,6 @@ class SelfHostedQueryClientFactory(
         baseUrl: String,
         tlsMode: SelfHostedTlsMode,
         spkiPin: String,
-        allowPreRelease: Boolean,
         token: CharArray,
     ): Result<SelfHostedClientBundle> = runCatching {
         val normalizedBaseUrl = normalizeSelfHostedBaseUrl(baseUrl)
@@ -64,7 +63,6 @@ class SelfHostedQueryClientFactory(
             tlsMode = tlsMode,
             normalizedPin = normalizedPin,
             token = token,
-            allowPreRelease = allowPreRelease,
             verifiedIdentity = null,
             onBlocked = null,
         )
@@ -90,7 +88,6 @@ class SelfHostedQueryClientFactory(
             tlsMode = config.tlsMode,
             normalizedPin = normalizedPin,
             token = token,
-            allowPreRelease = false,
             verifiedIdentity = SelfHostedIdentity(
                 instanceId = config.instanceId,
                 version = config.version,
@@ -105,7 +102,6 @@ class SelfHostedQueryClientFactory(
         tlsMode: SelfHostedTlsMode,
         normalizedPin: String,
         token: CharArray,
-        allowPreRelease: Boolean,
         verifiedIdentity: SelfHostedIdentity?,
         onBlocked: ((SelfHostedBlockReason) -> Unit)?,
     ): SelfHostedClientBundle {
@@ -118,7 +114,7 @@ class SelfHostedQueryClientFactory(
         var client: OkHttpClient? = null
         try {
             val compatibilityInterceptor = if (verifiedIdentity == null) {
-                SelfHostedCompatibilityInterceptor.bootstrap(allowPreRelease)
+                SelfHostedCompatibilityInterceptor.bootstrap()
             } else {
                 SelfHostedCompatibilityInterceptor.runtime(
                     identity = verifiedIdentity,

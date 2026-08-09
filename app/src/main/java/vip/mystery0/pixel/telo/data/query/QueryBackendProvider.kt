@@ -172,7 +172,6 @@ class QueryBackendProvider(
                 baseUrl = draft.baseUrl,
                 tlsMode = draft.tlsMode,
                 spkiPin = draft.spkiPin,
-                allowPreRelease = draft.allowPreRelease,
             ).getOrElse { exception -> return@withLock validationFailure(exception) }
             validateAndPublish(normalizedDraft, token, generation)
         }
@@ -192,13 +191,10 @@ class QueryBackendProvider(
         }
         val token = material.takeToken()
         try {
-            val allowPreRelease = BuildConfig.DEBUG &&
-                SemanticVersion.parse(material.config.version, allowPreRelease = false) == null
             val normalizedDraft = normalizeDraft(
                 baseUrl = material.config.baseUrl,
                 tlsMode = material.config.tlsMode,
                 spkiPin = material.config.spkiPin,
-                allowPreRelease = allowPreRelease,
             ).getOrElse { exception ->
                 val failure = validationFailure(exception)
                 return@withLock blockAfterRevalidationFailure(failure)
@@ -249,7 +245,6 @@ class QueryBackendProvider(
             baseUrl = draft.baseUrl,
             tlsMode = draft.tlsMode,
             spkiPin = draft.spkiPin,
-            allowPreRelease = draft.allowPreRelease,
             token = token,
         ).getOrElse { exception -> return validationFailure(exception) }
 
@@ -352,12 +347,10 @@ class QueryBackendProvider(
         }
         val info = infoResponse.body()
             ?: throw SelfHostedValidationException(SelfHostedErrorCategory.SERVER_RESPONSE)
-        val allowPreRelease = BuildConfig.DEBUG && draft.allowPreRelease
         val headerIdentity = validateSelfHostedIdentityHeaders(
             headers = infoResponse.headers(),
-            allowPreRelease = allowPreRelease,
         )
-        val identity = validateInfoBody(info, headerIdentity, allowPreRelease)
+        val identity = validateInfoBody(info, headerIdentity)
         client.bindIdentity(identity)
 
         // 必须在身份绑定后完成 sources 请求及其响应 Header/正文解码，才算完整验证成功。
@@ -377,7 +370,6 @@ class QueryBackendProvider(
     private fun validateInfoBody(
         info: SelfHostedInfoResponse,
         headerIdentity: SelfHostedResponseIdentity,
-        allowPreRelease: Boolean,
     ): SelfHostedIdentity {
         if (info.service != SELF_HOSTED_SERVICE) {
             throw SelfHostedValidationException(SelfHostedErrorCategory.SERVICE)
@@ -385,7 +377,7 @@ class QueryBackendProvider(
         val minimumVersion = checkNotNull(
             SemanticVersion.parse(BuildConfig.MIN_SELFHOST_SERVER_VERSION, allowPreRelease = false),
         )
-        val bodyVersion = SemanticVersion.parse(info.version, allowPreRelease)
+        val bodyVersion = SemanticVersion.parse(info.version, allowPreRelease = false)
             ?: throw SelfHostedCompatibilityException(SelfHostedBlockReason.ServerVersion)
         if (bodyVersion < minimumVersion) {
             throw SelfHostedCompatibilityException(SelfHostedBlockReason.ServerVersion)
@@ -415,7 +407,6 @@ class QueryBackendProvider(
         baseUrl: String,
         tlsMode: SelfHostedTlsMode,
         spkiPin: String,
-        allowPreRelease: Boolean,
     ): Result<NormalizedSelfHostedDraft> = runCatching {
         val normalizedBaseUrl = normalizeSelfHostedBaseUrl(baseUrl).getOrElse { exception ->
             throw SelfHostedConfigurationException(SelfHostedBlockReason.Configuration).also {
@@ -441,7 +432,6 @@ class QueryBackendProvider(
             baseUrl = normalizedBaseUrl,
             tlsMode = tlsMode,
             spkiPin = normalizedPin,
-            allowPreRelease = BuildConfig.DEBUG && allowPreRelease,
         )
     }
 
@@ -709,7 +699,6 @@ class QueryBackendProvider(
         val baseUrl: String,
         val tlsMode: SelfHostedTlsMode,
         val spkiPin: String,
-        val allowPreRelease: Boolean,
     )
 
     /** 只允许在 [snapshotLock] 内修改的 Client 生命周期状态。 */

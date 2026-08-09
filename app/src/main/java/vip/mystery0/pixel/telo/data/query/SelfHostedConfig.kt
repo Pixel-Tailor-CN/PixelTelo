@@ -17,7 +17,6 @@ data class SelfHostedDraft(
     val baseUrl: String,
     val tlsMode: SelfHostedTlsMode,
     val spkiPin: String = "",
-    val allowPreRelease: Boolean = false,
 )
 
 /**

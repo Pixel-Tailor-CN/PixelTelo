@@ -18,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,19 +39,16 @@ import androidx.compose.ui.semantics.password
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.res.stringResource
 import java.text.DateFormat
 import java.util.Date
-import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.query.SelfHostedBlockReason
 import vip.mystery0.pixel.telo.data.query.SelfHostedErrorCategory
 import vip.mystery0.pixel.telo.data.query.SelfHostedTlsMode
 import vip.mystery0.pixel.telo.data.query.VerifiedSelfHostedConfig
-import vip.mystery0.pixel.telo.data.query.maskSelfHostedHost
 import vip.mystery0.pixel.telo.viewmodel.SelfHostedDraftUiState
 
 /**
@@ -303,34 +299,6 @@ private fun SelfHostedEditor(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    if (BuildConfig.DEBUG) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = enabled) {
-                    onDraftChange(draft.copy(allowPreRelease = !draft.allowPreRelease))
-                }
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.setting_allow_prerelease_self_hosted))
-                Text(
-                    stringResource(R.string.setting_allow_prerelease_self_hosted_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(
-                checked = draft.allowPreRelease,
-                onCheckedChange = {
-                    onDraftChange(draft.copy(allowPreRelease = it))
-                },
-                enabled = enabled,
-            )
-        }
-    }
 }
 
 @Composable
@@ -361,25 +329,39 @@ private fun TlsModeRow(
     }
 }
 
-/** 仅展示已验证配置中的脱敏 Host、版本和验证时间。 */
+/** 分行展示已验证配置中的服务地址、版本和验证时间。 */
 @Composable
 fun SelfHostedBackendSummary(config: VerifiedSelfHostedConfig) {
-    val host = remember(config.baseUrl) { maskSelfHostedHost(config.baseUrl) }
-        ?: stringResource(R.string.label_self_hosted_host_unavailable)
     val verifiedAt = remember(config.verifiedAtEpochMillis) {
         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
             .format(Date(config.verifiedAtEpochMillis))
     }
-    Text(
-        text = stringResource(
-            R.string.setting_query_backend_self_hosted_summary,
-            host,
-            config.version,
-            verifiedAt,
-        ),
-        maxLines = 3,
-        overflow = TextOverflow.Ellipsis,
-    )
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = stringResource(
+                R.string.setting_query_backend_self_hosted_address,
+                config.baseUrl,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(
+                R.string.setting_query_backend_self_hosted_version,
+                config.version,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(
+                R.string.setting_query_backend_self_hosted_verified_at,
+                verifiedAt,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @StringRes

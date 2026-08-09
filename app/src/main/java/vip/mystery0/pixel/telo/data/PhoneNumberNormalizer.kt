@@ -16,11 +16,33 @@ object PhoneNumberNormalizer {
     )
 
     internal fun normalizeCountryCode(phoneNumber: String): String {
-        return phoneNumber.trim().removePrefix(CHINA_COUNTRY_CODE)
+        val trimmedNumber = phoneNumber.trim()
+        if (trimmedNumber.startsWith(CHINA_COUNTRY_CODE)) {
+            return trimmedNumber.removePrefix(CHINA_COUNTRY_CODE)
+        }
+        if (
+            trimmedNumber.length == 12 &&
+            trimmedNumber.startsWith('+') &&
+            trimmedNumber[1] == '1' &&
+            trimmedNumber.drop(1).all(Char::isDigit)
+        ) {
+            return trimmedNumber.drop(1)
+        }
+        if (
+            trimmedNumber.length == 13 &&
+            trimmedNumber.startsWith("86") &&
+            trimmedNumber[2] == '1'
+        ) {
+            return trimmedNumber.drop(2)
+        }
+        return trimmedNumber
     }
 
     fun normalizeForLookup(phoneNumber: String): String {
-        val domesticNumber = normalizeCountryCode(phoneNumber)
+        val compactNumber = phoneNumber.trim().filterNot { char ->
+            char.isWhitespace() || char == '-' || char == '(' || char == ')'
+        }
+        val domesticNumber = normalizeCountryCode(compactNumber)
         val multiNumberPrefix = CHINA_MOBILE_MULTI_NUMBER_PREFIXES.firstOrNull {
             domesticNumber.startsWith(it)
         }

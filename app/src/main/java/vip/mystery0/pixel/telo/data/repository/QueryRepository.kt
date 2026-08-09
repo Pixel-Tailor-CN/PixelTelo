@@ -204,6 +204,26 @@ class QueryRepository(
     /** 使用一次 Snapshot 及其 Backend 专属 source 发起查询，不在来电链路刷新 source。 */
     suspend fun queryNumber(phone: String): BackendQueryResponse {
         val lease = backendProvider.acquireSnapshotLease() ?: throw BackendBlockedException()
+        return queryNumberWithLease(phone, lease)
+    }
+
+    /** 使用调用方已读取的 Backend Snapshot 发起查询，禁止切换窗口把响应归入旧代次缓存。 */
+    internal suspend fun queryNumber(
+        phone: String,
+        expectedSnapshot: QueryBackendSnapshot,
+    ): BackendQueryResponse {
+        val lease = backendProvider.acquireSnapshotLease() ?: throw BackendBlockedException()
+        if (lease.snapshot !== expectedSnapshot) {
+            lease.close()
+            throw BackendBlockedException()
+        }
+        return queryNumberWithLease(phone, lease)
+    }
+
+    private suspend fun queryNumberWithLease(
+        phone: String,
+        lease: QueryBackendLease,
+    ): BackendQueryResponse {
         try {
             val snapshot = lease.snapshot
             val sources = configMutex.withLock {

@@ -8,7 +8,6 @@ import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
 import java.security.KeyStore
-import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -49,13 +48,12 @@ class SelfHostedCredentialStore(context: Context) {
             requireValidSlot(slot)
             encoded = StandardCharsets.UTF_8.newEncoder().encode(CharBuffer.wrap(token))
             plaintext = ByteArray(encoded.remaining()).also(encoded::get)
-            iv = ByteArray(GCM_IV_LENGTH_BYTES).also(secureRandom::nextBytes)
             val cipher = Cipher.getInstance(CIPHER_TRANSFORMATION)
-            cipher.init(
-                Cipher.ENCRYPT_MODE,
-                getOrCreateSecretKey(),
-                GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv),
-            )
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
+            iv = cipher.iv
+            require(iv.size == GCM_IV_LENGTH_BYTES) {
+                "Invalid self-hosted credential IV"
+            }
             ciphertext = cipher.doFinal(plaintext)
 
             val serialized = listOf(
@@ -219,6 +217,5 @@ class SelfHostedCredentialStore(context: Context) {
         const val GCM_IV_LENGTH_BYTES = 12
         const val GCM_TAG_LENGTH_BITS = 128
         val SLOT_PATTERN = Regex("[a-zA-Z0-9_-]{1,80}")
-        val secureRandom = SecureRandom()
     }
 }

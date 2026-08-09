@@ -253,9 +253,10 @@
     <!-- Query Sources -->
     <string name="setting_query_backend">Real-time query server</string>
     <string name="setting_query_backend_official_summary">Official Pixel Telo service</string>
-    <string name="setting_query_backend_self_hosted_summary">%1$s · version %2$s · verified %3$s</string>
+    <string name="setting_query_backend_self_hosted_address">Server address: %1$s</string>
+    <string name="setting_query_backend_self_hosted_version">Server version: %1$s</string>
+    <string name="setting_query_backend_self_hosted_verified_at">Verified at: %1$s</string>
     <string name="setting_query_backend_self_hosted_unavailable_summary">Self-hosted service · configuration required</string>
-    <string name="label_self_hosted_host_unavailable">Self-hosted service</string>
     <string name="title_self_hosted_config">Configure self-hosted service</string>
     <string name="title_self_hosted_management">Self-hosted service</string>
     <string name="msg_self_hosted_management_hint">This service is active. You can run the full validation again, modify its configuration, or switch back to the official service.</string>
@@ -271,8 +272,6 @@
     <string name="tls_mode_spki_pin_summary">Trust only the exact SHA-256 SPKI Pin; certificate validity and hostname/IP SAN are still verified.</string>
     <string name="label_self_hosted_spki_pin">SPKI Pin</string>
     <string name="hint_self_hosted_spki_pin">SHA-256 Pin supplied by your server administrator</string>
-    <string name="setting_allow_prerelease_self_hosted">Allow pre-release server</string>
-    <string name="setting_allow_prerelease_self_hosted_summary">Debug only. Applies to this validation and is never enabled in release builds.</string>
     <string name="action_test_and_enable_self_hosted">Test and enable</string>
     <string name="action_revalidate_self_hosted">Test again</string>
     <string name="action_modify_self_hosted">Modify configuration</string>
