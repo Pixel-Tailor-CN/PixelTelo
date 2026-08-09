@@ -134,19 +134,26 @@ class SelfHostedCredentialStore(context: Context) {
     /**
      * 安全阻止哨兵无法落盘时销毁 Keystore 主密钥。
      *
+     * Android 10–11（API 29–30）的旧 Keystore 会把服务错误折叠为 `containsAlias=false`，
+     * Android 12–15（API 31–35）的 Keystore2 也会把读取元数据时的异常折叠为相同结果，
+     * 因此存在性查询不能证明主密钥已经缺失。
+     * 这里无条件调用 [KeyStore.deleteEntry]：平台会把 alias 不存在视为幂等成功，并把其他删除错误
+     * 作为异常抛出；只有删除调用正常返回，才证明 alias 已删除或原本不存在。删除成功后的密文清理
+     * 仅为 best-effort，其返回值或异常都不能改变主密钥已失效的安全证明。
+     *
      * 即使密文 SharedPreferences 清理失败，旧密文也会因密钥不存在而在下次启动无法解密；
      * 用户只能重新输入 Token 并完成完整验证。
      */
-    internal fun invalidateAllCredentials(): Result<Unit> = runCatching {
-        val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
-        if (keyStore.containsAlias(KEY_ALIAS)) {
+    internal fun invalidateAllCredentials(): Result<Unit> {
+        val invalidationResult = runCatching {
+            val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
             keyStore.deleteEntry(KEY_ALIAS)
         }
-        check(!keyStore.containsAlias(KEY_ALIAS)) {
-            "Unable to invalidate self-hosted credential key"
-        }
+        if (invalidationResult.isFailure) return invalidationResult
+
         // 密钥删除是安全线性化边界；密文清理只用于减少无效数据残留。
-        preferences.edit().clear().commit()
+        runCatching { preferences.edit().clear().commit() }
+        return Result.success(Unit)
     }
 
     /** 启动恢复时回收所有未被活动配置引用的候选凭据。 */

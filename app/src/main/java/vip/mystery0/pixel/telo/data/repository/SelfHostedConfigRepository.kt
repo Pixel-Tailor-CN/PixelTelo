@@ -193,8 +193,8 @@ class SelfHostedConfigRepository(
     /**
      * 持久阻止当前自建配置。
      *
-     * AtomicFile 哨兵可靠落盘后，活动记录只作为冗余副本；若哨兵写入失败，则必须先销毁并
-     * 复核 Keystore 主密钥不存在，之后才允许提交活动记录。SharedPreferences 的任意提交可能
+     * AtomicFile 哨兵可靠落盘后，活动记录只作为冗余副本；若哨兵写入失败，则必须先销毁
+     * Keystore 主密钥且删除调用正常返回，之后才允许提交活动记录。SharedPreferences 的任意提交可能
      * 连带刷盘先前失败命令污染的候选指针，先让全部槽位密文不可解密才能覆盖任意中断点。
      */
     @Synchronized
