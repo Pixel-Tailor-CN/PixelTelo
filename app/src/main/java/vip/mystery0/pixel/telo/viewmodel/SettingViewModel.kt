@@ -595,6 +595,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     /**
      * 直接接收 Dialog 移交的一次性 Token 并完整验证；Token 不写入任何 Compose/ViewModel State。
      * 调用方交出 [token] 后不得再次读取，本方法覆盖拒绝、取消、失败和成功路径清零。
+     * Job 完成回调承担最终幂等清零，覆盖协程体尚未开始即被父作用域取消的边界。
      */
     fun validateAndEnableSelfHosted(draft: SelfHostedDraftUiState, token: CharArray) {
         if (!showSelfHostedConfigDialog || selfHostedValidationInProgress) {
@@ -604,7 +605,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         selfHostedDraft = draft
         selfHostedValidationInProgress = true
         selfHostedValidationError = null
-        viewModelScope.launch {
+        val validationJob = viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
                     queryBackendProvider.validateAndEnable(
@@ -631,6 +632,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 token.fill('\u0000')
                 selfHostedValidationInProgress = false
             }
+        }
+        // DEFAULT 启动的协程可能在进入协程体前取消；完成回调必须兜底接管 Token 清零。
+        validationJob.invokeOnCompletion {
+            token.fill('\u0000')
         }
     }
 

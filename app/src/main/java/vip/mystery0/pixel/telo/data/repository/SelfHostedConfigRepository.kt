@@ -193,8 +193,9 @@ class SelfHostedConfigRepository(
     /**
      * 持久阻止当前自建配置。
      *
-     * 独立 AtomicFile 哨兵与活动记录任一可靠落盘即可跨重启恢复；若两者都失败，立即销毁
-     * Keystore 主密钥作为最后一道 Fail Closed 兜底，使旧密文在下次启动不可解密。
+     * AtomicFile 哨兵可靠落盘后，活动记录只作为冗余副本；若哨兵写入失败，则必须先销毁并
+     * 复核 Keystore 主密钥不存在，之后才允许提交活动记录。SharedPreferences 的任意提交可能
+     * 连带刷盘先前失败命令污染的候选指针，先让全部槽位密文不可解密才能覆盖任意中断点。
      */
     @Synchronized
     fun markBlocked(reason: SelfHostedBlockReason): Result<Unit> {
@@ -202,9 +203,10 @@ class SelfHostedConfigRepository(
         val slot = activeSlot()
         val record = slot?.let(::readRecord)
         val sentinelResult = securityBlockStore.write(reason.toStoredValue())
-        val recordPersisted = persistBlockedReason(slot, record, reason)
-        val durable = sentinelResult.isSuccess || recordPersisted ||
-            credentialStore.invalidateAllCredentials().isSuccess
+        val durable = sentinelResult.isSuccess || credentialStore.invalidateAllCredentials().isSuccess
+        if (durable) {
+            persistBlockedReason(slot, record, reason)
+        }
 
         if (config != null) {
             failClosed(config, reason)

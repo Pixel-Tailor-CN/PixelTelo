@@ -81,10 +81,12 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 * 新配置先写候选凭据和候选配置，再通过 journal 原子切换活动指针；恢复无法可靠裁决、Keystore
   失效或配置损坏时保持自建选择但阻止联网，要求用户重新完整验证，不自动切回官方。
 * 普通存储提交失败保留当前进程旧 Snapshot、Client 与活动选择；journal 仅用于下次启动裁决。
-  运行期安全阻止另写 no-backup AtomicFile 哨兵，SharedPreferences 写盘也失败时销毁 Keystore 主密钥；
-  只有完整重验证和新活动指针提交成功才解除哨兵。
+  运行期安全阻止另写 no-backup AtomicFile 哨兵；哨兵未可靠写入时，在任何活动记录提交前先销毁并
+  复核 Keystore 主密钥不存在，使 journal 可能引用的全部槽位密文不可恢复。密钥销毁失败时不提交可能
+  刷盘受污染活动指针的记录；只有完整重验证和新活动指针提交成功才解除哨兵。
 * Compose/ViewModel 公开状态只保存非敏感草稿。Dialog 将 Token 一次性移交为 `CharArray`，验证调用的
-  `finally` 覆盖成功、失败、取消与拒绝路径清零，不进入 `mutableStateOf`、StateFlow 或 SavedState。
+  `finally` 与 Job 完成回调共同覆盖成功、失败、取消、拒绝及协程体尚未开始即取消的清零路径，不进入
+  `mutableStateOf`、StateFlow 或 SavedState。
 
 ## 拦截记录分页与联系人解析
 
