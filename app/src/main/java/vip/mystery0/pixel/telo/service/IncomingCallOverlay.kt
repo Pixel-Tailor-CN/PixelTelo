@@ -257,7 +257,7 @@ class IncomingCallOverlay(
                 .fillMaxWidth(0.94f)
                 .widthIn(max = 420.dp),
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.88f),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(
@@ -318,7 +318,7 @@ class IncomingCallOverlay(
                     content.labelText?.let { label ->
                         Surface(
                             shape = RoundedCornerShape(50.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.86f)
+                            color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Text(
                                 text = label,

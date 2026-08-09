@@ -17,3 +17,4 @@ local.properties
 /.claude/
 /.superpowers/
 /app/release/
+/.kotlin/

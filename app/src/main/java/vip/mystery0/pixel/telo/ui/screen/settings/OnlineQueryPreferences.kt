@@ -56,6 +56,15 @@ fun OnlineQueryPreferences(
     }
     val sourceMatchesBackend = backendState is QueryBackendState.Ready &&
         querySourceState.backendId == backendState.backendId
+    val onlineQueryEnabled = !viewModel.noNetworkQuery
+
+    SwitchPreference(
+        value = viewModel.noNetworkQuery,
+        onValueChange = viewModel::updateNoNetworkQuery,
+        title = { Text(stringResource(R.string.setting_no_network_query)) },
+        summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
+        icon = { Icon(Icons.Default.WifiOff, contentDescription = null) },
+    )
 
     Preference(
         title = { Text(stringResource(R.string.setting_query_backend)) },
@@ -83,6 +92,7 @@ fun OnlineQueryPreferences(
             }
         },
         icon = { Icon(Icons.Default.Cloud, contentDescription = null) },
+        enabled = onlineQueryEnabled,
         onClick = viewModel::openSelfHostedConfig,
     )
 
@@ -100,7 +110,7 @@ fun OnlineQueryPreferences(
             )
         },
         icon = { Icon(Icons.Default.Dns, contentDescription = null) },
-        enabled = sourceMatchesBackend,
+        enabled = onlineQueryEnabled && sourceMatchesBackend,
         onClick = viewModel::openQuerySourceSettings,
     )
 
@@ -134,7 +144,7 @@ fun OnlineQueryPreferences(
             )
         },
         icon = { Icon(Icons.Default.ThumbsUpDown, contentDescription = null) },
-        enabled = !selfHostedSelected,
+        enabled = onlineQueryEnabled && !selfHostedSelected,
     )
 
     Preference(
@@ -148,7 +158,8 @@ fun OnlineQueryPreferences(
             )
         },
         icon = { Icon(Icons.Default.NetworkCheck, contentDescription = null) },
-        onClick = { showTimeoutDialog = true }
+        enabled = onlineQueryEnabled,
+        onClick = { showTimeoutDialog = true },
     )
 
     if (showTimeoutDialog) {
@@ -192,11 +203,4 @@ fun OnlineQueryPreferences(
         )
     }
 
-    SwitchPreference(
-        value = viewModel.noNetworkQuery,
-        onValueChange = viewModel::updateNoNetworkQuery,
-        title = { Text(stringResource(R.string.setting_no_network_query)) },
-        summary = { Text(stringResource(R.string.setting_no_network_query_summary)) },
-        icon = { Icon(Icons.Default.WifiOff, contentDescription = null) }
-    )
 }

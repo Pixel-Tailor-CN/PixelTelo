@@ -18,7 +18,6 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
@@ -110,7 +109,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         const val MIN_NETWORK_TIMEOUT_SECONDS = 1
         const val MAX_NETWORK_TIMEOUT_SECONDS = 10
         const val DEFAULT_REPEAT_CALL_WINDOW_MINUTES = 3
-        const val DEFAULT_LOCATION_OVERLAY_OFFSET_DP = 56
+        const val DEFAULT_LOCATION_OVERLAY_OFFSET_DP = 200
         const val DEFAULT_LOCATION_OVERLAY_DURATION_SECONDS = 6
         const val MIN_LOCATION_OVERLAY_DURATION_SECONDS = 3
         const val MAX_LOCATION_OVERLAY_DURATION_SECONDS = 30
