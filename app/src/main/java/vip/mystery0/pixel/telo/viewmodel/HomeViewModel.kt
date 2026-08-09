@@ -157,14 +157,14 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         UserLists(blackList, whiteList)
     }
 
+    private val cachedBlockedCalls = repository.blockedCallsPager.cachedIn(viewModelScope)
+
     val blockedCallItems: Flow<PagingData<BlockedCallListItem>> =
-        repository.blockedCallsPager
-            .combine(userLists) { pagingData, lists ->
-                pagingData.map { call ->
-                    buildBlockedCallListItem(call, lists.black, lists.white)
-                }
+        cachedBlockedCalls.combine(userLists) { pagingData, lists ->
+            pagingData.map { call ->
+                buildBlockedCallListItem(call, lists.black, lists.white)
             }
-            .cachedIn(viewModelScope)
+        }.cachedIn(viewModelScope)
 
     private val _contactNames = MutableStateFlow<Map<String, String>>(emptyMap())
     val contactNames: StateFlow<Map<String, String>> = _contactNames.asStateFlow()
