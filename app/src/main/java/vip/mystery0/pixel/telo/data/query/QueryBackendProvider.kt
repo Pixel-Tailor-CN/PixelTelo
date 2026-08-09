@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.data.query
 
+import android.util.Log
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -79,7 +80,8 @@ class QueryBackendProvider(
     private val commandGeneration = AtomicLong(0L)
     private val initialOfficialSnapshot = createOfficialSnapshot(INITIAL_ACTIVATION_ID)
     private var activeGeneration = 0L
-    private var activeClient: SelfHostedClientBundle? = null
+    private var activeClient: ManagedSelfHostedClient? = null
+    private val managedClientsByGeneration = mutableMapOf<Long, ManagedSelfHostedClient>()
     private var currentSnapshot: QueryBackendSnapshot? = initialOfficialSnapshot
     private val _state = MutableStateFlow<QueryBackendState>(
         QueryBackendState.Ready(
@@ -97,6 +99,37 @@ class QueryBackendProvider(
 
     /** 返回单次操作使用的快照；安全阻止状态固定返回 `null`。 */
     fun snapshot(): QueryBackendSnapshot? = synchronized(snapshotLock) { currentSnapshot }
+
+    /** 判断原始 Snapshot 引用及其激活代次是否仍为当前运行实例。 */
+    fun isCurrentSnapshot(snapshot: QueryBackendSnapshot): Boolean = synchronized(snapshotLock) {
+        currentSnapshot === snapshot && activeGeneration == snapshot.activationId
+    }
+
+    /**
+     * 获取一次查询或 source 刷新的 Snapshot 租约。
+     *
+     * 普通切换后旧自建 Client 会等待最后一个租约释放再关闭；安全阻止会禁止新租约并立即
+     * 撤销旧 Client。租约获取与当前 Snapshot 读取共用同一短锁，不存在先读后加引用的 ABA 窗口。
+     */
+    fun acquireSnapshotLease(): QueryBackendLease? = synchronized(snapshotLock) {
+        val snapshot = currentSnapshot ?: return@synchronized null
+        if (snapshot.type == QueryBackendType.OFFICIAL) {
+            return@synchronized QueryBackendLease(
+                snapshot = snapshot,
+                releaseAction = {},
+            )
+        }
+
+        val client = activeClient
+            ?.takeIf { it.acceptingLeases && !it.resourcesClosed }
+            ?: return@synchronized null
+        client.leaseCount += 1
+        QueryBackendLease(
+            snapshot = snapshot,
+            releaseAction = { releaseClientLease(client) },
+            usableAction = { isClientLeaseUsable(client) },
+        )
+    }
 
     /**
      * 仅当原始 [snapshot] 仍是当前激活实例时，在同一短锁窗口内执行 [publish]。
@@ -129,7 +162,10 @@ class QueryBackendProvider(
     }
 
     /** 完整验证草稿，只有所有远端与本地提交步骤成功后才发布自建快照。 */
-    suspend fun validateAndEnable(draft: SelfHostedDraft): SelfHostedValidationResult =
+    suspend fun validateAndEnable(
+        draft: SelfHostedDraft,
+        token: CharArray,
+    ): SelfHostedValidationResult = try {
         validationMutex.withLock {
             val generation = commandGeneration.incrementAndGet()
             val normalizedDraft = normalizeDraft(
@@ -138,13 +174,11 @@ class QueryBackendProvider(
                 spkiPin = draft.spkiPin,
                 allowPreRelease = draft.allowPreRelease,
             ).getOrElse { exception -> return@withLock validationFailure(exception) }
-            val token = draft.token.toCharArray()
-            try {
-                validateAndPublish(normalizedDraft, token, generation)
-            } finally {
-                token.fill('\u0000')
-            }
+            validateAndPublish(normalizedDraft, token, generation)
         }
+    } finally {
+        token.fill('\u0000')
+    }
 
     /** 使用当前已保存的配置与凭据重新执行完整验证，不绕过 Blocked 状态。 */
     suspend fun revalidate(): SelfHostedValidationResult = validationMutex.withLock {
@@ -154,8 +188,7 @@ class QueryBackendProvider(
         }
         val material = materialResult.getOrElse { exception ->
             val failure = validationFailure(exception)
-            blockAfterRevalidationFailure(failure)
-            return@withLock failure
+            return@withLock blockAfterRevalidationFailure(failure)
         }
         val token = material.takeToken()
         try {
@@ -168,8 +201,7 @@ class QueryBackendProvider(
                 allowPreRelease = allowPreRelease,
             ).getOrElse { exception ->
                 val failure = validationFailure(exception)
-                blockAfterRevalidationFailure(failure)
-                return@withLock failure
+                return@withLock blockAfterRevalidationFailure(failure)
             }
             val result = validateAndPublish(
                 draft = normalizedDraft,
@@ -177,7 +209,7 @@ class QueryBackendProvider(
                 generation = generation,
             )
             if (result is SelfHostedValidationResult.Failure) {
-                blockAfterRevalidationFailure(result)
+                return@withLock blockAfterRevalidationFailure(result)
             }
             result
         } finally {
@@ -191,21 +223,18 @@ class QueryBackendProvider(
         var clientToClose: SelfHostedClientBundle? = null
         synchronized(commandLock) {
             val selected = configRepository.selectOfficialBackend().isSuccess
+            if (!selected) return@synchronized
             synchronized(snapshotLock) {
-                clientToClose = activeClient
+                clientToClose = retireClientLocked(activeClient)
                 activeClient = null
-                activeGeneration = if (selected) generation else commandGeneration.incrementAndGet()
-                val officialSnapshot = if (selected) createOfficialSnapshot(generation) else null
+                activeGeneration = generation
+                val officialSnapshot = createOfficialSnapshot(generation)
                 currentSnapshot = officialSnapshot
-                _state.value = if (selected) {
-                    QueryBackendState.Ready(
-                        QueryBackendType.OFFICIAL,
-                        OFFICIAL_BACKEND_ID,
-                        checkNotNull(officialSnapshot).activationId,
-                    )
-                } else {
-                    QueryBackendState.Blocked(SelfHostedBlockReason.Configuration)
-                }
+                _state.value = QueryBackendState.Ready(
+                    QueryBackendType.OFFICIAL,
+                    OFFICIAL_BACKEND_ID,
+                    officialSnapshot.activationId,
+                )
             }
         }
         clientToClose?.close?.invoke()
@@ -234,6 +263,13 @@ class QueryBackendProvider(
             temporaryClient.close()
         }
 
+        if (commandGeneration.get() != generation) {
+            return SelfHostedValidationResult.Failure(
+                category = SelfHostedErrorCategory.CANCELLED,
+                safeMessage = null,
+            )
+        }
+
         val runtimeClient = clientFactory.createVerifiedClient(
             config = verifiedConfig,
             token = token,
@@ -258,8 +294,8 @@ class QueryBackendProvider(
             return validationFailure(exception)
         }
 
-        var previousClient: SelfHostedClientBundle? = null
-        var blockedClient: SelfHostedClientBundle? = null
+        val managedRuntimeClient = ManagedSelfHostedClient(generation, runtimeClient)
+        var previousClientToClose: SelfHostedClientBundle? = null
         val result = synchronized(commandLock) {
             if (commandGeneration.get() != generation) {
                 return@synchronized SelfHostedValidationResult.Failure(
@@ -273,7 +309,6 @@ class QueryBackendProvider(
                 token = token,
             )
             if (commitResult.isFailure) {
-                blockedClient = synchronizeBlockedStateAfterCommitFailure()
                 return@synchronized SelfHostedValidationResult.Failure(
                     category = SelfHostedErrorCategory.STORAGE,
                     safeMessage = null,
@@ -281,8 +316,9 @@ class QueryBackendProvider(
             }
 
             synchronized(snapshotLock) {
-                previousClient = activeClient
-                activeClient = runtimeClient
+                previousClientToClose = retireClientLocked(activeClient)
+                activeClient = managedRuntimeClient
+                managedClientsByGeneration[generation] = managedRuntimeClient
                 activeGeneration = generation
                 currentSnapshot = runtimeSnapshot
                 _state.value = QueryBackendState.Ready(
@@ -296,9 +332,8 @@ class QueryBackendProvider(
 
         if (result !is SelfHostedValidationResult.Success) {
             runtimeClient.close()
-            blockedClient?.close?.invoke()
         } else {
-            previousClient?.close?.invoke()
+            previousClientToClose?.close?.invoke()
         }
         return result
     }
@@ -455,7 +490,9 @@ class QueryBackendProvider(
         }
 
         synchronized(snapshotLock) {
-            activeClient = client
+            val managedClient = ManagedSelfHostedClient(generation, client)
+            activeClient = managedClient
+            managedClientsByGeneration[generation] = managedClient
             activeGeneration = generation
             val identity = SelfHostedIdentity(config.instanceId, config.version, config.apiVersion)
             val snapshot = QueryBackendSnapshot(
@@ -477,20 +514,40 @@ class QueryBackendProvider(
 
     private fun markRuntimeBlocked(generation: Long, reason: SelfHostedBlockReason) {
         var clientToClose: SelfHostedClientBundle? = null
+        var cancellationFailure: Throwable? = null
+        var blockPersistenceResult: Result<Unit>? = null
         synchronized(commandLock) {
+            var blocksCurrentSnapshot = false
             synchronized(snapshotLock) {
-                if (activeGeneration != generation || currentSnapshot?.type != QueryBackendType.SELF_HOSTED) {
-                    return
+                val targetClient = managedClientsByGeneration[generation] ?: return
+                blocksCurrentSnapshot = activeClient === targetClient &&
+                    activeGeneration == generation &&
+                    currentSnapshot?.type == QueryBackendType.SELF_HOSTED
+                // 这里是安全线性化点：从同一短锁后的所有 lease 检查都会失败。
+                clientToClose = revokeClientLocked(targetClient)
+                if (blocksCurrentSnapshot) {
+                    activeClient = null
+                    activeGeneration = commandGeneration.incrementAndGet()
+                    currentSnapshot = null
                 }
-                clientToClose = activeClient
-                activeClient = null
-                activeGeneration = commandGeneration.incrementAndGet()
-                currentSnapshot = null
-                _state.value = QueryBackendState.Blocked(reason)
             }
-            configRepository.markBlocked(reason)
+
+            // cancelAll() 不等待请求结束，可在不持 Snapshot 锁时尽快打断网络 I/O。
+            cancellationFailure = runCatching { clientToClose?.cancelRequests?.invoke() }.exceptionOrNull()
+            if (blocksCurrentSnapshot) {
+                blockPersistenceResult = configRepository.markBlocked(reason)
+                synchronized(snapshotLock) {
+                    _state.value = QueryBackendState.Blocked(reason)
+                }
+            }
         }
         clientToClose?.close?.invoke()
+        cancellationFailure?.let { exception ->
+            Log.e(TAG, "Unable to cancel self-hosted requests", exception)
+        }
+        blockPersistenceResult?.exceptionOrNull()?.let { exception ->
+            Log.e(TAG, "Unable to persist self-hosted security block", exception)
+        }
     }
 
     private fun publishBlocked(reason: SelfHostedBlockReason) {
@@ -502,36 +559,79 @@ class QueryBackendProvider(
         }
     }
 
-    private fun synchronizeBlockedStateAfterCommitFailure(): SelfHostedClientBundle? {
-        val selectedSelfHosted = configRepository.currentBackendType() == QueryBackendType.SELF_HOSTED
-        val blocked = configRepository.connectionState.value as? SelfHostedConnectionState.Blocked
-        if (selectedSelfHosted && blocked != null) {
-            return synchronized(snapshotLock) {
-                val clientToClose = activeClient
-                activeClient = null
-                activeGeneration = commandGeneration.incrementAndGet()
-                currentSnapshot = null
-                _state.value = QueryBackendState.Blocked(blocked.reason)
-                clientToClose
-            }
-        }
-        return null
-    }
-
     /** 显式重验证发现安全不兼容时，不能继续复用已经启用的旧自建 Client。 */
-    private fun blockAfterRevalidationFailure(failure: SelfHostedValidationResult.Failure) {
-        val reason = failure.category.toBlockReasonForRevalidation() ?: return
+    private fun blockAfterRevalidationFailure(
+        failure: SelfHostedValidationResult.Failure,
+    ): SelfHostedValidationResult.Failure {
+        val reason = failure.category.toBlockReasonForRevalidation() ?: return failure
         var clientToClose: SelfHostedClientBundle? = null
+        var cancellationFailure: Throwable? = null
+        var blockPersistenceResult: Result<Unit>? = null
         synchronized(commandLock) {
             synchronized(snapshotLock) {
-                if (currentSnapshot?.type != QueryBackendType.SELF_HOSTED) return
-                clientToClose = activeClient
+                if (currentSnapshot?.type != QueryBackendType.SELF_HOSTED) return failure
+                // 与运行期回调共享语义：先原子撤销，再执行任何持久化操作。
+                clientToClose = revokeClientLocked(activeClient)
                 activeClient = null
                 activeGeneration = commandGeneration.incrementAndGet()
                 currentSnapshot = null
+            }
+            cancellationFailure = runCatching { clientToClose?.cancelRequests?.invoke() }.exceptionOrNull()
+            blockPersistenceResult = configRepository.markBlocked(reason)
+            synchronized(snapshotLock) {
                 _state.value = QueryBackendState.Blocked(reason)
             }
-            configRepository.markBlocked(reason)
+        }
+        clientToClose?.close?.invoke()
+        cancellationFailure?.let { exception ->
+            Log.e(TAG, "Unable to cancel self-hosted requests", exception)
+        }
+        return if (blockPersistenceResult?.isFailure == true) {
+            SelfHostedValidationResult.Failure(
+                category = SelfHostedErrorCategory.STORAGE,
+                safeMessage = null,
+            )
+        } else {
+            failure
+        }
+    }
+
+    /** 普通切换只标记退役；没有租约时才返回需要在锁外关闭的 Client。 */
+    private fun retireClientLocked(client: ManagedSelfHostedClient?): SelfHostedClientBundle? {
+        if (client == null) return null
+        client.acceptingLeases = false
+        client.retired = true
+        if (client.leaseCount != 0 || client.resourcesClosed) return null
+        client.resourcesClosed = true
+        managedClientsByGeneration.remove(client.generation, client)
+        return client.bundle
+    }
+
+    /** 安全阻止越过租约立即撤销 Client；租约稍后释放时不得重复关闭。 */
+    private fun revokeClientLocked(client: ManagedSelfHostedClient?): SelfHostedClientBundle? {
+        if (client == null || client.resourcesClosed) return null
+        client.acceptingLeases = false
+        client.retired = true
+        client.revoked = true
+        client.resourcesClosed = true
+        managedClientsByGeneration.remove(client.generation, client)
+        return client.bundle
+    }
+
+    private fun isClientLeaseUsable(client: ManagedSelfHostedClient): Boolean =
+        synchronized(snapshotLock) { !client.revoked }
+
+    /** 租约释放只获取 Snapshot 锁，并始终在锁外执行可能取消网络请求的 close。 */
+    private fun releaseClientLease(client: ManagedSelfHostedClient) {
+        var clientToClose: SelfHostedClientBundle? = null
+        synchronized(snapshotLock) {
+            check(client.leaseCount > 0) { "Self-hosted client lease underflow" }
+            client.leaseCount -= 1
+            if (client.retired && client.leaseCount == 0 && !client.resourcesClosed) {
+                client.resourcesClosed = true
+                managedClientsByGeneration.remove(client.generation, client)
+                clientToClose = client.bundle
+            }
         }
         clientToClose?.close?.invoke()
     }
@@ -612,7 +712,19 @@ class QueryBackendProvider(
         val allowPreRelease: Boolean,
     )
 
+    /** 只允许在 [snapshotLock] 内修改的 Client 生命周期状态。 */
+    private class ManagedSelfHostedClient(
+        val generation: Long,
+        val bundle: SelfHostedClientBundle,
+        var leaseCount: Int = 0,
+        var acceptingLeases: Boolean = true,
+        var retired: Boolean = false,
+        var revoked: Boolean = false,
+        var resourcesClosed: Boolean = false,
+    )
+
     private companion object {
+        const val TAG = "QueryBackendProvider"
         const val INITIAL_ACTIVATION_ID = 0L
         const val SELF_HOSTED_SERVICE = "pixel-telo-mast-selfhost"
         const val HTTP_UNAUTHORIZED = 401

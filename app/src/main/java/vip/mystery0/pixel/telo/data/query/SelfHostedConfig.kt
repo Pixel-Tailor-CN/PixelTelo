@@ -12,10 +12,9 @@ enum class SelfHostedTlsMode {
     SPKI_PIN,
 }
 
-/** 用户编辑中的自建服务草稿，仅在验证阶段短暂保存明文 Token。 */
+/** 用户编辑中的自建服务非敏感草稿；明文 Token 必须通过独立的一次性参数传递。 */
 data class SelfHostedDraft(
     val baseUrl: String,
-    val token: String,
     val tlsMode: SelfHostedTlsMode,
     val spkiPin: String = "",
     val allowPreRelease: Boolean = false,

@@ -47,8 +47,9 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 
 * `QueryBackendProvider` 是活动 Backend 的单一事实来源。每次激活都会发布新的不可变
   `QueryBackendSnapshot`，包含 Backend ID、唯一 `activationId`、`QueryApi`、反馈能力和可选自建身份。
-* `snapshot()` 只在短锁内读取已构造引用；配置验证、Keystore 和磁盘操作位于独立命令边界。
-  进行中的请求持续使用开始时取得的旧 Snapshot，不会在 Backend 切换后改变目标 Client。
+* `snapshot()` 只在短锁内读取已构造引用；查询与 source 刷新使用 `QueryBackendLease` 在完整操作期间持有
+  对应 Snapshot/Client。普通切换只退役旧 Client，最后一个 lease 释放后才清理 Token 与网络资源；
+  安全阻止则立即 revoke/cancel。配置验证、Keystore 和磁盘操作位于独立命令边界。
 * 运行期版本、API Version、Instance ID 或身份 Header 校验失败时，Provider 撤销自建 Snapshot、持久化
   `Blocked` 状态，并让后续调用直接得到不可用状态。来电路径对此 **Fail Open**，且不会读取官方
   Snapshot 或再次请求官方实时查询。
@@ -63,7 +64,8 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   `query_source_config` 只迁移到 `official`；自建 ID 为规范化 Instance ID 派生的
   `selfhost:<uuid>`，不会继承官方 source。
 * `sourceState` 始终归属于当前 Snapshot。Backend 切换先发布目标缓存或空状态，再异步刷新；所有迟到
-  发布都要同时通过 Snapshot 引用和 `activationId` 门禁，避免跨 Backend 及 ABA 污染。
+  发布都要同时通过 Snapshot 引用和 `activationId` 门禁，避免跨 Backend 及 ABA 污染。首页 source
+  WarningCard 还会校验 `sourceState.backendId` 与当前 Ready Backend ID，切换窗口不展示旧告警。
 * `BackendQueryResponse` 从 Snapshot 派生可信 Backend ID 和反馈能力。自建响应即使返回反馈 Token，
   也会在这一边界被强制清除。
 * `BlockedCall`（Room v9）持久化 `queryBackendId`。Repository、首页 UI 与
@@ -78,6 +80,11 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   Backend 指针，不序列化明文 Token。Backend 与 TLS 模式使用稳定磁盘 codec，不依赖 enum 源码名称。
 * 新配置先写候选凭据和候选配置，再通过 journal 原子切换活动指针；恢复无法可靠裁决、Keystore
   失效或配置损坏时保持自建选择但阻止联网，要求用户重新完整验证，不自动切回官方。
+* 普通存储提交失败保留当前进程旧 Snapshot、Client 与活动选择；journal 仅用于下次启动裁决。
+  运行期安全阻止另写 no-backup AtomicFile 哨兵，SharedPreferences 写盘也失败时销毁 Keystore 主密钥；
+  只有完整重验证和新活动指针提交成功才解除哨兵。
+* Compose/ViewModel 公开状态只保存非敏感草稿。Dialog 将 Token 一次性移交为 `CharArray`，验证调用的
+  `finally` 覆盖成功、失败、取消与拒绝路径清零，不进入 `mutableStateOf`、StateFlow 或 SavedState。
 
 ## 拦截记录分页与联系人解析
 

@@ -24,9 +24,10 @@
 
 ### 3. 数据源下线提示 (WarningCard)
 
-* **触发条件**: `HomeViewModel.sourceState.unavailableEnabledSources` 非空，即用户已启用的联网查询
-  source 被当前 Backend 下线。source 清单在应用启动时后台刷新一次，不阻塞首页首帧；刷新失败沿用
-  当前 Backend 缓存，不误报下线，也不展示其他 Backend 的 source。
+* **触发条件**: `HomeViewModel.unavailableSourceWarning` 非空，即 source 状态的 `backendId` 与当前
+  `QueryBackendState.Ready.backendId` 匹配，且用户已启用的联网查询 source 被该 Backend 下线。source
+  清单在应用启动时后台刷新一次，不阻塞首页首帧；切换窗口先隐藏旧 Backend 告警，刷新失败沿用当前
+  Backend 缓存，不误报其他 Backend 的 source。
 * **UI 元素**: 不可忽略的 WarningCard，列出下线的 source ID，提供“调整数据源”按钮。
 * **导航**: 按钮经 `MainActivity` 协调，先打开 `SettingViewModel` 的 source 设置 BottomSheet，
   再切换到设置页。用户修正配置后卡片自动消失。
@@ -40,6 +41,8 @@
   完整 URL、Pin、Instance ID、服务端响应正文或异常堆栈。
 * **导航**: 操作跳转到设置页的在线查询区域。用户可重新测试、修改配置或显式切回官方；只有完整重验证
   成功才解除阻止状态。
+* **恢复边界**: 运行期安全阻止在发布卡片前写入独立持久哨兵；进程被终止后仍保持 Blocked。普通
+  Backend 存储命令失败只展示本次操作错误，不撤销仍可用的旧 Backend，也不触发安全卡片。
 * **来电行为**: 卡片只反映 Provider 状态；实际来电查询在 Snapshot 不可用时直接 Fail Open，不回退
   官方实时查询。
 

@@ -630,7 +630,6 @@ fun SettingsScreen(viewModel: SettingViewModel) {
             blockedReason = (queryBackendState as? QueryBackendState.Blocked)?.reason,
             validationInProgress = viewModel.selfHostedValidationInProgress,
             validationError = viewModel.selfHostedValidationError,
-            onUpdateDraft = viewModel::updateSelfHostedDraft,
             onValidateAndEnable = viewModel::validateAndEnableSelfHosted,
             onRevalidate = viewModel::revalidateSelfHosted,
             onEdit = viewModel::editSelfHostedConfig,

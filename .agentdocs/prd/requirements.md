@@ -45,8 +45,9 @@
       有效期和域名/IP SAN。
     * 启用前必须验证服务名称、最低 SemVer、API Version 2、Instance ID、`query_v2` capability 和
       响应身份 Header。
-* **Backend 切换**: 配置完整验证并安全提交后才原子发布新的 Backend Snapshot；进行中的请求继续使用
-  旧 Snapshot。自建配置损坏或安全校验失败时保持用户选择但停止联网，不静默切回官方。
+* **Backend 切换**: 配置完整验证并安全提交后才原子发布新的 Backend Snapshot；进行中的请求持 lease
+  继续使用旧 Snapshot，普通切换等待最后 lease 后再关闭旧 Client。普通存储失败保留旧 Backend 且不
+  宣称候选生效；自建配置损坏或安全校验失败时保持用户选择但立即撤销联网，不静默切回官方。
 * **Fail Open**: 自建查询的所有失败都允许来电通过，且不得用官方实时查询做第二次请求。
 * **source 隔离**: 官方与每个自建 Instance 按 Backend ID 独立保存 source 顺序、启用状态和可用性。
 * **反馈隔离**: 自建结果不保存反馈 Token、不显示反馈入口、不发送反馈请求；历史官方反馈仍只提交到
@@ -55,10 +56,12 @@
 ### F05: 自建凭据与隐私
 
 * Token 必须由 Android Keystore AES-GCM 保护，密文文件从 Auto Backup 和设备迁移中排除。
-* UI 状态、Room、默认 SharedPreferences、App 导出备份、日志和异常展示不得包含明文 Token。
+* UI 状态、Room、默认 SharedPreferences、App 导出备份、日志和异常展示不得包含明文 Token。Dialog
+  只能将 Token 作为一次性 `CharArray` 直接移交验证入口，并在所有完成路径清零。
 * 日志不得输出完整号码、完整自建 URL、Pin、Authorization Header、完整请求/响应或私人联调地址；
   仅允许稳定错误分类、耗时、HTTP 状态和脱敏 ID。
-* 配置界面只展示脱敏 Host、服务版本和验证时间，不展示完整 URL、Token、Pin 或 Instance ID。
+* 配置界面只展示脱敏 Host、服务版本和验证时间，不展示完整 URL、Token、Pin 或 Instance ID。DNS
+  每个 label 只保留首字符；IPv4 只保留第一段；IPv6 固定显示 `[IPv6]`，不得回退展示非法原始输入。
 
 ## 3. 性能需求
 

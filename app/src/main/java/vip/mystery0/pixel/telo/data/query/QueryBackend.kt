@@ -1,6 +1,8 @@
 package vip.mystery0.pixel.telo.data.query
 
+import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import vip.mystery0.pixel.telo.data.remote.QueryApi
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
 
@@ -75,6 +77,34 @@ data class QueryBackendSnapshot(
         }
     }
 }
+
+/**
+ * 一次 Backend 操作持有的快照租约。
+ *
+ * 普通 Backend 切换只会退役旧 Client；只有最后一个租约释放后才会清理其凭据与网络资源。
+ * 安全阻止可以越过租约立即撤销 Client，因此持有租约不代表安全错误后仍可继续请求。
+ */
+class QueryBackendLease internal constructor(
+    val snapshot: QueryBackendSnapshot,
+    private val releaseAction: () -> Unit,
+    private val usableAction: () -> Boolean = { true },
+) : AutoCloseable {
+    private val released = AtomicBoolean(false)
+
+    override fun close() {
+        if (released.compareAndSet(false, true)) {
+            releaseAction()
+        }
+    }
+
+    /** 安全撤销后拒绝继续消费并发请求已经取得但尚未发布的结果。 */
+    fun ensureUsable() {
+        if (!usableAction()) throw QueryBackendRevokedException()
+    }
+}
+
+/** 自建 Backend 租约在安全阻止期间被撤销；异常不携带服务地址或响应内容。 */
+class QueryBackendRevokedException : IOException("Query backend lease was revoked")
 
 /** 携带可信 Backend 归属的实时查询响应。 */
 @ConsistentCopyVisibility

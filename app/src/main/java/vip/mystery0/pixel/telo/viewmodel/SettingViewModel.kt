@@ -80,13 +80,12 @@ enum class LocationOverlayStyle {
 }
 
 /**
- * 自建查询服务 Dialog 的短生命周期草稿。
+ * 自建查询服务 Dialog 的非敏感草稿。
  *
- * 该状态不接入 SavedState，也不写入持久化存储；明文 Token 只在用户提交验证时短暂传入 ViewModel。
+ * 该公开可观察状态不接入 SavedState，也不包含明文 Token；Token 只通过一次性 `CharArray` 参数移交。
  */
 data class SelfHostedDraftUiState(
     val baseUrl: String = "",
-    val token: String = "",
     val tlsMode: SelfHostedTlsMode = SelfHostedTlsMode.SYSTEM,
     val spkiPin: String = "",
     val allowPreRelease: Boolean = false,
@@ -566,10 +565,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var selfHostedValidationError by mutableStateOf<SelfHostedErrorCategory?>(null)
         private set
 
-    /**
-     * ViewModel 只在打开时持有不含 Token 的初始草稿，并在提交验证的极短窗口接收完整草稿。
-     * Dialog 实际编辑状态由普通 `remember` 持有；关闭时该引用会被清除。
-     */
+    /** ViewModel 只持有不含 Token 的初始/提交草稿；Dialog 编辑状态由普通 `remember` 持有。 */
     var selfHostedDraft by mutableStateOf<SelfHostedDraftUiState?>(null)
         private set
 
@@ -590,49 +586,50 @@ class SettingViewModel : ViewModel(), KoinComponent {
         selfHostedValidationError = null
     }
 
-    /** 接收一次准备提交的普通内存草稿；不会持久化或写入 SavedState。 */
-    fun updateSelfHostedDraft(draft: SelfHostedDraftUiState) {
-        if (!showSelfHostedConfigDialog || selfHostedValidationInProgress) return
-        selfHostedDraft = draft
-        selfHostedValidationError = null
-    }
-
     /** 关闭 Dialog，并主动断开所有草稿引用。验证进行中时拒绝关闭，避免后台静默切换 Backend。 */
     fun closeSelfHostedConfig() {
         if (selfHostedValidationInProgress) return
         clearSelfHostedDialogState()
     }
 
-    /** 完整验证草稿；只有 Provider 原子提交成功后，设置页才会关闭。 */
-    fun validateAndEnableSelfHosted() {
-        val draft = selfHostedDraft ?: return
-        if (selfHostedValidationInProgress) return
+    /**
+     * 直接接收 Dialog 移交的一次性 Token 并完整验证；Token 不写入任何 Compose/ViewModel State。
+     * 调用方交出 [token] 后不得再次读取，本方法覆盖拒绝、取消、失败和成功路径清零。
+     */
+    fun validateAndEnableSelfHosted(draft: SelfHostedDraftUiState, token: CharArray) {
+        if (!showSelfHostedConfigDialog || selfHostedValidationInProgress) {
+            token.fill('\u0000')
+            return
+        }
+        selfHostedDraft = draft
         selfHostedValidationInProgress = true
         selfHostedValidationError = null
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                queryBackendProvider.validateAndEnable(
-                    SelfHostedDraft(
-                        baseUrl = draft.baseUrl,
-                        token = draft.token,
-                        tlsMode = draft.tlsMode,
-                        spkiPin = if (draft.tlsMode == SelfHostedTlsMode.SPKI_PIN) {
-                            draft.spkiPin
-                        } else {
-                            ""
-                        },
-                        allowPreRelease = BuildConfig.DEBUG && draft.allowPreRelease,
-                    ),
-                )
-            }
-            // Provider 返回后立即清除 ViewModel 中的明文 Token；失败重试由 Dialog 再次提交本地草稿。
-            selfHostedDraft = selfHostedDraft?.copy(token = "")
-            selfHostedValidationInProgress = false
-            when (result) {
-                is SelfHostedValidationResult.Success -> clearSelfHostedDialogState()
-                is SelfHostedValidationResult.Failure -> {
-                    selfHostedValidationError = result.category
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    queryBackendProvider.validateAndEnable(
+                        draft = SelfHostedDraft(
+                            baseUrl = draft.baseUrl,
+                            tlsMode = draft.tlsMode,
+                            spkiPin = if (draft.tlsMode == SelfHostedTlsMode.SPKI_PIN) {
+                                draft.spkiPin
+                            } else {
+                                ""
+                            },
+                            allowPreRelease = BuildConfig.DEBUG && draft.allowPreRelease,
+                        ),
+                        token = token,
+                    )
                 }
+                when (result) {
+                    is SelfHostedValidationResult.Success -> clearSelfHostedDialogState()
+                    is SelfHostedValidationResult.Failure -> {
+                        selfHostedValidationError = result.category
+                    }
+                }
+            } finally {
+                token.fill('\u0000')
+                selfHostedValidationInProgress = false
             }
         }
     }
@@ -672,7 +669,6 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     private fun clearSelfHostedDialogState() {
-        selfHostedDraft = selfHostedDraft?.copy(token = "")
         selfHostedDraft = null
         selfHostedValidationError = null
         selfHostedConfigEditing = false

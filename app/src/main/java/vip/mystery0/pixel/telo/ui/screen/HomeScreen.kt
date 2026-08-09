@@ -102,7 +102,7 @@ fun HomeScreen(
     val missingPermissions by viewModel.missingPermissions.collectAsState()
     val isDefaultApp by viewModel.isDefaultApp.collectAsState()
     val retryQueryState by viewModel.retryQueryState.collectAsState()
-    val sourceState by viewModel.sourceState.collectAsState()
+    val unavailableSourceWarning by viewModel.unavailableSourceWarning.collectAsState()
     val selfHostedWarning by viewModel.selfHostedWarning.collectAsState()
 
     val roleManager = context.getSystemService(Context.ROLE_SERVICE) as RoleManager
@@ -168,9 +168,9 @@ fun HomeScreen(
             }
         }
         item {
-            AnimatedVisibility(sourceState.unavailableEnabledSources.isNotEmpty()) {
+            AnimatedVisibility(unavailableSourceWarning.isNotEmpty()) {
                 SourceUnavailableWarningCard(
-                    sources = sourceState.unavailableEnabledSources,
+                    sources = unavailableSourceWarning,
                     onClick = onNavigateToSourceSettings
                 )
             }

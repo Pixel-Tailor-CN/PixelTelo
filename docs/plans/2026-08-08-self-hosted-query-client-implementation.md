@@ -119,7 +119,7 @@ Expected: `BUILD SUCCESSFUL`，生成的 Debug `BuildConfig` 包含值 `0.1.2`�
 - Produces: `data class QueryBackendSnapshot(val backendId: String, val type: QueryBackendType, val queryApi: QueryApi, val feedbackSupported: Boolean, val selfHostedIdentity: SelfHostedIdentity? = null)`
 - Produces: `data class BackendQueryResponse(val backendId: String, val response: QueryResponse, val feedbackSupported: Boolean)`
 - Produces: `enum class SelfHostedTlsMode { SYSTEM, SPKI_PIN }`
-- Produces: `data class SelfHostedDraft(val baseUrl: String, val token: String, val tlsMode: SelfHostedTlsMode, val spkiPin: String = "", val allowPreRelease: Boolean = false)`
+- Produces: `data class SelfHostedDraft(val baseUrl: String, val tlsMode: SelfHostedTlsMode, val spkiPin: String = "", val allowPreRelease: Boolean = false)`；明文 Token 通过独立一次性 `CharArray` 传递
 - Produces: `data class VerifiedSelfHostedConfig(...)`，包含规范化 URL、TLS 模式、Pin、Instance ID、Version、API Version、capabilities 和验证时间，不包含明文 Token
 - Produces: `sealed interface SelfHostedBlockReason`
 - Produces: `SelfHostedApi.getInfo(): Response<SelfHostedInfoResponse>`
@@ -208,7 +208,7 @@ Expected: `BUILD SUCCESSFUL`。
 **Interfaces:**
 - Produces: `normalizeSelfHostedBaseUrl(raw: String): Result<HttpUrl>`
 - Produces: `normalizeSpkiPin(raw: String): Result<String>`
-- Produces: `SelfHostedQueryClientFactory.createDraftClient(draft: SelfHostedDraft): Result<SelfHostedClientBundle>`
+- Produces: `SelfHostedQueryClientFactory.createDraftClient(..., token: CharArray): Result<SelfHostedClientBundle>`
 - Produces: `SelfHostedQueryClientFactory.createVerifiedClient(config: VerifiedSelfHostedConfig, token: CharArray, onBlocked: (SelfHostedBlockReason) -> Unit): Result<SelfHostedClientBundle>`
 - Produces: `data class SelfHostedClientBundle(val queryApi: QueryApi, val selfHostedApi: SelfHostedApi, val close: () -> Unit)`
 
@@ -250,8 +250,9 @@ Expected: 构建成功；不存在新增明文 HTTP 地址。私人实例地址�
 
 **Interfaces:**
 - Produces: `QueryBackendProvider.snapshot(): QueryBackendSnapshot?`
+- Produces: `QueryBackendProvider.acquireSnapshotLease(): QueryBackendLease?`
 - Produces: `QueryBackendProvider.state: StateFlow<QueryBackendState>`
-- Produces: `QueryBackendProvider.validateAndEnable(draft: SelfHostedDraft): SelfHostedValidationResult`
+- Produces: `QueryBackendProvider.validateAndEnable(draft: SelfHostedDraft, token: CharArray): SelfHostedValidationResult`
 - Produces: `QueryBackendProvider.revalidate(): SelfHostedValidationResult`
 - Produces: `QueryBackendProvider.useOfficial()`
 - Produces: `sealed interface SelfHostedValidationResult { data class Success(...); data class Failure(val category: SelfHostedErrorCategory, val safeMessage: String?) }`
@@ -413,7 +414,7 @@ Expected: `BUILD SUCCESSFUL`，Room KSP 校验迁移后的实体结构可编译�
 
 **Interfaces:**
 - Produces: `SelfHostedDraftUiState`
-- Produces: `SettingViewModel.openSelfHostedConfig()`、`updateSelfHostedDraft(...)`、`validateAndEnableSelfHosted()`、`revalidateSelfHosted()`、`useOfficialBackend()`
+- Produces: `SettingViewModel.openSelfHostedConfig()`、`validateAndEnableSelfHosted(draft, token)`、`revalidateSelfHosted()`、`useOfficialBackend()`
 - Consumes: `QueryBackendProvider.state` 和验证 API
 
 - [x] **Step 1：增加 Backend 设置入口和摘要**
@@ -422,7 +423,7 @@ Expected: `BUILD SUCCESSFUL`，Room KSP 校验迁移后的实体结构可编译�
 
 - [x] **Step 2：实现配置 Dialog**
 
-包含 Base URL、密码样式 Token、TLS 模式、Pinning 模式下的 SPKI Pin、“测试并启用”和取消。编辑使用普通 Compose 内存状态且不使用 `rememberSaveable`；关闭 Dialog 时清空 Token `TextFieldValue` 和草稿引用。
+包含 Base URL、密码样式 Token、TLS 模式、Pinning 模式下的 SPKI Pin、“测试并启用”和取消。编辑使用普通 Compose 内存状态且不使用 `rememberSaveable`；提交时立即清空 Token `TextFieldValue`，只把一次性 `CharArray` 直接交给验证入口，并在 `finally` 清零。
 
 - [x] **Step 3：实现状态与分类错误展示**
 

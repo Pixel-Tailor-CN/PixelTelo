@@ -267,8 +267,8 @@
     <string name="label_self_hosted_tls_mode">TLS verification</string>
     <string name="tls_mode_system">System trust</string>
     <string name="tls_mode_system_summary">Use Android system certificates and hostname verification.</string>
-    <string name="tls_mode_spki_pin">System trust + SPKI Pin</string>
-    <string name="tls_mode_spki_pin_summary">Also require the server certificate to match one exact SHA-256 SPKI Pin.</string>
+    <string name="tls_mode_spki_pin">Self-signed certificate / exact SPKI Pin</string>
+    <string name="tls_mode_spki_pin_summary">Trust only the exact SHA-256 SPKI Pin; certificate validity and hostname/IP SAN are still verified.</string>
     <string name="label_self_hosted_spki_pin">SPKI Pin</string>
     <string name="hint_self_hosted_spki_pin">SHA-256 Pin supplied by your server administrator</string>
     <string name="setting_allow_prerelease_self_hosted">Allow pre-release server</string>

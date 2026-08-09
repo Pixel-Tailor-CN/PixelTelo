@@ -265,8 +265,8 @@
     <string name="label_self_hosted_tls_mode">TLS 验证</string>
     <string name="tls_mode_system">系统信任</string>
     <string name="tls_mode_system_summary">使用 Android 系统证书与主机名校验</string>
-    <string name="tls_mode_spki_pin">系统信任 + SPKI Pin</string>
-    <string name="tls_mode_spki_pin_summary">额外要求服务端证书匹配一个精确的 SHA-256 SPKI Pin</string>
+    <string name="tls_mode_spki_pin">自签名证书 / 精确 SPKI Pin</string>
+    <string name="tls_mode_spki_pin_summary">仅信任精确匹配的 SHA-256 SPKI Pin；仍校验证书有效期及域名/IP SAN</string>
     <string name="label_self_hosted_spki_pin">SPKI Pin</string>
     <string name="hint_self_hosted_spki_pin">由你的服务管理员提供的 SHA-256 Pin</string>
     <string name="setting_allow_prerelease_self_hosted">允许预发布服务端</string>

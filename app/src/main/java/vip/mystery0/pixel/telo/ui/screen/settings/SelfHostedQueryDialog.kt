@@ -44,7 +44,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.res.stringResource
-import java.net.URI
 import java.text.DateFormat
 import java.util.Date
 import vip.mystery0.pixel.telo.BuildConfig
@@ -53,6 +52,7 @@ import vip.mystery0.pixel.telo.data.query.SelfHostedBlockReason
 import vip.mystery0.pixel.telo.data.query.SelfHostedErrorCategory
 import vip.mystery0.pixel.telo.data.query.SelfHostedTlsMode
 import vip.mystery0.pixel.telo.data.query.VerifiedSelfHostedConfig
+import vip.mystery0.pixel.telo.data.query.maskSelfHostedHost
 import vip.mystery0.pixel.telo.viewmodel.SelfHostedDraftUiState
 
 /**
@@ -69,14 +69,13 @@ fun SelfHostedQueryDialog(
     blockedReason: SelfHostedBlockReason?,
     validationInProgress: Boolean,
     validationError: SelfHostedErrorCategory?,
-    onUpdateDraft: (SelfHostedDraftUiState) -> Unit,
-    onValidateAndEnable: () -> Unit,
+    onValidateAndEnable: (SelfHostedDraftUiState, CharArray) -> Unit,
     onRevalidate: () -> Unit,
     onEdit: () -> Unit,
     onUseOfficial: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var draft by remember { mutableStateOf(initialDraft.copy(token = "")) }
+    var draft by remember { mutableStateOf(initialDraft) }
     var tokenValue by remember { mutableStateOf(TextFieldValue("")) }
     val showEditor = editing
 
@@ -84,13 +83,11 @@ fun SelfHostedQueryDialog(
         onDispose {
             // 成功验证等父级关闭路径同样主动断开本地明文 Token 与草稿引用。
             tokenValue = TextFieldValue("")
-            draft = draft.copy(token = "")
         }
     }
 
     fun dismissAndClearToken() {
         tokenValue = TextFieldValue("")
-        draft = draft.copy(token = "")
         onDismiss()
     }
 
@@ -122,7 +119,7 @@ fun SelfHostedQueryDialog(
                         draft = draft,
                         tokenValue = tokenValue,
                         enabled = !validationInProgress,
-                        onDraftChange = { draft = it.copy(token = "") },
+                        onDraftChange = { draft = it },
                         onTokenChange = { tokenValue = it },
                     )
                 } else {
@@ -192,8 +189,15 @@ fun SelfHostedQueryDialog(
                     (draft.tlsMode != SelfHostedTlsMode.SPKI_PIN || draft.spkiPin.isNotBlank())
                 Button(
                     onClick = {
-                        onUpdateDraft(draft.copy(token = tokenValue.text))
-                        onValidateAndEnable()
+                        val token = tokenValue.text.toCharArray()
+                        // 移交前立即清空输入控件；ViewModel/Provider 的 finally 负责清零数组。
+                        tokenValue = TextFieldValue("")
+                        try {
+                            onValidateAndEnable(draft, token)
+                        } catch (exception: Exception) {
+                            token.fill('\u0000')
+                            throw exception
+                        }
                     },
                     enabled = canSubmit && !validationInProgress,
                 ) {
@@ -360,7 +364,7 @@ private fun TlsModeRow(
 /** 仅展示已验证配置中的脱敏 Host、版本和验证时间。 */
 @Composable
 fun SelfHostedBackendSummary(config: VerifiedSelfHostedConfig) {
-    val host = remember(config.baseUrl) { selfHostedDisplayHost(config.baseUrl) }
+    val host = remember(config.baseUrl) { maskSelfHostedHost(config.baseUrl) }
         ?: stringResource(R.string.label_self_hosted_host_unavailable)
     val verifiedAt = remember(config.verifiedAtEpochMillis) {
         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
@@ -377,11 +381,6 @@ fun SelfHostedBackendSummary(config: VerifiedSelfHostedConfig) {
         overflow = TextOverflow.Ellipsis,
     )
 }
-
-/** 解析规范化 URL 时只返回 Host；任何失败都不会回退展示原始 URL。 */
-internal fun selfHostedDisplayHost(baseUrl: String): String? = runCatching {
-    URI(baseUrl).host?.takeIf { it.isNotBlank() }
-}.getOrNull()
 
 @StringRes
 internal fun SelfHostedErrorCategory.messageRes(): Int = when (this) {

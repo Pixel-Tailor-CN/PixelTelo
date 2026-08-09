@@ -49,6 +49,33 @@ fun normalizeSelfHostedBaseUrl(raw: String): Result<HttpUrl> = runCatching {
 }
 
 /**
+ * 生成设置摘要使用的脱敏 Host，任何解析失败都返回 `null`，绝不回退原始输入。
+ *
+ * - DNS：每个 label 只保留首字符，其余统一显示为 `***`；单字符 label 显示为 `*`。
+ * - IPv4：只保留第一段，其余三段显示为 `***`。
+ * - IPv6：不保留任何地址片段，统一显示为 `[IPv6]`。
+ */
+fun maskSelfHostedHost(baseUrl: String): String? {
+    val host = normalizeSelfHostedBaseUrl(baseUrl).getOrNull()?.host ?: return null
+    return when {
+        ':' in host -> "[IPv6]"
+        host.isIpv4Address() -> host.substringBefore('.') + ".***.***.***"
+        else -> host.split('.').joinToString(".") { label ->
+            if (label.length == 1) "*" else "${label.first()}***"
+        }
+    }
+}
+
+private fun String.isIpv4Address(): Boolean {
+    val segments = split('.')
+    return segments.size == 4 && segments.all { segment ->
+        segment.isNotEmpty() &&
+            segment.all(Char::isDigit) &&
+            segment.toIntOrNull()?.let { it in 0..255 } == true
+    }
+}
+
+/**
  * 校验并规范化叶子证书 SPKI SHA-256 Pin。
  *
  * 仅接受 `sha256/<Base64>`，Base64 解码结果必须正好为 32 bytes；返回值使用标准、

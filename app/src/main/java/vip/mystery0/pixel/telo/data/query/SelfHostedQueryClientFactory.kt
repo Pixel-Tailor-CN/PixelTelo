@@ -30,6 +30,8 @@ data class SelfHostedClientBundle(
     val queryApi: QueryApi,
     val selfHostedApi: SelfHostedApi,
     val bindIdentity: (SelfHostedIdentity) -> Unit,
+    /** 非等待地取消在途请求，不负责清理凭据或网络资源。 */
+    val cancelRequests: () -> Unit,
     val close: () -> Unit,
 )
 
@@ -42,22 +44,6 @@ data class SelfHostedClientBundle(
 class SelfHostedQueryClientFactory(
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
-    /** 创建仅用于完整连接验证的临时 Client。 */
-    fun createDraftClient(draft: SelfHostedDraft): Result<SelfHostedClientBundle> {
-        val token = draft.token.toCharArray()
-        return try {
-            createDraftClient(
-                baseUrl = draft.baseUrl,
-                tlsMode = draft.tlsMode,
-                spkiPin = draft.spkiPin,
-                allowPreRelease = draft.allowPreRelease,
-                token = token,
-            )
-        } finally {
-            token.fill('\u0000')
-        }
-    }
-
     /**
      * 使用调用方持有的可清零 Token 创建临时 Client。
      *
@@ -187,6 +173,7 @@ class SelfHostedQueryClientFactory(
                 queryApi = retrofit.create(QueryApi::class.java),
                 selfHostedApi = retrofit.create(SelfHostedApi::class.java),
                 bindIdentity = compatibilityInterceptor::bind,
+                cancelRequests = client.dispatcher::cancelAll,
                 close = closeAction,
             )
         } catch (exception: Exception) {

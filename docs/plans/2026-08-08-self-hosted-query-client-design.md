@@ -80,6 +80,11 @@ QueryBackendSnapshot
 
 `QueryRepository` 在查询或刷新 source 开始前读取一次 Snapshot，并在请求结束前始终使用同一 Snapshot。配置切换不得让正在执行的请求中途更换 Client、Backend ID 或 source 配置。
 
+查询和 source 刷新必须同时取得 Snapshot lease。普通切换把旧自建 Client 标记为 retiring，最后一个旧
+lease 释放后才清理 Token 与网络资源；运行期身份、TLS、Pin 或凭据安全错误则立即 revoke 对应代次、
+取消在途请求，并拒绝消费已经返回但尚未发布的旧结果。迟到的旧代次安全回调只能撤销该旧 Client，
+不得按相同 Backend ID 误伤新激活代次。
+
 反馈不进入通用 Backend 路由。反馈始终由官方专用 API 执行，只有来源明确为官方 Backend 且具有有效反馈凭证的记录才可提交。
 
 ## 五、网络接口与数据模型
@@ -189,6 +194,11 @@ Token 使用 Android Keystore 中的 AES-GCM Key 加密：
 5. 发布新的 `QueryBackendSnapshot` 与 UI 状态。
 
 任一步失败时保留旧配置和旧 Backend。若新 Token 密文已经写入但后续提交失败，应删除本次未引用的密文记录，不影响旧凭据。
+
+`SharedPreferences.commit()` 返回 `false` 或抛出异常属于普通存储命令失败，不等同于安全阻止。当前进程
+继续使用命令开始前的 Snapshot、Client、活动槽和 UI 状态；journal 仅保留磁盘歧义并在下次启动裁决，
+不得据此关闭旧 Client 或宣称候选 Backend 已生效。切回官方的选择 journal、候选 journal 与活动指针
+任一失败都遵循相同规则。
 
 ## 七、URL 校验与重定向策略
 
@@ -325,6 +335,11 @@ buildConfigField(
 5. 不切换到官方实时查询。
 
 用户完成“测试连接”并再次通过完整验证后，才解除阻止状态。
+
+安全阻止使用独立于活动配置 SharedPreferences 的 no-backup AtomicFile 哨兵，并在发布 `Blocked` 前同步
+落盘。活动记录同时保存阻止原因；若两条落盘路径都失败，则销毁 Android Keystore 凭据主密钥，使旧
+密文跨重启不可解密。哨兵缺失以外的读取异常或损坏一律 Fail Closed。只有完整远端重验证、候选凭据
+写入和活动指针提交均成功后，才能清除哨兵。
 
 ## 十一、配置验证与启用流程
 
@@ -479,6 +494,13 @@ buildConfigField(
 
 不展示 Token、完整配对文本、详细堆栈或包含凭据的完整 URL。
 
+“脱敏 Host”使用固定算法，任何解析失败都显示通用不可用文案且绝不回退原始输入：DNS 的每个 label
+仅保留首字符，其他内容统一为 `***`（单字符 label 为 `*`）；IPv4 仅保留第一段，后三段显示为
+`***`；IPv6 不保留地址片段，统一显示 `[IPv6]`。因此 UI 不会展示完整域名、IPv4 或 IPv6 地址。
+
+SPKI 模式的用户可见名称为“自签名证书 / 精确 SPKI Pin”，说明只信任精确 SHA-256 SPKI Pin，同时仍校验
+证书有效期与域名/IP SAN；不得描述为在系统信任链上额外追加 Pin。
+
 支持粘贴配对文本属于第一版范围，但不增加相机权限。解析器只接受服务端已定义且可严格识别的配对格式；若自建项目尚未稳定配对文本机器格式，则第一版先提供 URL、Token 和 Pin 分项粘贴，待契约固定后再加入整段解析，避免实现猜测性协议。
 
 ### 15.2 首页告警
@@ -500,12 +522,15 @@ source BottomSheet 展示当前 Backend 的配置。切换 Backend 后不得短�
 
 1. Backend 配置与 source 配置分别使用 Mutex 或等价串行化边界保护。
 2. `QueryBackendSnapshot` 为不可变对象，包含完成一次请求所需的全部引用。
-3. Client 构建只发生在配置验证或加载已验证配置时，不在每次来电时重新构建 Retrofit。
-4. Token 解密在构建或刷新 Snapshot 时完成，不在每个 Interceptor 调用中访问 Keystore。
-5. 明文 Token 只存在于最小生命周期的内存对象中，不进入可观察 UI State。
-6. 自建运行时被安全错误阻止后，来电查询直接 Fail Open，避免反复进行必然失败的 TLS 或版本请求。
-7. 本地数据库 50ms 目标和 3 秒硬上限不受本功能影响。
-8. 网络查询继续由 `SpamNumberRepository.networkTimeoutMs()` 夹紧在 1 至 10 秒，并用 `withTimeout` 强制执行。
+3. 查询与 source 刷新在整个网络、解码、持久化和条件发布期间持有 Snapshot lease；普通切换等待旧
+   lease 清零后关闭，安全阻止立即 revoke/cancel。
+4. Client 构建只发生在配置验证或加载已验证配置时，不在每次来电时重新构建 Retrofit。
+5. Token 解密在构建或刷新 Snapshot 时完成，不在每个 Interceptor 调用中访问 Keystore。
+6. 明文 Token 由 Dialog 一次性转换为 `CharArray` 后直接移交验证入口，并在成功、失败、取消和拒绝路径
+   的 `finally` 中清零；不得进入 `mutableStateOf`、StateFlow、SavedState 或持久化草稿。
+7. 自建运行时被安全错误阻止后，来电查询直接 Fail Open，避免反复进行必然失败的 TLS 或版本请求。
+8. 本地数据库 50ms 目标和 3 秒硬上限不受本功能影响。
+9. 网络查询继续由 `SpamNumberRepository.networkTimeoutMs()` 夹紧在 1 至 10 秒，并用 `withTimeout` 强制执行。
 
 ## 十七、进程恢复与异常状态
 
@@ -517,6 +542,8 @@ App 启动时：
 4. 配置完整且未被安全错误阻止时，构建自建 Snapshot。
 5. 凭据缺失、解密失败或配置损坏时，不发起自建请求，进入阻止状态并 Fail Open。
 6. 不因本地配置损坏自动切回官方实时查询。
+7. 安全阻止哨兵优先于活动记录；哨兵存在、损坏或读取失败时均不得恢复自建 Client。
+8. 普通激活/选择 journal 只裁决重启后的磁盘状态，不覆盖当前进程保留的旧运行态。
 
 Android Keystore Key 因系统恢复、锁屏安全设置变化或设备迁移而不可用时，要求用户重新输入 Token 并验证配置。
 

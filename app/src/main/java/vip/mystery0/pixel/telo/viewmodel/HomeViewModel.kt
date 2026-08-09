@@ -103,6 +103,23 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     /** 联网查询 source 配置状态，用于首页“已启用 source 下线”提示 */
     val sourceState: StateFlow<QuerySourceState> = queryRepository.sourceState
 
+    /** 只暴露与当前 Ready Backend ID 匹配的 source 告警，切换窗口不会展示旧 Backend 数据。 */
+    val unavailableSourceWarning: StateFlow<List<String>> = combine(
+        queryBackendProvider.state,
+        sourceState,
+    ) { backendState, sourceState ->
+        val readyState = backendState as? QueryBackendState.Ready
+        if (readyState != null && sourceState.backendId == readyState.backendId) {
+            sourceState.unavailableEnabledSources
+        } else {
+            emptyList()
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList(),
+    )
+
     /**
      * 自建服务被安全阻止时的首页告警。
      *

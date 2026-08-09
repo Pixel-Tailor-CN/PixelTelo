@@ -10,7 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -22,6 +22,7 @@ import retrofit2.HttpException
 import vip.mystery0.pixel.telo.data.query.BackendQueryResponse
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
+import vip.mystery0.pixel.telo.data.query.QueryBackendLease
 import vip.mystery0.pixel.telo.data.query.QueryBackendSnapshot
 import vip.mystery0.pixel.telo.data.query.QueryBackendState
 import vip.mystery0.pixel.telo.data.query.QueryBackendType
@@ -101,28 +102,39 @@ class QueryRepository(
 
     init {
         repositoryScope.launch {
-            backendProvider.state.collectLatest { state ->
-                handleBackendState(state)
+            backendProvider.state.collect { state ->
+                // 旧 Backend 的刷新继续持有 lease；新状态的缓存发布不等待旧网络请求。
+                launch { handleBackendState(state) }
             }
         }
     }
 
     /** 使用调用开始时的一次 Backend Snapshot 刷新对应 source 配置。 */
     suspend fun refreshSources(expectedBackendId: String? = null): Result<Unit> {
-        val snapshot = backendProvider.snapshot()
+        val lease = backendProvider.acquireSnapshotLease()
             ?: return Result.failure(BackendBlockedException())
-        if (expectedBackendId != null && snapshot.backendId != expectedBackendId) {
-            return Result.failure(BackendBlockedException())
-        }
-        return refreshMutex.withLock {
-            refreshSourcesLocked(snapshot)
+        return try {
+            val snapshot = lease.snapshot
+            if (expectedBackendId != null && snapshot.backendId != expectedBackendId) {
+                return Result.failure(BackendBlockedException())
+            }
+            refreshMutex.withLock {
+                refreshSourcesLocked(lease)
+            }
+        } finally {
+            lease.close()
         }
     }
 
     private suspend fun refreshSourcesLocked(
-        snapshot: QueryBackendSnapshot,
+        lease: QueryBackendLease,
         publishRefreshing: Boolean = true,
     ): Result<Unit> {
+        val snapshot = lease.snapshot
+        // 调用方已经取得 refreshMutex；从此门禁通过起才把刷新视为已开始。
+        if (!backendProvider.isCurrentSnapshot(snapshot)) {
+            return Result.failure(BackendBlockedException())
+        }
         val backendId = snapshot.backendId
         if (publishRefreshing) {
             updateStateForBackend(snapshot) {
@@ -132,7 +144,9 @@ class QueryRepository(
 
         return try {
             val response = snapshot.queryApi.getSources()
+            lease.ensureUsable()
             configMutex.withLock {
+                lease.ensureUsable()
                 val current = readStoredConfig(backendId)
                 val refreshed = mergeSourceConfig(
                     current,
@@ -143,6 +157,8 @@ class QueryRepository(
                     throw SourceConfigStorageException()
                 }
             }
+            // 与 revoke 共用 Provider 短锁建立明确先后关系，拒绝把迟到结果报告为成功。
+            lease.ensureUsable()
             Result.success(Unit)
         } catch (exception: CancellationException) {
             withContext(NonCancellable) {
@@ -187,36 +203,44 @@ class QueryRepository(
 
     /** 使用一次 Snapshot 及其 Backend 专属 source 发起查询，不在来电链路刷新 source。 */
     suspend fun queryNumber(phone: String): BackendQueryResponse {
-        val snapshot = backendProvider.snapshot() ?: throw BackendBlockedException()
-        val sources = configMutex.withLock {
-            val config = readStoredConfig(snapshot.backendId)
-            if (!config.initialized) {
-                emptyList()
-            } else {
-                config.orderedIds.filter { it in config.enabledIds && it in config.availableIds }
+        val lease = backendProvider.acquireSnapshotLease() ?: throw BackendBlockedException()
+        try {
+            val snapshot = lease.snapshot
+            val sources = configMutex.withLock {
+                val config = readStoredConfig(snapshot.backendId)
+                if (!config.initialized) {
+                    emptyList()
+                } else {
+                    config.orderedIds.filter { it in config.enabledIds && it in config.availableIds }
+                }
             }
+            lease.ensureUsable()
+            val response = try {
+                snapshot.queryApi.queryNumber(QueryRequest(phone, sources))
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: HttpException) {
+                if (snapshot.type == QueryBackendType.SELF_HOSTED) {
+                    throw QueryApiException(exception.code(), "Query backend request failed")
+                }
+                // 官方接口保留既有可读错误说明；自建响应正文绝不进入异常消息。
+                throw QueryApiException(
+                    exception.code(),
+                    serverErrorMessage(exception) ?: exception.message(),
+                )
+            } catch (exception: Exception) {
+                if (snapshot.type == QueryBackendType.SELF_HOSTED) {
+                    throw BackendQueryException()
+                }
+                throw exception
+            }
+            lease.ensureUsable()
+            updateInvalidSources(snapshot, response)
+            lease.ensureUsable()
+            return BackendQueryResponse.from(snapshot, response)
+        } finally {
+            lease.close()
         }
-        val response = try {
-            snapshot.queryApi.queryNumber(QueryRequest(phone, sources))
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (exception: HttpException) {
-            if (snapshot.type == QueryBackendType.SELF_HOSTED) {
-                throw QueryApiException(exception.code(), "Query backend request failed")
-            }
-            // 官方接口保留既有可读错误说明；自建响应正文绝不进入异常消息。
-            throw QueryApiException(
-                exception.code(),
-                serverErrorMessage(exception) ?: exception.message(),
-            )
-        } catch (exception: Exception) {
-            if (snapshot.type == QueryBackendType.SELF_HOSTED) {
-                throw BackendQueryException()
-            }
-            throw exception
-        }
-        updateInvalidSources(snapshot, response)
-        return BackendQueryResponse.from(snapshot, response)
     }
 
     /** 反馈凭据只由官方查询签发，因此始终使用独立的官方反馈 API。 */
@@ -253,39 +277,44 @@ class QueryRepository(
             }
 
             is QueryBackendState.Ready -> {
-                val snapshot = backendProvider.snapshot()
-                if (
-                    snapshot == null ||
-                    snapshot.backendId != state.backendId ||
-                    snapshot.activationId != state.activationId
-                ) {
-                    configMutex.withLock {
-                        backendProvider.publishIfStateCurrent(state) {
-                            publishedActivationId = null
-                            _sourceState.value = QuerySourceState()
+                val lease = backendProvider.acquireSnapshotLease()
+                try {
+                    val snapshot = lease?.snapshot
+                    if (
+                        snapshot == null ||
+                        snapshot.backendId != state.backendId ||
+                        snapshot.activationId != state.activationId
+                    ) {
+                        configMutex.withLock {
+                            backendProvider.publishIfStateCurrent(state) {
+                                publishedActivationId = null
+                                _sourceState.value = QuerySourceState()
+                            }
+                        }
+                        return
+                    }
+                    val backendChanged = configMutex.withLock {
+                        val targetState = readStoredConfig(snapshot.backendId).toState(
+                            backendId = snapshot.backendId,
+                            refreshing = true,
+                        )
+                        var changed = false
+                        backendProvider.publishIfCurrent(snapshot) {
+                            if (publishedActivationId != snapshot.activationId) {
+                                publishedActivationId = snapshot.activationId
+                                _sourceState.value = targetState
+                                changed = true
+                            }
+                        }
+                        changed
+                    }
+                    if (backendChanged) {
+                        refreshMutex.withLock {
+                            refreshSourcesLocked(lease, publishRefreshing = false)
                         }
                     }
-                    return
-                }
-                val backendChanged = configMutex.withLock {
-                    val targetState = readStoredConfig(snapshot.backendId).toState(
-                        backendId = snapshot.backendId,
-                        refreshing = true,
-                    )
-                    var changed = false
-                    backendProvider.publishIfCurrent(snapshot) {
-                        if (publishedActivationId != snapshot.activationId) {
-                            publishedActivationId = snapshot.activationId
-                            _sourceState.value = targetState
-                            changed = true
-                        }
-                    }
-                    changed
-                }
-                if (backendChanged) {
-                    refreshMutex.withLock {
-                        refreshSourcesLocked(snapshot, publishRefreshing = false)
-                    }
+                } finally {
+                    lease?.close()
                 }
             }
         }

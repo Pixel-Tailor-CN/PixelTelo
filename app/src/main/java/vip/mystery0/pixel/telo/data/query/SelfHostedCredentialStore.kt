@@ -131,6 +131,24 @@ class SelfHostedCredentialStore(context: Context) {
         }
     }
 
+    /**
+     * 安全阻止哨兵无法落盘时销毁 Keystore 主密钥。
+     *
+     * 即使密文 SharedPreferences 清理失败，旧密文也会因密钥不存在而在下次启动无法解密；
+     * 用户只能重新输入 Token 并完成完整验证。
+     */
+    internal fun invalidateAllCredentials(): Result<Unit> = runCatching {
+        val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+        if (keyStore.containsAlias(KEY_ALIAS)) {
+            keyStore.deleteEntry(KEY_ALIAS)
+        }
+        check(!keyStore.containsAlias(KEY_ALIAS)) {
+            "Unable to invalidate self-hosted credential key"
+        }
+        // 密钥删除是安全线性化边界；密文清理只用于减少无效数据残留。
+        preferences.edit().clear().commit()
+    }
+
     /** 启动恢复时回收所有未被活动配置引用的候选凭据。 */
     internal fun clearInactiveSlots(activeSlot: String?) {
         preferences.all.keys

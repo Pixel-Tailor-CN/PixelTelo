@@ -1,6 +1,11 @@
 package vip.mystery0.pixel.telo.data.repository
 
 import android.content.Context
+import android.util.AtomicFile
+import java.io.File
+import java.io.FileNotFoundException
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,8 +51,10 @@ class SelfHostedConfigRepository(
         CONFIG_PREFERENCES_NAME,
         Context.MODE_PRIVATE,
     )
+    private val securityBlockStore = SecurityBlockStore(context.applicationContext)
     private var processBlockedReason: SelfHostedBlockReason? = null
     private var backendSelectionBlocked = false
+    private var processSelectionOverride: ProcessSelection? = null
     private val _connectionState = MutableStateFlow(readInitialState())
 
     val connectionState: StateFlow<SelfHostedConnectionState> = _connectionState.asStateFlow()
@@ -66,11 +73,12 @@ class SelfHostedConfigRepository(
     /**
      * 选择官方 Backend，使用 journal 消除 `commit()` 返回 false 时的持久化歧义。
      *
-     * 任一步失败都会保留恢复证据并在当前进程 Fail Closed；下次启动会先完成 journal，
-     * 绝不会让 Repository 已显示 official 而 Provider 仍继续使用旧自建 Client。
+     * 任一步失败都会保留恢复证据，但当前进程继续使用命令开始前的已发布 Backend；
+     * journal 只在下次启动裁决磁盘上究竟完成了切换还是仍应回到旧选择。
      */
     @Synchronized
     internal fun selectOfficialBackend(): Result<Unit> {
+        val previousSelection = currentProcessSelection()
         val journal = StoredBackendSelectionJournal(targetBackendType = BACKEND_TYPE_OFFICIAL)
         return try {
             check(
@@ -86,10 +94,14 @@ class SelfHostedConfigRepository(
                     .commit(),
             ) { "Unable to select official backend" }
             backendSelectionBlocked = false
+            processSelectionOverride = ProcessSelection(
+                backendType = QueryBackendType.OFFICIAL,
+                activeSlot = previousSelection.activeSlot,
+            )
             Result.success(Unit)
         } catch (exception: Exception) {
-            backendSelectionBlocked = true
-            markBlocked(SelfHostedBlockReason.Configuration)
+            // commit=false 也可能已经改写 SharedPreferences 的进程内 Map；显式保留旧选择。
+            processSelectionOverride = previousSelection
             Result.failure(exception)
         }
     }
@@ -98,15 +110,16 @@ class SelfHostedConfigRepository(
      * 提交新配置时先保存候选密文、候选记录与激活 journal，最后写入活动指针。
      *
      * 最后一步返回 false 时，SharedPreferences 的内存状态无法可靠判定；此时保留
-     * journal、候选和旧项，进程内立即阻止访问，等待下次恢复按活动指针安全裁决。
+     * journal、候选和旧项，当前进程继续使用命令开始前的选择，等待下次恢复按活动指针裁决。
      */
     @Synchronized
     fun commitVerified(
         config: VerifiedSelfHostedConfig,
         token: CharArray,
     ): Result<Unit> {
-        val previousSlot = activeSlot()
-        val previousBackendType = readCurrentBackendType()
+        val previousSelection = currentProcessSelection()
+        val previousSlot = previousSelection.activeSlot
+        val previousBackendType = previousSelection.backendType
         val candidateSlot = UUID.randomUUID().toString()
         val candidateRecord = StoredConfigRecord(
             credentialSlot = candidateSlot,
@@ -145,10 +158,15 @@ class SelfHostedConfigRepository(
                 .remove(BACKEND_SELECTION_JOURNAL_KEY)
                 .commit()
             if (!activated) {
-                failClosed(config, SelfHostedBlockReason.Configuration)
                 throw IllegalStateException("Unable to activate self-hosted configuration")
             }
 
+            // 安全阻止哨兵只能在完整远端验证和候选激活都成功后解除。
+            securityBlockStore.clear().getOrThrow()
+            processSelectionOverride = ProcessSelection(
+                backendType = QueryBackendType.SELF_HOSTED,
+                activeSlot = candidateSlot,
+            )
             // journal 清理失败可在下次启动根据活动指针确认后重试，不影响新活动项。
             preferences.edit().remove(ACTIVATION_JOURNAL_KEY).commit()
             processBlockedReason = null
@@ -157,11 +175,10 @@ class SelfHostedConfigRepository(
             clearInactiveCandidatesAfterRecovery(candidateSlot)
             Result.success(Unit)
         } catch (exception: Exception) {
+            // 普通存储命令失败不能撤销当前可用 Backend，也不能采用 commit=false 后的内存指针。
+            processSelectionOverride = previousSelection
             if (journalWriteAttempted) {
-                // 指针写入是否已生效存在歧义，绝不能删除 journal 或候选项。
-                if (processBlockedReason == null) {
-                    failClosed(lastKnownGoodConfig() ?: config, SelfHostedBlockReason.Configuration)
-                }
+                // 指针写入是否已生效存在歧义，绝不能删除 journal 或候选项；留待重启裁决。
             } else {
                 clearUnjournaledCandidate(
                     candidateSlot,
@@ -173,10 +190,22 @@ class SelfHostedConfigRepository(
         }
     }
 
-    /** 立即在进程内阻止后续自建访问；持久化失败也不会解除该阻止。 */
+    /**
+     * 持久阻止当前自建配置。
+     *
+     * 独立 AtomicFile 哨兵与活动记录任一可靠落盘即可跨重启恢复；若两者都失败，立即销毁
+     * Keystore 主密钥作为最后一道 Fail Closed 兜底，使旧密文在下次启动不可解密。
+     */
     @Synchronized
-    fun markBlocked(reason: SelfHostedBlockReason) {
+    fun markBlocked(reason: SelfHostedBlockReason): Result<Unit> {
         val config = activeConfig() ?: lastKnownGoodConfig()
+        val slot = activeSlot()
+        val record = slot?.let(::readRecord)
+        val sentinelResult = securityBlockStore.write(reason.toStoredValue())
+        val recordPersisted = persistBlockedReason(slot, record, reason)
+        val durable = sentinelResult.isSuccess || recordPersisted ||
+            credentialStore.invalidateAllCredentials().isSuccess
+
         if (config != null) {
             failClosed(config, reason)
         } else {
@@ -184,10 +213,11 @@ class SelfHostedConfigRepository(
             _connectionState.value = SelfHostedConnectionState.NotConfigured
         }
 
-        val slot = activeSlot() ?: return
-        val record = readRecord(slot) ?: return
-        val updated = record.copy(blockedReason = reason.toStoredValue())
-        preferences.edit().putString(recordKey(slot), json.encodeToString(updated)).commit()
+        return if (durable) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("Unable to persist self-hosted security block"))
+        }
     }
 
     /**
@@ -247,13 +277,16 @@ class SelfHostedConfigRepository(
             ?.takeIf { it.credentialSlot == activeSlot }
             ?.toVerifiedConfig()
         val lastKnownGood = lastKnownGoodConfig()
+        readSecurityBlockReason()?.let { reason -> processBlockedReason = reason }
         val config = activeConfig ?: lastKnownGood ?: return SelfHostedConnectionState.NotConfigured
 
         processBlockedReason?.let { reason ->
             persistBlockedReason(activeSlot, record, reason)
             return SelfHostedConnectionState.Blocked(config, reason)
         }
-        val storedReason = record?.blockedReason?.toBlockReason()
+        val storedReason = record?.blockedReason?.let { rawReason ->
+            rawReason.toBlockReason() ?: SelfHostedBlockReason.Configuration
+        }
         if (storedReason != null) {
             processBlockedReason = storedReason
             return SelfHostedConnectionState.Blocked(config, storedReason)
@@ -375,7 +408,14 @@ class SelfHostedConfigRepository(
         return record.takeIf { it.credentialSlot == slot && it.blockedReason == null && it.toVerifiedConfig() != null }
     }
 
-    private fun activeSlot(): String? = preferences.getString(ACTIVE_SLOT_KEY, null)
+    private fun activeSlot(): String? {
+        val override = processSelectionOverride
+        return if (override != null) {
+            override.activeSlot
+        } else {
+            preferences.getString(ACTIVE_SLOT_KEY, null)
+        }
+    }
 
     private fun readRecord(slot: String): StoredConfigRecord? {
         val raw = preferences.getString(recordKey(slot), null) ?: return null
@@ -437,11 +477,21 @@ class SelfHostedConfigRepository(
         slot: String?,
         record: StoredConfigRecord?,
         reason: SelfHostedBlockReason,
-    ) {
-        if (slot == null || record == null) return
+    ): Boolean {
+        if (slot == null || record == null) return false
         val updated = record.copy(blockedReason = reason.toStoredValue())
-        preferences.edit().putString(recordKey(slot), json.encodeToString(updated)).commit()
+        return runCatching {
+            preferences.edit().putString(recordKey(slot), json.encodeToString(updated)).commit()
+        }.getOrDefault(false)
     }
+
+    /** 哨兵缺失返回 null；哨兵损坏或读取异常必须按配置安全错误阻止。 */
+    private fun readSecurityBlockReason(): SelfHostedBlockReason? = securityBlockStore.read().fold(
+        onSuccess = { storedValue ->
+            storedValue?.toBlockReason() ?: storedValue?.let { SelfHostedBlockReason.Configuration }
+        },
+        onFailure = { SelfHostedBlockReason.Configuration },
+    )
 
     /** 仅回收无 journal 保护且未被活动指针引用的候选项。 */
     private fun clearInactiveCandidatesAfterRecovery(activeSlot: String?) {
@@ -466,6 +516,7 @@ class SelfHostedConfigRepository(
     }
 
     private fun readCurrentBackendType(): QueryBackendType {
+        processSelectionOverride?.let { return it.backendType }
         if (backendSelectionBlocked) return QueryBackendType.SELF_HOSTED
         val storedValue = runCatching { preferences.getString(CURRENT_BACKEND_TYPE_KEY, null) }
             .getOrElse {
@@ -514,6 +565,11 @@ class SelfHostedConfigRepository(
     private fun hasLegacySelfHostedSelectionEvidence(): Boolean =
         preferences.contains(ACTIVE_SLOT_KEY) || preferences.contains(LAST_KNOWN_GOOD_CONFIG_KEY)
 
+    private fun currentProcessSelection(): ProcessSelection = ProcessSelection(
+        backendType = readCurrentBackendType(),
+        activeSlot = activeSlot(),
+    )
+
     private fun QueryBackendType.toStoredValue(): String = when (this) {
         QueryBackendType.OFFICIAL -> BACKEND_TYPE_OFFICIAL
         QueryBackendType.SELF_HOSTED -> BACKEND_TYPE_SELF_HOSTED
@@ -531,6 +587,11 @@ class SelfHostedConfigRepository(
     @Serializable
     private data class StoredBackendSelectionJournal(
         val targetBackendType: String,
+    )
+
+    private data class ProcessSelection(
+        val backendType: QueryBackendType,
+        val activeSlot: String?,
     )
 
     @Serializable
@@ -624,5 +685,59 @@ class SelfHostedConfigRepository(
         const val BACKEND_TYPE_SELF_HOSTED = "self_hosted"
         const val TLS_MODE_SYSTEM = "system"
         const val TLS_MODE_SPKI_PIN = "spki_pin"
+    }
+}
+
+/** 独立于 SharedPreferences 活动记录的安全阻止哨兵，文件不参与系统备份。 */
+private class SecurityBlockStore(context: Context) {
+    private val baseFile = File(context.noBackupFilesDir, FILE_NAME)
+    private val atomicFile = AtomicFile(baseFile)
+    private val sentinelFiles = listOf(
+        baseFile,
+        File(baseFile.path + NEW_SUFFIX),
+        File(baseFile.path + BACKUP_SUFFIX),
+    )
+
+    @Synchronized
+    fun write(value: String): Result<Unit> = runCatching {
+        val output = atomicFile.startWrite()
+        try {
+            output.write(value.toByteArray(StandardCharsets.UTF_8))
+            output.fd.sync()
+            atomicFile.finishWrite(output)
+            check(read().getOrThrow() == value) {
+                "Unable to verify self-hosted security block sentinel"
+            }
+        } catch (exception: Exception) {
+            atomicFile.failWrite(output)
+            throw exception
+        }
+    }
+
+    @Synchronized
+    fun read(): Result<String?> = try {
+        val bytes = atomicFile.readFully()
+        check(bytes.size in 1..MAX_VALUE_BYTES) { "Invalid self-hosted security block sentinel" }
+        Result.success(String(bytes, StandardCharsets.UTF_8))
+    } catch (exception: FileNotFoundException) {
+        val noSentinelFiles = sentinelFiles.all { file -> Files.notExists(file.toPath()) }
+        if (noSentinelFiles) Result.success(null) else Result.failure(exception)
+    } catch (exception: Exception) {
+        Result.failure(exception)
+    }
+
+    @Synchronized
+    fun clear(): Result<Unit> = runCatching {
+        atomicFile.delete()
+        check(sentinelFiles.all { file -> Files.notExists(file.toPath()) }) {
+            "Unable to clear self-hosted security block sentinel"
+        }
+    }
+
+    private companion object {
+        const val FILE_NAME = "self_hosted_security_block"
+        const val NEW_SUFFIX = ".new"
+        const val BACKUP_SUFFIX = ".bak"
+        const val MAX_VALUE_BYTES = 64
     }
 }
