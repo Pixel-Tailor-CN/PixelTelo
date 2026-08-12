@@ -166,6 +166,14 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             }
         }.cachedIn(viewModelScope)
 
+    val hasBlockedCallRecords: StateFlow<Boolean> = repository.recordCount
+        .map { it > 0 }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false,
+        )
+
     private val _contactNames = MutableStateFlow<Map<String, String>>(emptyMap())
     val contactNames: StateFlow<Map<String, String>> = _contactNames.asStateFlow()
 
@@ -256,6 +264,15 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     fun delete(blockedCall: BlockedCall) {
         viewModelScope.launch {
             repository.delete(blockedCall)
+        }
+    }
+
+    fun deleteAll() {
+        viewModelScope.launch {
+            closeQuickAdd()
+            loadedPhoneNumbers = emptySet()
+            _contactNames.value = emptyMap()
+            repository.deleteAll()
         }
     }
 

@@ -11,17 +11,26 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Rule
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
@@ -57,11 +66,28 @@ class MainActivity : ComponentActivity() {
                 val pagerState = rememberPagerState(pageCount = { AppDestinations.entries.size })
                 val currentDestination = AppDestinations.entries[pagerState.currentPage]
                 val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+                val hasBlockedCallRecords by homeViewModel.hasBlockedCallRecords
+                    .collectAsStateWithLifecycle()
+                var showClearRecordsDialog by remember { mutableStateOf(false) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        TopAppBar(title = { Text(stringResource(currentDestination.titleResId)) })
+                        TopAppBar(
+                            title = { Text(stringResource(currentDestination.titleResId)) },
+                            actions = {
+                                if (currentDestination == AppDestinations.HOME && hasBlockedCallRecords) {
+                                    IconButton(onClick = { showClearRecordsDialog = true }) {
+                                        Icon(
+                                            Icons.Default.DeleteSweep,
+                                            contentDescription = stringResource(
+                                                R.string.action_clear_all_records
+                                            ),
+                                        )
+                                    }
+                                }
+                            },
+                        )
                     },
                     bottomBar = {
                         NavigationBar {
@@ -139,6 +165,29 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
+
+                if (showClearRecordsDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showClearRecordsDialog = false },
+                        title = { Text(stringResource(R.string.title_clear_all_records)) },
+                        text = { Text(stringResource(R.string.msg_clear_all_records_confirm)) },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    showClearRecordsDialog = false
+                                    homeViewModel.deleteAll()
+                                }
+                            ) {
+                                Text(stringResource(R.string.action_clear_all_records))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showClearRecordsDialog = false }) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        },
+                    )
                 }
             }
         }

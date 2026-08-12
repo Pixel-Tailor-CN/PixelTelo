@@ -20,6 +20,8 @@ class BlockedCallRepository : KoinComponent {
     private val blockedCallDao: BlockedCallDao by inject()
     private val context: Context by inject()
 
+    val recordCount: Flow<Int> = blockedCallDao.observeCount()
+
     val blockedCallsPager: Flow<PagingData<BlockedCall>> = Pager(
         config = PagingConfig(
             pageSize = 30,
@@ -142,6 +144,12 @@ class BlockedCallRepository : KoinComponent {
 
     suspend fun delete(blockedCall: BlockedCall) {
         blockedCallDao.delete(blockedCall)
+    }
+
+    /** 清空全部拦截记录，并刷新依赖记录数量的系统集成。 */
+    suspend fun deleteAll() {
+        blockedCallDao.deleteAll()
+        SmartspacerIntegration.notifyChanged(context)
     }
 }
 

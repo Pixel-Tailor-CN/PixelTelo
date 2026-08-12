@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import androidx.paging.PagingSource
+import kotlinx.coroutines.flow.Flow
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 
 /** 单个 source 在统计窗口内的查询质量统计 */
@@ -24,6 +25,9 @@ interface BlockedCallDao {
 
     @Query("SELECT * FROM blocked_calls")
     suspend fun getAllSnapshot(): List<BlockedCall>
+
+    @Query("SELECT COUNT(*) FROM blocked_calls")
+    fun observeCount(): Flow<Int>
 
     @Query("SELECT * FROM blocked_calls WHERE phoneNumber = :phoneNumber AND blockTime = :blockTime LIMIT 1")
     suspend fun findByKey(phoneNumber: String, blockTime: Long): BlockedCall?
@@ -94,4 +98,7 @@ interface BlockedCallDao {
 
     @Delete
     suspend fun delete(blockedCall: BlockedCall)
+
+    @Query("DELETE FROM blocked_calls")
+    suspend fun deleteAll()
 }

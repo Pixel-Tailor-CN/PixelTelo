@@ -78,6 +78,9 @@
     <string name="title_delete_record">Delete Record</string>
     <string name="msg_delete_record_confirm">Are you sure you want to delete this intercept record? This action cannot be undone.</string>
     <string name="action_delete">Delete</string>
+    <string name="title_clear_all_records">Clear all intercept records?</string>
+    <string name="msg_clear_all_records_confirm">All intercept records will be permanently deleted. Blacklist and whitelist rules will not be affected.</string>
+    <string name="action_clear_all_records">Clear all</string>
     <string name="action_save_to_contacts">Save to Contacts</string>
     <string name="msg_no_contacts_app">No contacts app found</string>
 
