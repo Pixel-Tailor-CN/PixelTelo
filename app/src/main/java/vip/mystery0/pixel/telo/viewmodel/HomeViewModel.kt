@@ -270,6 +270,14 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     /** 对联网失败记录发起联网重查。 */
     fun retryNetworkQuery(call: BlockedCall) {
         viewModelScope.launch {
+            // 防止旧状态或竞态绕过 UI 门禁；Repository 也会在标准化前拒绝该请求。
+            if (PhoneNumberRuleMatcher.isExplicitInternational(call.phoneNumber)) {
+                _retryQueryState.value = RetryQueryState.Failure(
+                    call = call,
+                    resultType = ResultType.QUERY_SERVICE_UNAVAILABLE,
+                )
+                return@launch
+            }
             _retryQueryState.value = RetryQueryState.Loading(call)
             val backendResponse = try {
                 spamNumberRepository.queryNetwork(call.phoneNumber)

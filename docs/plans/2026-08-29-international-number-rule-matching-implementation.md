@@ -442,6 +442,10 @@ git commit -m "docs: 记录国际号码规则匹配模拟器验收结果"
 
 设备：`emulator-5554`。本次复验未宣称 PASS：设备在运行时恢复后遭遇 `lowmemorykiller`，随后 ADB 进入 `offline`/系统服务不可用状态，完整矩阵和恢复后的最终 SQL 复核无法完成。详细外部报告见 `.superpowers/sdd/2026-08-29-international-number-rule-matching-implementation/task-4-report.md`。
 
+### Issue #10 最终审查 P1：历史重试门禁（2026-08-30）
+
+`SpamNumberRepository.queryNetwork(phoneNumber)` 在调用 `PhoneNumberRuleMatcher.isExplicitInternational(phoneNumber)` 后，才允许执行 `normalizeForLookup` 与 `queryRepository.queryNumber`。明确的非中国 `+`/`00` 国际号码直接抛出已有 `BackendBlockedException`，因此不会访问任何 Backend；国内号码重试路径保持不变。`HomeViewModel.retryNetworkQuery` 复用同一匹配器作为竞态防线，明确国际号码不进入 Loading；若旧 UI 状态仍触发，统一归类为 `QUERY_SERVICE_UNAVAILABLE`，UI 仅展示稳定的服务不可用提示且不提供再次重试按钮。历史记录列表同样不为明确国际号码渲染重试按钮。
+
 * 安全边界：仅安装 `app-debug.apk`、修改模拟器运行时数据并更新本计划；未修改业务源码，未执行 `pm clear`，未读取或提交 `local.properties`，未运行单元测试、`check` 或 `test`。设备路径 ADB 命令使用 `MSYS_NO_PATHCONV=1`。
 * 准备与备份：`adb devices` 初始显示 `emulator-5554 device`；`./gradlew :app:assembleDebug` 通过（39 个任务均 up-to-date）；`install -r` 返回 `Success`。使用 `run-as vip.mystery0.pixel.telo.debug` 备份了 `app-database`/WAL/SHM、`mast.db`、`pixel_telo.xml`、两个 self-hosted prefs 与 `profileInstalled`。原始偏好为 `no_network_query=true`、`notify_only=false`、`show_location_overlay=true`；未发现独立 test-number 持久化 key。
 * Test Intercept 观察：通过 UI 新增黑名单前缀 `+1519` 后，名单显示 `+1519` 与“强制拦截”。设备原有/此前残留的白名单规则使 `0015197292346` 得到 `是否拦截: 否`、`结果类型: WHITE_LIST`、网络耗时 `0ms`；显式 `+15197292346` 未命中时得到 `是否拦截: 否`、`结果类型: PASS_BUT_NOTIFY`、本地 `26ms`、网络 `0ms`。由于设备资源问题，未完成 brief 所列 8 项 `+`/`00`/markerless 矩阵、BLACK/WHITE exact/prefix 全覆盖及逐项 CurrentListState 对照，故这些项为 `UNVERIFIED`。

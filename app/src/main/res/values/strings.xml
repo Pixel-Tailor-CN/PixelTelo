@@ -55,7 +55,7 @@
     <!-- Home Screen -->
     <string name="home_no_records">No intercept records</string>
     <string name="home_records_load_failed">Failed to load intercept records</string>
-    <string name="action_retry_query">Retry Query</string>
+    <string name="action_retry_query">Retry Query (Domestic Numbers)</string>
     <string name="label_phone_location">Location: %1$s</string>
     <string name="result_intercept_spam">Reason: Spam Call</string>
     <string name="result_pass_but_notify">Reason: Notify (Not Blocked)</string>
@@ -90,7 +90,7 @@
     <string name="retry_error_rate_limited">Requests are too frequent. Please try again later.</string>
     <string name="retry_error_server">The query service returned an error. Please try again later.</string>
     <string name="retry_error_connection">The network connection failed. Check your connection and try again.</string>
-    <string name="retry_error_service_unavailable">The query service is not ready. Please check the query service settings.</string>
+    <string name="retry_error_service_unavailable">The query service is unavailable. This query cannot be retried.</string>
     <string name="title_delete_record">Delete Record</string>
     <string name="msg_delete_record_confirm">Are you sure you want to delete this intercept record? This action cannot be undone.</string>
     <string name="action_delete">Delete</string>

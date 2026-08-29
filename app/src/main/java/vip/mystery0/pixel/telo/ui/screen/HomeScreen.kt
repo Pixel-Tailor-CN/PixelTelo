@@ -74,6 +74,7 @@ import androidx.paging.compose.itemKey
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ResultType
@@ -791,7 +792,11 @@ private fun LazyListScope.blockedCallsList(
                         contactName = contactNames[call.phoneNumber],
                         localLabel = localLabels[call.phoneNumber],
                         currentListState = item.currentListState,
-                        onRetry = if (call.resultType.isNetworkFailure()) {
+                        // 明确的非中国国际号码不支持联网重试，避免用户进入不可用的重试流程。
+                        onRetry = if (
+                            call.resultType.isNetworkFailure() &&
+                            !PhoneNumberRuleMatcher.isExplicitInternational(call.phoneNumber)
+                        ) {
                             { onRetry(call) }
                         } else {
                             null
