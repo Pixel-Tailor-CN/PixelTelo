@@ -67,7 +67,7 @@ Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_rest
 - 变体关联：`13800138000` / `+8613800138000` / `12583113800138000` 开启显示后均显示同一本地标签。不重启 UI 编辑 `OfficeA`→`OfficeB` 后三行同步。删除后本地标签消失、数据源保留。
 - 管理页：号码搜索、英文忽略大小写、编辑后 `updatedAt DESC` 置顶、删除需确认、无标签/搜索无结果空状态不同、无新增按钮、Back 后停在 Settings Tab。
 - Directory 四组合经 Contacts `directory=8` 实测。本地标签未短路 `checkSpam`。
-- **Google Phone 搜索缓存（受控矩阵，PARTIAL）：** 使用合成本地库号码（完整值仅外部 SDD 工件），基线仅数据源标签「广告推销」、无本地标签。force-stop Dialer 后首次 `ACTION_DIAL` 显示「广告推销」。之后保持 Dialer 进程、不把「自动刷新」算通过。新增 `BaseAdd`：`(i)` `directory=8` 立即 `BaseAdd · 广告推销`；`(ii)` 无 clear-top（`brought to the front`）UI 已显示 `BaseAdd · 广告推销`；`(iii)` clear-top 仍为 `BaseAdd`。修改 `BaseMod`：`(i)` 立即 `BaseMod · 广告推销`；`(ii)` 无 clear-top 的 dump **未出现** BaseMod；`(iii)` clear-top 显示 `BaseMod · 广告推销`。删除本地标签：`(i)` 立即回到「广告推销」；`(ii)` 无 clear-top 显示「广告推销」；`(iii)` dump 为空。结论：Provider 始终即时。Google Phone **不保证**仅提到前台就刷新；clear-top 常能触发新 lookup，但不是每次 dump 都可读。未宣称自动刷新通过。本步除基线外未 force-stop Dialer。
+- **Google Phone 搜索缓存（受控矩阵，PARTIAL）：** 使用合成本地库号码（完整值仅外部 SDD 工件），基线仅数据源标签「广告推销」、无本地标签。force-stop Dialer 后首次 `ACTION_DIAL` 显示「广告推销」。之后保持 Dialer 进程、不把「自动刷新」算通过。新增 `BaseAdd`：`(i)` `directory=8` 立即 `BaseAdd · 广告推销`；`(ii)` 无 clear-top（`brought to the front`）UI 已显示 `BaseAdd · 广告推销`；`(iii)` clear-top 仍为 `BaseAdd`。修改 `BaseMod`：`(i)` 立即 `BaseMod · 广告推销`；`(ii)` 无 clear-top 的 dump **未出现** BaseMod；`(iii)` clear-top 显示 `BaseMod · 广告推销`。删除本地标签：`(i)` 立即回到「广告推销」；`(ii)` 无 clear-top 显示「广告推销」；`(iii)` dump 为空。结论：Provider 始终即时。Google Phone **不保证**仅提到前台就刷新；clear-top 曾使 UI 显示最新 Provider 值，但未证明会稳定触发重查，且不是每次 dump 都可读。未宣称自动刷新通过。本步除基线外未 force-stop Dialer。
 - **联系人 vs Directory heads-up（受控复测，PASS/稳定）：** 全新临时联系人 `Task8Head2` + 本地标签 `HeadLocal2`（合成号码，完整值仅外部工件）。`phone_lookup` 首次轮询即命中联系人。未 force-stop Dialer/Telecom。开关开两次 `gsm call`：heads-up 均为 `Task8Head2`，Telecom `contact exists`，未见 Directory 名。开关关后 `directory=8` 无结果；再两次来电 heads-up 仍为 `Task8Head2`。此协议下优先级稳定为联系人，不依赖开关。
 - **真实来电 Overlay 双标签（补证）：** 合成联网测试号码（完整值仅外部 SDD 工件）不在本地 mast；Test Intercept `Should block: Yes` / Tag `出租车` / `INTERCEPT`。`notify_only=true` 以免拒接导致 Overlay 不展示。开关开 + 本地标签 `DualLocal`：CallScreening `shouldBlock=true, notifyOnly=true, resultType=INTERCEPT` 放行；heads-up `DualLocal · 出租车`；Overlay 分层号码 + `上海 上海` + `DualLocal` + 芯片 `出租车`。开关关：`directory=8` 仅 `出租车`；heads-up `出租车`；Overlay 仅归属地 + `出租车` 芯片、无 `DualLocal`。未使用预览 Overlay 替代。
 - 备份 v5 选择矩阵与 v1–v3 旧备份 forceBlock 回填见前次补证。
@@ -81,7 +81,7 @@ Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_rest
 - 官方联网对部分号码返回 `server_response` 失败；合成联网测试号码可返回 `出租车`（完整值仅外部 SDD 工件）。未搭建自建 Backend（不能在不降低 TLS 的前提下伪造已有 localhost 配置）。
 - Google Phone 无 clear-top 的前台 `ACTION_DIAL` **不是**可靠刷新触发器（修改步骤 dump 未显示新标签）。
 
-**本轮清理（原始命令输出）**
+**本轮清理结果摘要（据命令输出）**
 
 ```text
 blocked_calls 0
