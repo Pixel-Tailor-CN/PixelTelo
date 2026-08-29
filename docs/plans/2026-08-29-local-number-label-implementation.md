@@ -28,7 +28,7 @@
 
 ## 执行结果
 
-截至 Task 7。实现分支起点 `bc45e1c`，Task 6 完成后 HEAD 为 `1fa0c3e`。下列结果均为实际命令输出，不包含模拟器验收。
+截至 Task 8。实现分支起点 `bc45e1c`，Task 7 文档提交后 HEAD 为 `224101d`。Task 1–7 为静态构建结果；Task 8 为模拟器实测，详见 `.superpowers/sdd/2026-08-29-local-number-label-implementation/task-8-report.md`。
 
 ### Task 1–6 `assembleDebug`
 
@@ -53,24 +53,35 @@
 
 Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_restore_local_number_labels`、`msg_restored_summary` 触发 `PluralsCandidate`，与既有备份恢复字符串同一模式，未当作 Error 修改。其余 Warning 属于自建 Backend、历史文案、KTX 与资源收缩等既有问题。
 
-### 尚未执行的模拟器项
+### Task 8 模拟器验收
 
-Task 8 尚未开始，以下均未在模拟器或真机执行，不得视为已完成：
+唯一设备 `emulator-5554`（`sdk_gphone16k_x86_64` / Pixel_10_Pro AVD，API 37，Android 17）。覆盖安装 `1.4.1.d251.224101d9`，未清数据。未改业务源码。
 
-- v9 → v10 保留旧数据安装与迁移冒烟；
-- 显示开关默认关闭及关闭态编辑；
-- 号码变体动态历史关联；
-- 统一管理页搜索/编辑/删除/空状态与返回后 Pager 位置；
-- Directory Provider 四种组合与拨号器缓存；
-- Overlay 分层展示；
-- 备份 v5 选择范围矩阵；
-- 清空拦截记录不删除标签。
+**已验证**
+
+- v9 → v10：安装前 `user_version=9` 且无 `local_number_labels`；安装后 `user_version=10`，新表 schema 正确，无迁移崩溃。原 `blocked_calls`/`user_list` 均为 0，空表与既有 prefs 保留。
+- 显示开关默认关闭；关闭态详情仍可管理本地标签，列表普通身份区不展示。
+- 变体 `13800138000` / `+8613800138000` / `12583113800138000` 开启显示后均显示同一本地标签；改为「物业前台」后三条同步；删除后本地标签消失，数据源「广告营销」保留。
+- 管理页：号码搜索、英文忽略大小写、编辑后 `updatedAt DESC` 置顶、删除需确认、无标签/搜索无结果空状态不同、无新增按钮、Back 后停在 Settings Tab。
+- Directory 四组合经 Contacts `directory=8` 实测：`物业前台 · 广告营销`、仅本地 `物业`、仅数据源 `广告营销`、都无则空 Cursor。本地标签未短路 `checkSpam`（安全号仍有网络查询日志）。`gsm call 19900001111` 的 CallScreeningService `shouldBlock=false`。
+- Overlay：真来电展示本地「物业」+ 归属地超时；预览 Overlay 分层 `Property` + `快递外卖`；关闭显示开关后真来电 Overlay 不再显示本地标签。
+- 备份 v5：仅勾选本地标签时导出按钮可用；无标签备份预览数量为 0 且 Restore 不可用；v5 恢复「新增 1 / 覆盖 1 / 跳过 0」，未包含的当前标签保留；v4 旧备份恢复 1 条记录且本地标签 0 新增/覆盖/跳过；显示开关不随备份恢复改变。
+- 清空拦截记录后标签仍在；重新 Record 同号码后本地标签动态出现。
+
+**未验证 / 环境限制**
+
+- 安装前拦截记录和黑白名单为空，无法证明非空行迁移保留。
+- 模拟器 LatinIME 不能 adb 输入中文；中文标签首次写入/改写部分走 Room，UI 验证展示与删除。
+- 不能直接 query Telo authority（`BIND_DIRECTORY_SEARCH`）；Directory 结论来自 Contacts `directory=8`。
+- 该 AVD 来电 heads-up 在 Directory 有结果时显示 Directory 名而不是联系人；开关关闭后 Directory 对纯本地标签返回空，heads-up 才回落到联系人 `Task8Safe`。
+- 真实来电 Overlay 未同时看到本地标签 + 非超时数据源标签（超时会剥离数据源；本地库命中骚扰号不打开 Overlay）。
+- 未在系统拨号器搜索框做缓存刷新手工验证。
 
 ### 已知限制
 
 - Task 2 deferred：`Icons.Default.Label` Kotlin deprecation warning，建议后续改用 `Icons.AutoMirrored.Filled.Label`。Task 7 复现：`AppFeaturesPreferences.kt:156`。
 - Task 4 deferred：`HomeScreen.kt` 现为 1051 行，超过项目“原则上不超过 1000 行”的指南；未拆详情 BottomSheet。
-- 来电识别、Directory 缓存刷新、Overlay 与备份恢复的端到端行为仍待 Task 8 模拟器验收。
+- Task 8 环境限制见上一小节；完整命令、截图观察和清理记录见 `task-8-report.md`。
 
 ---
 
