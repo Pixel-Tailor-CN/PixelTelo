@@ -145,18 +145,20 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
                 val result = spamNumberRepository.checkSpam(filter)
                 val localLabel = localLabelDeferred?.await()
                 val sourceLabel = result.label.takeIf { result.shouldBlock && it.isNotBlank() }
-                val displayName = NumberLabelPresentation(
+                val presentedName = NumberLabelPresentation(
                     localLabel = localLabel,
                     sourceLabel = sourceLabel,
                 ).directoryDisplayName()
 
+                // 是否返回 Directory 行与组合显示名分离：拦截结果即使无标签也必须返回行。
                 if (!result.shouldBlock && localLabel == null) {
                     Log.i(TAG, "Phone number has no directory label")
                     return@coroutineScope emptyCursor
                 }
-                if (displayName == null) {
-                    Log.i(TAG, "Phone number has no directory label")
-                    return@coroutineScope emptyCursor
+                val displayName = presentedName ?: if (result.shouldBlock) {
+                    result.label
+                } else {
+                    localLabel.orEmpty()
                 }
                 if (result.shouldBlock) {
                     Log.i(TAG, "Spam number found")
