@@ -1,7 +1,7 @@
 package vip.mystery0.pixel.telo.data.repository
 
 import kotlinx.coroutines.flow.Flow
-import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
+import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.dao.UserListDao
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
@@ -33,17 +33,11 @@ class UserListRepository(private val dao: UserListDao) {
     suspend fun findWhiteListMatch(phone: String): UserListEntry? =
         findNumberMatch(phone, ListType.WHITE)
 
-    /**
-     * 优先使用标准化号码匹配；仅当和多号前缀被去除且标准化号码未命中时，
-     * 再查询升级前可能保存的原始号码规则。
-     */
+    /** 按共享匹配器生成的有序候选查询名单规则。 */
     private suspend fun findNumberMatch(phone: String, type: ListType): UserListEntry? {
-        val originalNumber = PhoneNumberNormalizer.normalizeCountryCode(phone)
-        val normalizedNumber = PhoneNumberNormalizer.normalizeForLookup(phone)
-        return dao.findMatch(normalizedNumber, type)
-            ?: originalNumber.takeIf { it != normalizedNumber }?.let {
-                dao.findMatch(it, type)
-            }
+        return PhoneNumberRuleMatcher.matchCandidates(phone).firstNotNullOfOrNull { candidate ->
+            dao.findMatch(candidate, type)
+        }
     }
 
     /**
@@ -117,7 +111,7 @@ class UserListRepository(private val dao: UserListDao) {
         val normalizedValue = if (tagMatch || locationMatch) {
             phoneNumber.trim()
         } else {
-            PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
+            PhoneNumberRuleMatcher.normalizeRuleForStorage(phoneNumber)
         }
         val entry = UserListEntry(
             phoneNumber = normalizedValue,

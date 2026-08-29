@@ -20,6 +20,9 @@ object PhoneNumberNormalizer {
         if (trimmedNumber.startsWith(CHINA_COUNTRY_CODE)) {
             return trimmedNumber.removePrefix(CHINA_COUNTRY_CODE)
         }
+        if (trimmedNumber.startsWith("0086")) {
+            return trimmedNumber.removePrefix("0086")
+        }
         if (
             trimmedNumber.length == 12 &&
             trimmedNumber.startsWith('+') &&
