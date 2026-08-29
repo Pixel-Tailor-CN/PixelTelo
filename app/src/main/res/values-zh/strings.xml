@@ -223,6 +223,7 @@
     <string name="msg_update_failed">离线数据更新失败</string>
     <string name="msg_auto_check_update_requires_notification_permission">需要授予通知权限，才能开启自动检查更新。</string>
     <string name="msg_test_failed">测试失败: %1$s</string>
+    <string name="msg_test_failed_safe">测试失败，请稍后重试。</string>
     <string name="label_manual_test">手动测试</string>
     <string name="msg_recorded_to_intercept_list">已记录到拦截列表</string>
     <string name="msg_backup_exported">备份已导出</string>

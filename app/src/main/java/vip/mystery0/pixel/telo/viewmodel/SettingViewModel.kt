@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
@@ -534,11 +535,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
         if (testPhoneNumber.isBlank()) return
         viewModelScope.launch {
             try {
-                testResult =
-                    spamNumberRepository.checkSpam(testPhoneNumber, forceNetworkQuery = true)
-            } catch (e: Exception) {
-                Log.e(TAG, "Test block failed", e)
-                syncStatusMessage = context.getString(R.string.msg_test_failed, e.message)
+                testResult = spamNumberRepository.checkSpam(testPhoneNumber)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                Log.e(TAG, "Test block failed: unexpected")
+                syncStatusMessage = context.getString(R.string.msg_test_failed_safe)
             }
         }
     }

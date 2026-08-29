@@ -218,6 +218,7 @@
     <string name="msg_update_failed">Offline data update failed.</string>
     <string name="msg_auto_check_update_requires_notification_permission">Notification permission is required to enable automatic update checks.</string>
     <string name="msg_test_failed">Test failed: %1$s</string>
+    <string name="msg_test_failed_safe">Test failed.</string>
     <string name="label_manual_test">Manual Test</string>
     <string name="msg_recorded_to_intercept_list">Recorded to intercept list.</string>
     <string name="msg_backup_exported">Backup exported.</string>

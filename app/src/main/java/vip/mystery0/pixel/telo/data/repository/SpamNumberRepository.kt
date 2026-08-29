@@ -20,6 +20,7 @@ import kotlinx.coroutines.withTimeout
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
+import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.query.BackendQueryResponse
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
@@ -119,6 +120,18 @@ class SpamNumberRepository : KoinComponent {
                 localCost = 0,
                 networkCost = 0,
                 forceBlock = blackMatch.forceBlock
+            )
+        }
+
+        if (PhoneNumberRuleMatcher.isExplicitInternational(phoneNumber)) {
+            Log.i(TAG, "Explicit international number skipped")
+            return CheckResult(
+                shouldBlock = false,
+                label = "",
+                resultType = ResultType.PASS_BUT_NOTIFY,
+                localCost = System.currentTimeMillis() - start,
+                networkCost = 0,
+                locationLookupAttempted = false,
             )
         }
 
