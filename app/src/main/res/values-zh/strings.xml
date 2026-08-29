@@ -213,9 +213,9 @@
     <string name="label_manual_test">手动测试</string>
     <string name="msg_recorded_to_intercept_list">已记录到拦截列表</string>
     <string name="msg_backup_exported">备份已导出</string>
-    <string name="msg_backup_failed">备份失败: %1$s</string>
+    <string name="msg_backup_failed">备份失败</string>
     <string name="msg_restored_count_records">已恢复 %1$d 条记录</string>
-    <string name="msg_restore_failed">恢复失败: %1$s</string>
+    <string name="msg_restore_failed">恢复失败</string>
     <string name="msg_database_deleted">离线数据库已删除</string>
     <string name="notification_offline_update_channel_name">离线数据更新</string>
     <string name="notification_offline_update_title">离线数据库有可用更新</string>

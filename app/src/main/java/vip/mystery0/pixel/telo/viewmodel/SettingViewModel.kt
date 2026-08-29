@@ -938,10 +938,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
                     includeLocalNumberLabels = preview.localNumberLabelCount > 0,
                 )
                 backupRestoreState = BackupRestoreState.Idle
-            } catch (e: Exception) {
-                Log.e(TAG, "Parse backup failed", e)
+            } catch (_: Exception) {
+                Log.e(TAG, "Parse backup failed")
                 backupRestoreState = BackupRestoreState.Failure(
-                    context.getString(R.string.msg_restore_failed, e.message)
+                    context.getString(R.string.msg_restore_failed)
                 )
             }
         }
@@ -958,10 +958,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 backupRestoreState = BackupRestoreState.Success(
                     context.getString(R.string.msg_backup_exported)
                 )
-            } catch (e: Exception) {
-                Log.e(TAG, "Backup failed", e)
+            } catch (_: Exception) {
+                Log.e(TAG, "Backup failed")
                 backupRestoreState = BackupRestoreState.Failure(
-                    context.getString(R.string.msg_backup_failed, e.message)
+                    context.getString(R.string.msg_backup_failed)
                 )
             }
         }
@@ -989,10 +989,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
                         result.localLabels.skipped,
                     )
                 )
-            } catch (e: Exception) {
-                Log.e(TAG, "Restore failed", e)
+            } catch (_: Exception) {
+                Log.e(TAG, "Restore failed")
                 backupRestoreState = BackupRestoreState.Failure(
-                    context.getString(R.string.msg_restore_failed, e.message)
+                    context.getString(R.string.msg_restore_failed)
                 )
             }
         }
