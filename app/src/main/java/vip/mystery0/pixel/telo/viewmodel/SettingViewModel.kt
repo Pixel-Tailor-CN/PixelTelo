@@ -25,6 +25,7 @@ import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
+import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
 import vip.mystery0.pixel.telo.data.query.QueryBackendState
 import vip.mystery0.pixel.telo.data.query.QueryBackendType
@@ -128,6 +129,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     private val queryBackendProvider: QueryBackendProvider by inject()
     private val selfHostedConfigRepository: SelfHostedConfigRepository by inject()
     private val prefs: SharedPreferences by inject()
+    private val localNumberLabelPreferences: LocalNumberLabelPreferences by inject()
     private val context: Context by inject()
 
     // Backup / Restore State
@@ -160,6 +162,14 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var forceDownload by mutableStateOf(false)
 
     // App Features
+    var showLocalNumberLabels by mutableStateOf(localNumberLabelPreferences.enabled.value)
+        private set
+
+    fun updateShowLocalNumberLabels(enabled: Boolean) {
+        showLocalNumberLabels = enabled
+        localNumberLabelPreferences.setEnabled(enabled)
+    }
+
     var callStateVibrationEnabled by mutableStateOf(
         prefs.getBoolean(KEY_CALL_STATE_VIBRATION, false)
     )

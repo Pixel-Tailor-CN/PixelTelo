@@ -36,6 +36,8 @@
     <string name="setting_no_network_query_summary">开启后拦截检查仅匹配本地数据库，不再进行联网查询</string>
     <string name="setting_always_record">始终显示在拦截记录中</string>
     <string name="setting_always_record_summary">开启后，所有来电不论是否被拦截都会显示在拦截记录中</string>
+    <string name="setting_show_local_number_labels">显示本地号码标签</string>
+    <string name="setting_show_local_number_labels_summary">在来电识别和记录中显示你设置的本地标签</string>
 
     <!-- Navigation -->
     <string name="nav_home">拦截记录</string>

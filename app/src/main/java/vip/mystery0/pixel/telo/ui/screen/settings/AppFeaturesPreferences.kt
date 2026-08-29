@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Schedule
@@ -144,6 +145,14 @@ fun AppFeaturesPreferences(
             }
         )
     }
+
+    SwitchPreference(
+        value = viewModel.showLocalNumberLabels,
+        onValueChange = viewModel::updateShowLocalNumberLabels,
+        title = { Text(stringResource(R.string.setting_show_local_number_labels)) },
+        summary = { Text(stringResource(R.string.setting_show_local_number_labels_summary)) },
+        icon = { Icon(Icons.Default.Label, contentDescription = null) },
+    )
 
     Preference(
         title = { Text(stringResource(R.string.title_test_intercept)) },

@@ -10,6 +10,8 @@
     <string name="setting_no_network_query_summary">When enabled, intercept checks only match the local database and no longer perform network queries.</string>
     <string name="setting_always_record">Always Record</string>
     <string name="setting_always_record_summary">Record all incoming calls in the intercept log even if they are not blocked.</string>
+    <string name="setting_show_local_number_labels">Show local number labels</string>
+    <string name="setting_show_local_number_labels_summary">Show your local labels in caller identification and call records</string>
 
     <string name="setting_show_location_overlay">Show location in floating window</string>
     <string name="setting_show_location_overlay_summary">Show phone attribution returned by online query in a floating window during incoming calls.</string>
