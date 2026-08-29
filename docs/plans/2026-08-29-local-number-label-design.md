@@ -363,7 +363,8 @@ Room Invalidation 自动刷新当前窗口，不扫描和更新整张 `blocked_c
 
 ### 11.3 标签管理页
 
-新增非底部导航目的地，从设置页进入：
+新增非底部二级页面，从设置页进入。项目当前使用 `HorizontalPager` 而非 Navigation Compose，
+因此由 `MainActivity` 保存二级页面状态：进入管理页时隐藏底部导航并显示返回按钮，返回后恢复设置页及其 Pager 位置。
 
 - TopAppBar 标题为“本地号码标签”；
 - 搜索同时匹配归一化号码和标签，忽略英文字母大小写；
