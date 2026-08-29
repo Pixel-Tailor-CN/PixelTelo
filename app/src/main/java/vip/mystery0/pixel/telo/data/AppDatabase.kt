@@ -5,8 +5,10 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import vip.mystery0.pixel.telo.data.dao.BlockedCallDao
+import vip.mystery0.pixel.telo.data.dao.LocalNumberLabelDao
 import vip.mystery0.pixel.telo.data.dao.UserListDao
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
+import vip.mystery0.pixel.telo.data.entity.LocalNumberLabel
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 
 /** 从 v1 升级到 v2：新增 user_list 表 */
@@ -112,9 +114,26 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+/** 从 v9 升级到 v10：新增独立的持久化本地号码标签表。 */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `local_number_labels` (
+                `normalizedPhoneNumber` TEXT NOT NULL,
+                `label` TEXT NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`normalizedPhoneNumber`)
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
-    entities = [BlockedCall::class, UserListEntry::class],
-    version = 9,
+    entities = [BlockedCall::class, UserListEntry::class, LocalNumberLabel::class],
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -122,4 +141,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     /** 用户自定义黑白名单 Dao */
     abstract fun userListDao(): UserListDao
+
+    /** 用户为具体号码设置的持久化本地标签 Dao */
+    abstract fun localNumberLabelDao(): LocalNumberLabelDao
 }

@@ -19,6 +19,7 @@ import vip.mystery0.pixel.telo.data.MIGRATION_5_6
 import vip.mystery0.pixel.telo.data.MIGRATION_6_7
 import vip.mystery0.pixel.telo.data.MIGRATION_7_8
 import vip.mystery0.pixel.telo.data.MIGRATION_8_9
+import vip.mystery0.pixel.telo.data.MIGRATION_9_10
 import vip.mystery0.pixel.telo.data.remote.OfficialFeedbackApi
 import vip.mystery0.pixel.telo.data.remote.QueryApi
 import vip.mystery0.pixel.telo.data.remote.SyncApi
@@ -28,6 +29,7 @@ import vip.mystery0.pixel.telo.data.query.SelfHostedQueryClientFactory
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.ContactRepository
+import vip.mystery0.pixel.telo.data.repository.LocalNumberLabelRepository
 import vip.mystery0.pixel.telo.data.repository.QueryRepository
 import vip.mystery0.pixel.telo.data.repository.SelfHostedConfigRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
@@ -57,17 +59,20 @@ val appModule = module {
                 MIGRATION_5_6,
                 MIGRATION_6_7,
                 MIGRATION_7_8,
-                MIGRATION_8_9
+                MIGRATION_8_9,
+                MIGRATION_9_10
             )
             .build()
     }
 
     single { get<AppDatabase>().blockedCallDao() }
     single { get<AppDatabase>().userListDao() }
+    single { get<AppDatabase>().localNumberLabelDao() }
 
     single { BlockedCallRepository() }
     single { ContactRepository(androidContext()) }
     single { UserListRepository(get()) }
+    single { LocalNumberLabelRepository(get(), get()) }
     single { BackupRepository(get(), get()) }  // 第二个 get() 注入 UserListDao
     single { SpamNumberRepository() }
     single { SmartspacerInterceptRepository() }
