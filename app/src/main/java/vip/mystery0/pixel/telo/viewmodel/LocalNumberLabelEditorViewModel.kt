@@ -21,6 +21,13 @@ internal const val LOCAL_LABEL_MAX_VISIBLE_INPUT = 41
 /** 与 Repository 一致的标签最大长度，最终规则仍由 Repository 决定。 */
 internal const val LOCAL_LABEL_MAX_LENGTH = 40
 
+/** 观察尚未完成时排队的编辑动作，避免 Task 5 同步 observe 后丢失点击。 */
+enum class PendingLocalLabelAction {
+    NONE,
+    EDIT,
+    DELETE,
+}
+
 /** 单号码本地标签编辑的稳定 UI 状态。 */
 data class LocalLabelEditorState(
     val phoneNumber: String? = null,
@@ -31,6 +38,7 @@ data class LocalLabelEditorState(
     val deleteConfirmationVisible: Boolean = false,
     val saving: Boolean = false,
     val error: LocalLabelEditorError? = null,
+    val pendingAction: PendingLocalLabelAction = PendingLocalLabelAction.NONE,
 )
 
 /** 可映射到本地化文案的编辑错误，不直接展示异常正文。 */
@@ -57,7 +65,7 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
 
     private var observeJob: Job? = null
 
-    /** 观察指定号码的当前标签；切换号码时关闭未完成的编辑弹窗。 */
+    /** 观察指定号码的当前标签；切换号码时关闭未完成的编辑弹窗并丢弃排队动作。 */
     fun observe(phoneNumber: String) {
         val switchingTarget = _state.value.phoneNumber != phoneNumber
         observeJob?.cancel()
@@ -75,6 +83,11 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
                 },
                 saving = if (switchingTarget) false else current.saving,
                 error = if (switchingTarget) null else current.error,
+                pendingAction = if (switchingTarget) {
+                    PendingLocalLabelAction.NONE
+                } else {
+                    current.pendingAction
+                },
             )
         }
         observeJob = viewModelScope.launch {
@@ -86,25 +99,17 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
                 .collect { entity ->
                     val label = entity?.label
                     _state.update { current ->
-                        // 首发后结束 observing；仅在用户尚未改草稿时安全预填，避免空 draft 覆盖已有标签
-                        val shouldPrefill = current.editorVisible &&
-                            !current.saving &&
-                            current.draft == current.currentLabel.orEmpty()
-                        current.copy(
-                            currentLabel = label,
-                            observing = false,
-                            draft = if (shouldPrefill) label.orEmpty() else current.draft,
-                        )
+                        applyObserveEmission(current, label)
                     }
                 }
         }
     }
 
-    /** 打开编辑框并预填当前标签；首个观察结果到达前不打开。 */
+    /** 打开编辑框并预填当前标签；观察未完成时排队，首发后再打开。 */
     fun openEditor() {
         _state.update { current ->
             if (current.observing) {
-                current
+                current.copy(pendingAction = PendingLocalLabelAction.EDIT)
             } else {
                 current.copy(
                     editorVisible = true,
@@ -112,6 +117,7 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
                     draft = current.currentLabel.orEmpty(),
                     saving = false,
                     error = null,
+                    pendingAction = PendingLocalLabelAction.NONE,
                 )
             }
         }
@@ -178,16 +184,17 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
         }
     }
 
-    /** 打开删除确认框；首个观察结果到达前不打开。 */
+    /** 打开删除确认框；观察未完成时排队，首发后再打开。 */
     fun requestDelete() {
         _state.update { current ->
             if (current.observing) {
-                current
+                current.copy(pendingAction = PendingLocalLabelAction.DELETE)
             } else {
                 current.copy(
                     editorVisible = false,
                     deleteConfirmationVisible = true,
                     error = null,
+                    pendingAction = PendingLocalLabelAction.NONE,
                 )
             }
         }
@@ -238,6 +245,7 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
                 deleteConfirmationVisible = false,
                 saving = false,
                 error = null,
+                pendingAction = PendingLocalLabelAction.NONE,
             )
         }
     }
@@ -247,5 +255,54 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
         observeJob?.cancel()
         observeJob = null
         _state.value = LocalLabelEditorState()
+    }
+
+    /**
+     * 处理观察结果。
+     *
+     * 首发结束 observing 并执行排队动作；之后仅在用户尚未改草稿时同步 draft。
+     */
+    private fun applyObserveEmission(
+        current: LocalLabelEditorState,
+        label: String?,
+    ): LocalLabelEditorState {
+        val pending = if (current.observing) {
+            current.pendingAction
+        } else {
+            PendingLocalLabelAction.NONE
+        }
+        return when (pending) {
+            PendingLocalLabelAction.EDIT -> current.copy(
+                currentLabel = label,
+                observing = false,
+                editorVisible = true,
+                deleteConfirmationVisible = false,
+                draft = label.orEmpty(),
+                saving = false,
+                error = null,
+                pendingAction = PendingLocalLabelAction.NONE,
+            )
+
+            PendingLocalLabelAction.DELETE -> current.copy(
+                currentLabel = label,
+                observing = false,
+                editorVisible = false,
+                deleteConfirmationVisible = true,
+                error = null,
+                pendingAction = PendingLocalLabelAction.NONE,
+            )
+
+            PendingLocalLabelAction.NONE -> {
+                val shouldPrefill = current.editorVisible &&
+                    !current.saving &&
+                    current.draft == current.currentLabel.orEmpty()
+                current.copy(
+                    currentLabel = label,
+                    observing = false,
+                    draft = if (shouldPrefill) label.orEmpty() else current.draft,
+                    pendingAction = PendingLocalLabelAction.NONE,
+                )
+            }
+        }
     }
 }
