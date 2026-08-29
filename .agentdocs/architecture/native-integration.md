@@ -81,12 +81,15 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
 1. **来电**: 系统绑定 `CallScreeningService`。
 2. **号码标准化与查询**:
     * Service 保留系统提供的原始号码用于界面展示和 `BlockedCall` 记录。
-    * 查询前由 `PhoneNumberNormalizer` 统一去除 `+86`；对于中国移动“和多号/一卡多号”，
-      仅去除已确认的 `125831`、`125832`、`125833` 前缀，并保留后续号码格式（包括境外号码的
-      `00` 国家代码）。
-    * 标准化号码用于本地 **Room** 数据库、联网接口、号码黑白名单和重复来电判断。
-      号码名单优先匹配标准化号码；若发生了和多号前缀转换且未命中，再回退匹配升级前可能保存的
-      原始号码规则。
+    * 自定义黑白名单由 `PhoneNumberRuleMatcher` 负责存储规范和匹配候选：明确的 `+国家代码` 与
+      `00国家代码` 等价，但不带 `+`/`00` 标记的纯数字号码不跨入明确国际格式。`UserListRepository`
+      与历史 UI 的 `CurrentListState` 共同使用该匹配器。
+    * `PhoneNumberNormalizer` 继续负责中国号码及已确认的中国移动“和多号/一卡多号”在国内查询域的
+      标准化（包括去除 `+86`、`0086` 和 `125831`、`125832`、`125833` 前缀）；该域不改变明确
+      非中国国际号码的本地规则语义。
+    * `SpamNumberRepository.checkSpam()` 先查本地白名单和黑名单，再执行明确国际号码门禁。未命中的
+      明确非中国国际号码直接放行，不打开 `MastDatabase`，也不获取 Backend Snapshot 或调用官方/
+      Self-hosted 实时 Backend；`forceNetworkQuery` 不能绕过门禁。
 3. **性能约束 (CRITICAL)**:
     * **本地查询**: 必须在 **100ms** 内完成。
     * **网络回退**: 若本地无结果，通过 `QueryRepository.queryNumber()` 发起 v2 联网查询，
@@ -109,6 +112,8 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
     * **重复来电策略**: 对设定窗口内再次呼入的已标记号码提供“不修改”“放行但静音”“完全放行”
       三种策略。“不修改”不参与重复来电判断；“放行但静音”记录为 `PASS_BUT_NOTIFY`；“完全放行”
       正常响铃并记录为 `PASS`。两种放行策略的记录备注必须明确标注实际处理方式。
+    * Settings 中的 Test Intercept 通过同一个 `SpamNumberRepository.checkSpam()` 决策入口执行，
+      不再强制联网，因此与 `CallScreeningService` 使用相同的名单优先级、国际号码门禁和查询设置。
 5. **动作**: 调用 `respondToCall`。
     * 如果被拦截，设置 `skipCallLog` 为 `false`（确保拦截记录出现在历史记录中）并设置 `disallowCall` 为
       `true`。
