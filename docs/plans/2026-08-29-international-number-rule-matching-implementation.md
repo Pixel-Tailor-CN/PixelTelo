@@ -437,3 +437,16 @@ Append the real matrix, limitations, cleanup output and logcat summary to this i
 git add docs/plans/2026-08-29-international-number-rule-matching-implementation.md
 git commit -m "docs: 记录国际号码规则匹配模拟器验收结果"
 ```
+
+#### Task 4 模拟器复验记录（2026-08-30；PARTIAL）
+
+设备：`emulator-5554`。本次复验未宣称 PASS：设备在运行时恢复后遭遇 `lowmemorykiller`，随后 ADB 进入 `offline`/系统服务不可用状态，完整矩阵和恢复后的最终 SQL 复核无法完成。详细外部报告见 `.superpowers/sdd/2026-08-29-international-number-rule-matching-implementation/task-4-report.md`。
+
+* 安全边界：仅安装 `app-debug.apk`、修改模拟器运行时数据并更新本计划；未修改业务源码，未执行 `pm clear`，未读取或提交 `local.properties`，未运行单元测试、`check` 或 `test`。设备路径 ADB 命令使用 `MSYS_NO_PATHCONV=1`。
+* 准备与备份：`adb devices` 初始显示 `emulator-5554 device`；`./gradlew :app:assembleDebug` 通过（39 个任务均 up-to-date）；`install -r` 返回 `Success`。使用 `run-as vip.mystery0.pixel.telo.debug` 备份了 `app-database`/WAL/SHM、`mast.db`、`pixel_telo.xml`、两个 self-hosted prefs 与 `profileInstalled`。原始偏好为 `no_network_query=true`、`notify_only=false`、`show_location_overlay=true`；未发现独立 test-number 持久化 key。
+* Test Intercept 观察：通过 UI 新增黑名单前缀 `+1519` 后，名单显示 `+1519` 与“强制拦截”。设备原有/此前残留的白名单规则使 `0015197292346` 得到 `是否拦截: 否`、`结果类型: WHITE_LIST`、网络耗时 `0ms`；显式 `+15197292346` 未命中时得到 `是否拦截: 否`、`结果类型: PASS_BUT_NOTIFY`、本地 `26ms`、网络 `0ms`。由于设备资源问题，未完成 brief 所列 8 项 `+`/`00`/markerless 矩阵、BLACK/WHITE exact/prefix 全覆盖及逐项 CurrentListState 对照，故这些项为 `UNVERIFIED`。
+* 真实 CallScreening：执行 `adb -s emulator-5554 emu gsm call +15197292346`；系统实际传递 `mCallIncomingNumber=+15197292346`，Telecom 为 `RINGING`。`TeloCallScreeningService` 记录 `Incoming call detected`，Repository 记录 `White list hit`，结果为 `shouldBlock=false`、`resultType=WHITE_LIST`、`localCost=0ms`、`networkCost=0ms`；Telecom 完成事件为 `Allow`。仅完成白名单放行代表项，黑名单拒绝和多格式真实来电未完成。
+* 国际门禁：Test Intercept 的未命中显式国际号码已观察到 `PASS_BUT_NOTIFY`/`networkCost=0`；现有源码静态控制流显示白名单、黑名单后立即执行 `isExplicitInternational()`，早返位于 `syncRepository.getDb()`、偏好联网分支、Backend Snapshot 和 `forceNetworkQuery` 处理前。`no_network_query=false`、受控 Backend 计数器/请求日志、运行时 `forceNetworkQuery=true`、`locationLookupAttempted` 可见字段均未完成，标记 `UNVERIFIED`。
+* 配置/国内回归/备份：未完成国内 Test Intercept 三态对照、`+86`/`0086`/markerless、和多号、标签/归属地/forceBlock 回归及 backup round-trip；不将静态代码或历史结果冒充模拟器通过。
+* 清理与恢复：已结束 GSM 来电，设备异常前 `mCallState=0` 且 incoming number 为空；执行 `am force-stop`，删除 `/data/local/tmp/task4-runtime-before.tgz` 与工作区 `task4-restore/`。在设备可用期间通过 `run-as cp` 逐项恢复数据库文件、`mast.db`、三个 prefs 和 `profileInstalled`，并观测恢复偏好仍为 `no_network_query=true`、`notify_only=false`、`show_location_overlay=true`。恢复后应用被 lowmemorykiller 终止，ADB 失联，因此无法取得恢复后的 user_list/blocked_calls 精确 SQL 行数和稳定最终设备快照。AppOps 在失联前为 `SYSTEM_ALERT_WINDOW: allow`；未创建 ZIP，`/sdcard/data-local-tmp` 不存在，Download 仅见已有 `shizuku-v13.6.0.r1318-thedjchi.apk`。已采集 logcat 未见 `FATAL EXCEPTION`、`ANR in`、`Local lookup failed`；lowmemorykiller/ADB 异常为明确残余风险。
+* 文档与提交：业务源码无改动；本次提交范围仅为本实施计划文档。外部报告按要求写入但不加入提交。
