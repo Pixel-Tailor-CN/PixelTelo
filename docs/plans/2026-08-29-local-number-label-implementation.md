@@ -97,9 +97,34 @@ $ git status --short
 
 ### 已知限制
 
-- Task 2 deferred：`Icons.Default.Label` Kotlin deprecation warning，建议后续改用 `Icons.AutoMirrored.Filled.Label`。Task 7 复现：`AppFeaturesPreferences.kt:156`。
-- Task 4 deferred：`HomeScreen.kt` 现为 1051 行，超过项目“原则上不超过 1000 行”的指南；未拆详情 BottomSheet。
+- Task 2 deferred 的 `Icons.Default.Label` deprecation 已在最终审查修复中改为 `Icons.AutoMirrored.Filled.Label`。
+- Task 4 deferred：`HomeScreen.kt` 现为 1051 行，超过项目“原则上不超过 1000 行”的指南；本轮按审查要求未拆详情 BottomSheet。
 - Task 8 Overlay 双标签与「关闭后仅数据源」仍待真机或可出非超时数据源的来电环境；其余环境限制见上一小节。
+- 备份失败改为稳定分类日志后，无法从 logcat 看到异常类型或 JSON 摘要，排障需本地复现。
+- 本地标签 100ms 超时后会 cancel deferred；若 Room 查询在取消点不可中断，`coroutineScope` 仍可能短暂等待该查询结束，但超时结果已按 null Fail Open，且不会进入外层拦截错误路径。
+
+### 最终审查修复
+
+修复起点 HEAD `3cfba59`。仅处理审查 P1-1、P1-2 与 P2 AutoMirrored 图标；未拆 `HomeScreen`，未处理 `PluralsCandidate`。外部报告：`D:/StudioProjects/PixelTelo/.superpowers/sdd/2026-08-29-local-number-label-implementation/final-fix-report.md`（gitignored SDD 工件）。
+
+代码提交：
+
+- `ef7038c` `fix: 本地标签查询增加有界超时与 Overlay 权限检查`
+- `3254e31` `fix: 备份失败不再记录或展示异常正文`
+- `4d47d6e` `fix: 本地标签设置图标改用 AutoMirrored`
+
+**代码修复**
+
+- P1-1：`TeloDirectoryProvider` 与 `TeloCallScreeningService` 对本地标签 deferred 使用 `LOCAL_LABEL_LOOKUP_TIMEOUT_MS = 100` 有界 `await`；查询本身也套 `withTimeoutOrNull(100ms)`。超时返回 null 并 cancel 未完成查询，不进入外层拦截错误路径，完整 `checkSpam` 不被本地标签超时打断。Service 启动查询前增加 `Settings.canDrawOverlays(applicationContext)`。`LocalNumberLabelRepository.find()` 已显式 rethrow `CancellationException`；`observeLabels()` 的 `catch` 同样显式 rethrow，普通异常仍只记录稳定英文日志，不含号码或标签。
+- P1-2：`SettingViewModel.parseBackupFile` / `performBackupWithOptions` / `performRestoreWithOptions` 的 `Log.e` 不再附 throwable。用户可见失败改用无格式参数的 `msg_backup_failed` / `msg_restore_failed`，中英文资源同步，避免 JSON 摘要泄露号码或标签。
+- P2：`AppFeaturesPreferences` 将 `Icons.Default.Label` 改为 `Icons.AutoMirrored.Filled.Label`。
+
+**验证命令（真实结果）**
+
+- `./gradlew :app:assembleDebug`：`BUILD SUCCESSFUL in 8s`（39 actionable tasks: 19 executed, 20 up-to-date）。
+- `./gradlew lint`：`BUILD SUCCESSFUL in 39s`；报告标题 `Lint Report: 44 warnings`，0 errors。无本轮引入的 Error。`PluralsCandidate` 仍为既有 Warning，按审查要求未改。
+- `git diff --check`：无 whitespace 错误输出（exit 0）。Git 对 `LocalNumberLabelRepository.kt` 提示 LF→CRLF，属于工作副本换行提示，不是 `--check` 失败。
+- 未执行 `./gradlew test`、`testDebugUnitTest` 或 `check`。未读取或提交 `local.properties`。
 
 ---
 
