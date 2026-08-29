@@ -110,6 +110,15 @@
     <string name="error_local_label_save_failed">保存失败，请重试</string>
     <string name="label_local_label_char_count">%1$d / 40</string>
     <string name="cd_local_label_char_count">已输入 %1$d / 40 个字符</string>
+    <string name="setting_local_number_labels">本地号码标签</string>
+    <string name="setting_local_number_labels_summary">查看、搜索、编辑或删除已设置的本地号码标签</string>
+    <string name="title_local_number_labels">本地号码标签</string>
+    <string name="hint_search_local_number_labels">搜索号码或标签</string>
+    <string name="msg_no_local_number_labels">暂无本地号码标签</string>
+    <string name="msg_no_local_number_labels_hint">可在来电记录详情中设置</string>
+    <string name="msg_no_matching_local_number_labels">没有匹配的号码标签</string>
+    <string name="cd_edit_local_label">编辑标签</string>
+    <string name="cd_delete_local_label">删除标签</string>
 
     <!-- Settings Screen -->
     <string name="title_operation_success">操作成功</string>

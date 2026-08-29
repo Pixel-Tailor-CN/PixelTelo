@@ -103,6 +103,15 @@
     <string name="error_local_label_save_failed">Couldn\'t save the local label. Try again.</string>
     <string name="label_local_label_char_count">%1$d / 40</string>
     <string name="cd_local_label_char_count">%1$d of 40 characters</string>
+    <string name="setting_local_number_labels">Local number labels</string>
+    <string name="setting_local_number_labels_summary">View, search, edit, or delete labels you have set</string>
+    <string name="title_local_number_labels">Local number labels</string>
+    <string name="hint_search_local_number_labels">Search numbers or labels</string>
+    <string name="msg_no_local_number_labels">No local number labels</string>
+    <string name="msg_no_local_number_labels_hint">You can set them in intercept record details</string>
+    <string name="msg_no_matching_local_number_labels">No matching number labels</string>
+    <string name="cd_edit_local_label">Edit label</string>
+    <string name="cd_delete_local_label">Delete label</string>
 
     <!-- Settings Screen -->
     <string name="title_operation_success">Operation Successful</string>

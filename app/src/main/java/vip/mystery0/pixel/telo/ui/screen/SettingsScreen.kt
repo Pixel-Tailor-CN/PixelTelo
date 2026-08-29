@@ -82,7 +82,10 @@ import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 import java.time.LocalDateTime
 
 @Composable
-fun SettingsScreen(viewModel: SettingViewModel) {
+fun SettingsScreen(
+    viewModel: SettingViewModel,
+    onNavigateToLocalNumberLabels: () -> Unit,
+) {
     val context = LocalContext.current
     val queryBackendState by viewModel.queryBackendState.collectAsState()
     val selfHostedConnectionState by viewModel.selfHostedConnectionState.collectAsState()
@@ -777,6 +780,7 @@ fun SettingsScreen(viewModel: SettingViewModel) {
                             Manifest.permission.READ_PHONE_STATE
                         )
                     },
+                    onNavigateToLocalNumberLabels = onNavigateToLocalNumberLabels,
                 )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
