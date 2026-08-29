@@ -55,51 +55,39 @@ Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_rest
 
 ### Task 8 模拟器验收
 
-唯一设备 `emulator-5554`（`sdk_gphone16k_x86_64` / Pixel_10_Pro AVD，API 37，Android 17）。覆盖安装 `1.4.1.d251.224101d9`，未清数据。未改业务源码。
+唯一设备 `emulator-5554`（`sdk_gphone16k_x86_64` / Pixel_10_Pro AVD，API 37，Android 17）。后续补证覆盖安装当前 HEAD `1.4.1.d258.6f71d084`，未 `pm clear`。未改业务源码。
 
 外部长报告绝对路径：`D:/StudioProjects/PixelTelo/.superpowers/sdd/2026-08-29-local-number-label-implementation/task-8-report.md`。该文件属于 gitignored `/.superpowers/` SDD 工件，**不是仓库相对可访问文件**。耐久摘要已内嵌本节；审查以本小节为准。
 
 **已验证**
 
-- v9 → v10：安装前 `user_version=9` 且无 `local_number_labels`；安装后 `user_version=10`，新表 schema 正确，无迁移崩溃。原 `blocked_calls`/`user_list` 均为 0，空表与既有 prefs 保留。
+- v9 → v10 空库冒烟：安装前 `user_version=9` 且无 `local_number_labels`；安装后 `user_version=10`，新表 schema 正确，无迁移崩溃。
+- **v9 非空迁移（补证）：** 构造合法 v9（无 `local_number_labels`，`user_version=9`）并写入可辨识行：`blocked_calls` `12200122000` / remark `v9-migrate-call` / label `v9-label` / `Zhejiang Hangzhou` / `queryBackendId=official`；`user_list` 前缀黑名单 `12200` `forceBlock=0`，标签黑名单 `TagV9Force` `forceBlock=1`。启动当前 APK 后 `user_version=10`，`local_number_labels` 空表就位；上述行与 `forceBlock` 均保留。UI 拦截列表显示该记录且 `Current: In blacklist`；Custom 显示 `12200*` Prefix match，以及 `TagV9Force` Tag match + Force block。无 FATAL。
 - 显示开关默认关闭；关闭态详情仍可管理本地标签，列表普通身份区不展示。
-- 变体关联：`13800138000` / `+8613800138000` / `12583113800138000` 开启显示后均显示同一本地标签。补证（不重启）：详情 UI 将 `OfficeA` 改为 `OfficeB` 并 Save，关闭 BottomSheet 后同一进程 `pid=21319` 下列表三行均为 `Local label: OfficeB`，`OfficeA` 为 0；数据源「广告营销」仍在。删除后本地标签消失、数据源保留（此前中文「物业前台」路径）。
+- 变体关联：`13800138000` / `+8613800138000` / `12583113800138000` 开启显示后均显示同一本地标签。不重启 UI 编辑 `OfficeA`→`OfficeB` 后三行同步。删除后本地标签消失、数据源保留。
 - 管理页：号码搜索、英文忽略大小写、编辑后 `updatedAt DESC` 置顶、删除需确认、无标签/搜索无结果空状态不同、无新增按钮、Back 后停在 Settings Tab。
-- Directory 四组合经 Contacts `directory=8` 实测：`物业前台 · 广告营销`、仅本地 `物业`、仅数据源 `广告营销`、都无则空 Cursor。本地标签未短路 `checkSpam`。`gsm call 19900001111` 的 CallScreeningService `shouldBlock=false`。
-- Overlay **部分验证**：真实来电只验证了本地标签显隐（开关开：`19900001111` Overlay 显示「物业」+ `Location query timeout`；开关关：同一号码 Overlay 无本地标签）。
-- 备份 v5：仅勾选本地标签时导出按钮可用；无标签备份预览数量为 0 且 Restore 不可用；v5 恢复「新增 1 / 覆盖 1 / 跳过 0」，未包含的当前标签保留；v4 旧备份恢复 1 条记录且本地标签 0 新增/覆盖/跳过；显示开关不随备份恢复改变。
-- 备份 v1–v3 最小安全 fixture（无真实联系人/号码隐私数据）经恢复 UI：预览均为 `Local Number Labels (0 entries)`；结果均为 `0 local labels added, 0 overwritten, 0 skipped`；恢复后管理页仍为 `OfficeB`/`KeepMe`。v2 标签黑名单 `V2TagBlack` UI 显示 `Force block`，SQLite `forceBlock=1`（缺省字段回填）；v3 `V3TagBlack` 显式 `force_block:false`，UI 无 Force block 芯片，SQLite `forceBlock=0`。
+- Directory 四组合经 Contacts `directory=8` 实测。本地标签未短路 `checkSpam`。
+- **Google Phone 搜索缓存（补证）：** Provider `directory=8` 在标签 `CacheA`→`CacheB`→删除后立即分别为 `CacheA · 广告营销` / `CacheB · 广告营销` / `广告营销`。Google Phone `ACTION_DIAL tel:13800138000` 首次打开即显示当时 Provider 结果。已在前台的 Dialer 仅 `am start` 提到前台可能不重新查询；`--activity-clear-top` 再次投递 DIAL 后 UI 刷新为 `CacheB`（无需 force-stop 进程）。删除标签后 force-stop Dialer 再打开显示仅 `广告营销`。结论：Provider 即时；Google Phone UI 依赖新的 lookup，存在任务内缓存，clear-top 或重启拨号器可刷新。
+- **联系人 vs Directory（补证）：** 临时联系人 `Task8Pri` + 本地标签 `PriLocal`（`19900001111`）。开关开：Contacts `phone_lookup`=`Task8Pri`，`directory=8`=`PriLocal`；Google Phone 搜索**同时列出**联系人与 Pixel Telo 工作目录行；真实来电 heads-up 显示 **Task8Pri**（Telecom `contact exists`），Overlay 仍显示 `PriLocal`。开关关：`directory=8` 无结果；搜索只剩 `Task8Pri`；heads-up 仍为 `Task8Pri`。此 AVD：搜索并列展示；来电 heads-up 在联系人已存在时优先联系人。
+- **真实来电 Overlay 双标签（补证）：** 号码 `15000000000` 不在本地 mast；Test Intercept `Should block: Yes` / Tag `出租车` / `INTERCEPT` / Network 110ms。`notify_only=true` 以免拒接导致 Overlay 不展示。开关开 + 本地标签 `DualLocal`：CallScreening `shouldBlock=true, notifyOnly=true, resultType=INTERCEPT, networkCost=622ms` 放行；heads-up `DualLocal · 出租车`；Overlay 分层 `15000000000` + `上海 上海` + `DualLocal` + 芯片 `出租车`。开关关：`directory=8` 仅 `出租车`；heads-up `出租车`；Overlay 仅归属地 + `出租车` 芯片、无 `DualLocal`。未使用预览 Overlay 替代。
+- 备份 v5 选择矩阵与 v1–v3 旧备份 forceBlock 回填见前次补证。
 - 清空拦截记录后标签仍在；重新 Record 同号码后本地标签动态出现。
 
 **未验证 / 环境限制**
 
-- 安装前拦截记录和黑白名单为空，无法证明非空行迁移保留。
-- 模拟器 LatinIME 不能 adb 输入中文；中文标签首次写入/改写部分走 Room。不重启三行刷新的补证使用英文 `OfficeA`→`OfficeB`。
-- 不能直接 query Telo authority（`BIND_DIRECTORY_SEARCH`）；Directory 结论来自 Contacts `directory=8`。
-- 该 AVD 来电 heads-up 在 Directory 有结果时显示 Directory 名而不是联系人；开关关闭后 Directory 对纯本地标签返回空，heads-up 才回落到联系人。
-- Overlay 真实路径**未完成双标签**，也**未完成「关闭后仅保留数据源」**（超时会剥离数据源；本地库命中骚扰号不打开 Overlay）。设置页预览 Overlay 只证明组件能分层渲染，不得替代真实来电验收。
-- 未在系统拨号器搜索框做缓存刷新手工验证。
+- 模拟器 LatinIME 不能 adb 输入中文。
+- 不能直接 query Telo authority（`BIND_DIRECTORY_SEARCH`）；Directory 结论来自 Contacts `directory=8` 与 Google Phone UI。
+- Overlay 双标签依赖：非本地库命中、联网成功且 `locationLookupAttempted`、以及 `notify_only`（否则 `shouldBlock` 会拒接，Overlay 不展示）。本地库命中骚扰号不会走 Overlay。
+- 官方联网对部分号码返回 `server_response` 失败；`15000000000` 可稳定返回 `出租车`。未搭建自建 Backend（设备已有 localhost:8443 配置，不能在不降低 TLS 的前提下伪造）。
 
-**规定最终证据（补证结束时真实输出）**
+**本轮清理**
 
-- `adb -s emulator-5554 logcat -d | grep -E "FATAL EXCEPTION|ANR|Local label lookup too slow|Local label lookup failed"`：无匹配。
-- `git status --short`（确认无 `.tmp-task8b/` 后实测，原始输出为空）：
-
-```text
-$ git status --short
-
-```
-
-- `git diff --check`：无输出。
-- `git log --oneline -10` 起点：`727e486 docs: 记录本地号码标签模拟器验收结果` 及其前 9 条 feat/fix/docs。
-
-补证后再次清理：测试标签/拦截记录/v2-v3 名单行删除；Download 下 `v1-min.zip`/`v2-min.zip`/`v3-min.zip` 删除；无 Task8 联系人；`show_local_number_labels=false`。
+删除临时联系人 `Task8Pri`；清空测试 `blocked_calls`/`user_list`/`local_number_labels`；`notify_only=false`；`show_local_number_labels=false`；拦截列表 `No intercept records`。临时 ZIP/DB 文件已从设备删除。全局 `logcat -d` 对 `FATAL EXCEPTION|ANR|Local label lookup too slow|Local label lookup failed` 无匹配。
 
 ### 已知限制
 
 - Task 2 deferred 的 `Icons.Default.Label` deprecation 已在最终审查修复中改为 `Icons.AutoMirrored.Filled.Label`。
 - Task 4 deferred：`HomeScreen.kt` 现为 1051 行，超过项目“原则上不超过 1000 行”的指南；本轮按审查要求未拆详情 BottomSheet。
-- Task 8 Overlay 双标签与「关闭后仅数据源」仍待真机或可出非超时数据源的来电环境；其余环境限制见上一小节。
 - 备份失败改为稳定分类日志后，无法从 logcat 看到异常类型或 JSON 摘要，排障需本地复现。
 - 本地标签 100ms 超时后会 cancel deferred；若 Room 查询在取消点不可中断，`coroutineScope` 仍可能短暂等待该查询结束，但超时结果已按 null Fail Open，且不会进入外层拦截错误路径。
 
