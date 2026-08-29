@@ -18,6 +18,8 @@
   官方/自建 Backend 边界、TLS 与 SPKI Pinning、凭据保护、版本身份校验及反馈隔离设计。
 * [自建查询客户端实施计划](../docs/plans/2026-08-08-self-hosted-query-client-implementation.md):
   分阶段实现、静态安全审计、构建验证和待执行真机矩阵。
+* [持久化本地号码标签设计](../docs/plans/2026-08-29-local-number-label-design.md):
+  独立号码标签模型、展示开关、Directory Provider 组合、统一管理与备份恢复方案。
 
 ### 架构与技术 (`architecture/`)
 
