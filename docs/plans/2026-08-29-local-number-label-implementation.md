@@ -28,7 +28,7 @@
 
 ## 执行结果
 
-截至 Task 8。实现分支起点 `bc45e1c`，Task 7 文档提交后 HEAD 为 `224101d`。Task 1–7 为静态构建结果；Task 8 为模拟器实测，详见 `.superpowers/sdd/2026-08-29-local-number-label-implementation/task-8-report.md`。
+截至 Task 8。实现分支起点 `bc45e1c`，Task 7 文档提交后 HEAD 为 `224101d`。Task 1–7 为静态构建结果；Task 8 为模拟器实测。外部 SDD 工件绝对路径：`D:/StudioProjects/PixelTelo/.superpowers/sdd/2026-08-29-local-number-label-implementation/task-8-report.md`（gitignored，不是仓库相对可访问文件）。耐久摘要已内嵌本节，审查以本节为准。
 
 ### Task 1–6 `assembleDebug`
 
@@ -57,7 +57,7 @@ Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_rest
 
 唯一设备 `emulator-5554`（`sdk_gphone16k_x86_64` / Pixel_10_Pro AVD，API 37，Android 17）。覆盖安装 `1.4.1.d251.224101d9`，未清数据。未改业务源码。
 
-外部长报告 `D:/StudioProjects/PixelTelo/.superpowers/sdd/2026-08-29-local-number-label-implementation/task-8-report.md` 属于 gitignored `/.superpowers/` SDD 工件，**不是仓库内可访问文件**。下列摘要是计划内耐久记录；审查以本小节为准。
+外部长报告绝对路径：`D:/StudioProjects/PixelTelo/.superpowers/sdd/2026-08-29-local-number-label-implementation/task-8-report.md`。该文件属于 gitignored `/.superpowers/` SDD 工件，**不是仓库相对可访问文件**。耐久摘要已内嵌本节；审查以本小节为准。
 
 **已验证**
 
@@ -83,7 +83,14 @@ Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_rest
 **规定最终证据（补证结束时真实输出）**
 
 - `adb -s emulator-5554 logcat -d | grep -E "FATAL EXCEPTION|ANR|Local label lookup too slow|Local label lookup failed"`：无匹配。
-- `git status --short`：补证过程仅有临时 `?? .tmp-task8b/`（提交前删除，不入库）。
+- `git status --short`（确认无 `.tmp-task8b/` 后实测，原始输出为空）：
+
+```text
+$ git status --short
+
+```
+
+- `git diff --check`：无输出。
 - `git log --oneline -10` 起点：`727e486 docs: 记录本地号码标签模拟器验收结果` 及其前 9 条 feat/fix/docs。
 
 补证后再次清理：测试标签/拦截记录/v2-v3 名单行删除；Download 下 `v1-min.zip`/`v2-min.zip`/`v3-min.zip` 删除；无 Task8 联系人；`show_local_number_labels=false`。
