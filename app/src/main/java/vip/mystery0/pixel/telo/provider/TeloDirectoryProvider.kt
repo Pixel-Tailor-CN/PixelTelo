@@ -13,10 +13,12 @@ import android.provider.ContactsContract.Directory
 import android.provider.ContactsContract.PhoneLookup
 import android.util.Log
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
@@ -60,6 +62,9 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
             Phone.TYPE,
             Phone.LABEL
         )
+
+        /** 本地标签并行查询的有界超时，超时按无标签处理，不得拖慢 checkSpam。 */
+        private const val LOCAL_LABEL_LOOKUP_TIMEOUT_MS = 100L
     }
 
     private val spamNumberRepository: SpamNumberRepository by inject()
@@ -138,12 +143,16 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
             coroutineScope {
                 // 本地标签只并行增强展示，识别仍完整走 checkSpam，不得回写 CheckResult。
                 val localLabelDeferred = if (localNumberLabelPreferences.enabled.value) {
-                    async { loadDirectoryLocalLabel(filter) }
+                    async {
+                        withTimeoutOrNull(LOCAL_LABEL_LOOKUP_TIMEOUT_MS) {
+                            loadDirectoryLocalLabel(filter)
+                        }
+                    }
                 } else {
                     null
                 }
                 val result = spamNumberRepository.checkSpam(filter)
-                val localLabel = localLabelDeferred?.await()
+                val localLabel = awaitLocalLabelOrNull(localLabelDeferred)
                 val sourceLabel = result.label.takeIf { result.shouldBlock && it.isNotBlank() }
                 val presentedName = NumberLabelPresentation(
                     localLabel = localLabel,
@@ -187,6 +196,22 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
                 val cursor = MatrixCursor(columns)
                 cursor.addProjectionAwareRow(columns, values)
                 cursor
+            }
+        }
+    }
+
+    /** 有界等待本地标签，超时返回 null，不进入识别失败路径。 */
+    private suspend fun awaitLocalLabelOrNull(deferred: Deferred<String?>?): String? {
+        if (deferred == null) return null
+        return try {
+            withTimeoutOrNull(LOCAL_LABEL_LOOKUP_TIMEOUT_MS) {
+                deferred.await()
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } finally {
+            if (deferred.isActive) {
+                deferred.cancel()
             }
         }
     }

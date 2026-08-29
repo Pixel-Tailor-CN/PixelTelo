@@ -1,14 +1,17 @@
 package vip.mystery0.pixel.telo.service
 
 import android.content.SharedPreferences
+import android.provider.Settings
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.util.Log
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
@@ -27,6 +30,9 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     companion object {
         private const val TAG = "TeloCallScreeningService"
         private val recentMarkedCalls = mutableMapOf<String, Long>()
+
+        /** 本地标签并行查询的有界超时，超时按无标签处理，不得拖慢 checkSpam。 */
+        private const val LOCAL_LABEL_LOOKUP_TIMEOUT_MS = 100L
     }
 
     private val blockedCallRepository: BlockedCallRepository by inject()
@@ -53,9 +59,14 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                     val shouldLoadOverlayLabel =
                         localNumberLabelPreferences.enabled.value &&
                             prefs.getBoolean(SettingViewModel.KEY_SHOW_LOCATION_OVERLAY, false) &&
-                            !prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false)
+                            !prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false) &&
+                            Settings.canDrawOverlays(applicationContext)
                     val localLabelDeferred = if (shouldLoadOverlayLabel) {
-                        async { loadOverlayLocalLabel(phoneNumber) }
+                        async {
+                            withTimeoutOrNull(LOCAL_LABEL_LOOKUP_TIMEOUT_MS) {
+                                loadOverlayLocalLabel(phoneNumber)
+                            }
+                        }
                     } else {
                         null
                     }
@@ -193,7 +204,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                     showLocationOverlayIfNeeded(
                         phoneNumber = phoneNumber,
                         result = result,
-                        localLabel = localLabelDeferred?.await(),
+                        localLabel = awaitLocalLabelOrNull(localLabelDeferred),
                         callRejected = callRejected,
                     )
                 }
@@ -217,6 +228,22 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         if (result.queryBackendId != OFFICIAL_BACKEND_ID) return
         if (result.feedbackToken.isNullOrBlank()) return
         QueryFeedbackNotifier.markPendingFeedback(this, prefs, recordId)
+    }
+
+    /** 有界等待本地标签，超时返回 null，不进入外层拦截错误路径。 */
+    private suspend fun awaitLocalLabelOrNull(deferred: Deferred<String?>?): String? {
+        if (deferred == null) return null
+        return try {
+            withTimeoutOrNull(LOCAL_LABEL_LOOKUP_TIMEOUT_MS) {
+                deferred.await()
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } finally {
+            if (deferred.isActive) {
+                deferred.cancel()
+            }
+        }
     }
 
     /** 本地标签查询失败只隐藏 Overlay 标签，不得进入外层 catch 改变来电响应。 */

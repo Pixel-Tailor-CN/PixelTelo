@@ -115,7 +115,8 @@ class LocalNumberLabelRepository(
                     }
                 }
             }
-            .catch {
+            .catch { exception ->
+                if (exception is CancellationException) throw exception
                 Log.w(TAG, "Local label observation failed")
                 emit(emptyMap())
             }
