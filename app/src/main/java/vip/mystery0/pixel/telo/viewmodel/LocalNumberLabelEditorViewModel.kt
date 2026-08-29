@@ -84,23 +84,36 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
                     emit(null)
                 }
                 .collect { entity ->
+                    val label = entity?.label
                     _state.update { current ->
-                        current.copy(currentLabel = entity?.label)
+                        // 首发后结束 observing；仅在用户尚未改草稿时安全预填，避免空 draft 覆盖已有标签
+                        val shouldPrefill = current.editorVisible &&
+                            !current.saving &&
+                            current.draft == current.currentLabel.orEmpty()
+                        current.copy(
+                            currentLabel = label,
+                            observing = false,
+                            draft = if (shouldPrefill) label.orEmpty() else current.draft,
+                        )
                     }
                 }
         }
     }
 
-    /** 打开编辑框并预填当前标签。 */
+    /** 打开编辑框并预填当前标签；首个观察结果到达前不打开。 */
     fun openEditor() {
         _state.update { current ->
-            current.copy(
-                editorVisible = true,
-                deleteConfirmationVisible = false,
-                draft = current.currentLabel.orEmpty(),
-                saving = false,
-                error = null,
-            )
+            if (current.observing) {
+                current
+            } else {
+                current.copy(
+                    editorVisible = true,
+                    deleteConfirmationVisible = false,
+                    draft = current.currentLabel.orEmpty(),
+                    saving = false,
+                    error = null,
+                )
+            }
         }
     }
 
@@ -165,14 +178,18 @@ class LocalNumberLabelEditorViewModel : ViewModel(), KoinComponent {
         }
     }
 
-    /** 打开删除确认框。 */
+    /** 打开删除确认框；首个观察结果到达前不打开。 */
     fun requestDelete() {
         _state.update { current ->
-            current.copy(
-                editorVisible = false,
-                deleteConfirmationVisible = true,
-                error = null,
-            )
+            if (current.observing) {
+                current
+            } else {
+                current.copy(
+                    editorVisible = false,
+                    deleteConfirmationVisible = true,
+                    error = null,
+                )
+            }
         }
     }
 

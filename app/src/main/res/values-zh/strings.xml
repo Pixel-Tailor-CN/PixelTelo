@@ -96,6 +96,7 @@
 
     <!-- Local number labels -->
     <string name="label_local_number_label">本地标签：%1$s</string>
+    <string name="label_source_number_label">数据源标签：%1$s</string>
     <string name="title_local_number_label">本地标签</string>
     <string name="msg_local_label_not_set">尚未设置</string>
     <string name="action_set_local_label">设置标签</string>

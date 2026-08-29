@@ -949,6 +949,21 @@ fun BlockedCallItem(
                             )
                         }
 
+                        val sourceLabel = call.label?.takeIf { it.isNotBlank() }
+                        if (sourceLabel != null) {
+                            Text(
+                                text = stringResource(
+                                    R.string.label_source_number_label,
+                                    sourceLabel,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                        }
+
                         // 第二部分：拦截结果
                         val resultText = when (call.resultType) {
                             ResultType.INTERCEPT -> stringResource(R.string.result_intercept_spam)

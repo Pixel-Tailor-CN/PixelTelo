@@ -86,7 +86,9 @@ fun LocalNumberLabelManagementSection(
         if (currentLabel == null) {
             OutlinedButton(
                 onClick = onSet,
-                enabled = !state.saving && !state.phoneNumber.isNullOrBlank(),
+                enabled = !state.saving &&
+                    !state.observing &&
+                    !state.phoneNumber.isNullOrBlank(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.action_set_local_label))
@@ -98,14 +100,14 @@ fun LocalNumberLabelManagementSection(
             ) {
                 OutlinedButton(
                     onClick = onEdit,
-                    enabled = !state.saving,
+                    enabled = !state.saving && !state.observing,
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(stringResource(R.string.action_edit_local_label))
                 }
                 OutlinedButton(
                     onClick = onDelete,
-                    enabled = !state.saving,
+                    enabled = !state.saving && !state.observing,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
@@ -140,7 +142,6 @@ private fun LocalNumberLabelEditDialog(
     }
     val canSave = !state.saving &&
         !tooLong &&
-        state.draft.trim().isNotEmpty() &&
         !state.phoneNumber.isNullOrBlank()
     val charCountDescription = stringResource(
         R.string.cd_local_label_char_count,
