@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import vip.mystery0.pixel.telo.data.dao.BlockedCallDao
 import vip.mystery0.pixel.telo.data.dao.UserListDao
 import vip.mystery0.pixel.telo.data.dto.BackupData
+import vip.mystery0.pixel.telo.data.dto.CURRENT_BACKUP_VERSION
 import vip.mystery0.pixel.telo.data.dto.BlockedCallDto
 import vip.mystery0.pixel.telo.data.dto.LocalNumberLabelDto
 import vip.mystery0.pixel.telo.data.dto.UserListEntryDto
@@ -84,6 +85,7 @@ class BackupRepository(
         }
 
         val backupData = BackupData(
+            version = CURRENT_BACKUP_VERSION,
             exportedAt = System.currentTimeMillis(),
             records = records,
             blackList = blackList,
