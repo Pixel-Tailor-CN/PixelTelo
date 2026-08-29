@@ -20,6 +20,8 @@
   分阶段实现、静态安全审计、构建验证和待执行真机矩阵。
 * [持久化本地号码标签设计](../docs/plans/2026-08-29-local-number-label-design.md):
   独立号码标签模型、展示开关、Directory Provider 组合、统一管理与备份恢复方案。
+* [持久化本地号码标签实施计划](../docs/plans/2026-08-29-local-number-label-implementation.md):
+  Room v10、系统展示、历史记录、统一管理、备份恢复及模拟器验收任务拆分。
 
 ### 架构与技术 (`architecture/`)
 
