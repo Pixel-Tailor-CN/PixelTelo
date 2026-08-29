@@ -67,9 +67,9 @@ Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_rest
 - 变体关联：`13800138000` / `+8613800138000` / `12583113800138000` 开启显示后均显示同一本地标签。不重启 UI 编辑 `OfficeA`→`OfficeB` 后三行同步。删除后本地标签消失、数据源保留。
 - 管理页：号码搜索、英文忽略大小写、编辑后 `updatedAt DESC` 置顶、删除需确认、无标签/搜索无结果空状态不同、无新增按钮、Back 后停在 Settings Tab。
 - Directory 四组合经 Contacts `directory=8` 实测。本地标签未短路 `checkSpam`。
-- **Google Phone 搜索缓存（补证）：** Provider `directory=8` 在标签 `CacheA`→`CacheB`→删除后立即分别为 `CacheA · 广告营销` / `CacheB · 广告营销` / `广告营销`。Google Phone `ACTION_DIAL tel:13800138000` 首次打开即显示当时 Provider 结果。已在前台的 Dialer 仅 `am start` 提到前台可能不重新查询；`--activity-clear-top` 再次投递 DIAL 后 UI 刷新为 `CacheB`（无需 force-stop 进程）。删除标签后 force-stop Dialer 再打开显示仅 `广告营销`。结论：Provider 即时；Google Phone UI 依赖新的 lookup，存在任务内缓存，clear-top 或重启拨号器可刷新。
-- **联系人 vs Directory（补证）：** 临时联系人 `Task8Pri` + 本地标签 `PriLocal`（`19900001111`）。开关开：Contacts `phone_lookup`=`Task8Pri`，`directory=8`=`PriLocal`；Google Phone 搜索**同时列出**联系人与 Pixel Telo 工作目录行；真实来电 heads-up 显示 **Task8Pri**（Telecom `contact exists`），Overlay 仍显示 `PriLocal`。开关关：`directory=8` 无结果；搜索只剩 `Task8Pri`；heads-up 仍为 `Task8Pri`。此 AVD：搜索并列展示；来电 heads-up 在联系人已存在时优先联系人。
-- **真实来电 Overlay 双标签（补证）：** 号码 `15000000000` 不在本地 mast；Test Intercept `Should block: Yes` / Tag `出租车` / `INTERCEPT` / Network 110ms。`notify_only=true` 以免拒接导致 Overlay 不展示。开关开 + 本地标签 `DualLocal`：CallScreening `shouldBlock=true, notifyOnly=true, resultType=INTERCEPT, networkCost=622ms` 放行；heads-up `DualLocal · 出租车`；Overlay 分层 `15000000000` + `上海 上海` + `DualLocal` + 芯片 `出租车`。开关关：`directory=8` 仅 `出租车`；heads-up `出租车`；Overlay 仅归属地 + `出租车` 芯片、无 `DualLocal`。未使用预览 Overlay 替代。
+- **Google Phone 搜索缓存（受控矩阵，PARTIAL）：** 使用合成本地库号码（完整值仅外部 SDD 工件），基线仅数据源标签「广告推销」、无本地标签。force-stop Dialer 后首次 `ACTION_DIAL` 显示「广告推销」。之后保持 Dialer 进程、不把「自动刷新」算通过。新增 `BaseAdd`：`(i)` `directory=8` 立即 `BaseAdd · 广告推销`；`(ii)` 无 clear-top（`brought to the front`）UI 已显示 `BaseAdd · 广告推销`；`(iii)` clear-top 仍为 `BaseAdd`。修改 `BaseMod`：`(i)` 立即 `BaseMod · 广告推销`；`(ii)` 无 clear-top 的 dump **未出现** BaseMod；`(iii)` clear-top 显示 `BaseMod · 广告推销`。删除本地标签：`(i)` 立即回到「广告推销」；`(ii)` 无 clear-top 显示「广告推销」；`(iii)` dump 为空。结论：Provider 始终即时。Google Phone **不保证**仅提到前台就刷新；clear-top 常能触发新 lookup，但不是每次 dump 都可读。未宣称自动刷新通过。本步除基线外未 force-stop Dialer。
+- **联系人 vs Directory heads-up（受控复测，PASS/稳定）：** 全新临时联系人 `Task8Head2` + 本地标签 `HeadLocal2`（合成号码，完整值仅外部工件）。`phone_lookup` 首次轮询即命中联系人。未 force-stop Dialer/Telecom。开关开两次 `gsm call`：heads-up 均为 `Task8Head2`，Telecom `contact exists`，未见 Directory 名。开关关后 `directory=8` 无结果；再两次来电 heads-up 仍为 `Task8Head2`。此协议下优先级稳定为联系人，不依赖开关。
+- **真实来电 Overlay 双标签（补证）：** 合成联网测试号码（完整值仅外部 SDD 工件）不在本地 mast；Test Intercept `Should block: Yes` / Tag `出租车` / `INTERCEPT`。`notify_only=true` 以免拒接导致 Overlay 不展示。开关开 + 本地标签 `DualLocal`：CallScreening `shouldBlock=true, notifyOnly=true, resultType=INTERCEPT` 放行；heads-up `DualLocal · 出租车`；Overlay 分层号码 + `上海 上海` + `DualLocal` + 芯片 `出租车`。开关关：`directory=8` 仅 `出租车`；heads-up `出租车`；Overlay 仅归属地 + `出租车` 芯片、无 `DualLocal`。未使用预览 Overlay 替代。
 - 备份 v5 选择矩阵与 v1–v3 旧备份 forceBlock 回填见前次补证。
 - 清空拦截记录后标签仍在；重新 Record 同号码后本地标签动态出现。
 
@@ -78,11 +78,25 @@ Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_rest
 - 模拟器 LatinIME 不能 adb 输入中文。
 - 不能直接 query Telo authority（`BIND_DIRECTORY_SEARCH`）；Directory 结论来自 Contacts `directory=8` 与 Google Phone UI。
 - Overlay 双标签依赖：非本地库命中、联网成功且 `locationLookupAttempted`、以及 `notify_only`（否则 `shouldBlock` 会拒接，Overlay 不展示）。本地库命中骚扰号不会走 Overlay。
-- 官方联网对部分号码返回 `server_response` 失败；`15000000000` 可稳定返回 `出租车`。未搭建自建 Backend（设备已有 localhost:8443 配置，不能在不降低 TLS 的前提下伪造）。
+- 官方联网对部分号码返回 `server_response` 失败；合成联网测试号码可返回 `出租车`（完整值仅外部 SDD 工件）。未搭建自建 Backend（不能在不降低 TLS 的前提下伪造已有 localhost 配置）。
+- Google Phone 无 clear-top 的前台 `ACTION_DIAL` **不是**可靠刷新触发器（修改步骤 dump 未显示新标签）。
 
-**本轮清理**
+**本轮清理（原始命令输出）**
 
-删除临时联系人 `Task8Pri`；清空测试 `blocked_calls`/`user_list`/`local_number_labels`；`notify_only=false`；`show_local_number_labels=false`；拦截列表 `No intercept records`。临时 ZIP/DB 文件已从设备删除。全局 `logcat -d` 对 `FATAL EXCEPTION|ANR|Local label lookup too slow|Local label lookup failed` 无匹配。
+```text
+blocked_calls 0
+user_list 0
+local_number_labels 0
+user_version 10
+content query phone_lookup/<合成联系人号码> → No result found.
+show_local_number_labels=false
+notify_only=false
+adb emu gsm status → gsm voice state: home / gsm data state: home
+overlay: 仅 MainActivity，无 APPLICATION_OVERLAY
+/sdcard/Download 无 zip/telo*；/data/local/tmp/telo* 已删除
+logcat FATAL|ANR|Local label lookup too slow|failed → (no matches)
+UI: No intercept records
+```
 
 ### 已知限制
 
