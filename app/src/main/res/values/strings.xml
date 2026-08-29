@@ -87,6 +87,22 @@
     <string name="action_save_to_contacts">Save to Contacts</string>
     <string name="msg_no_contacts_app">No contacts app found</string>
 
+    <!-- Local number labels -->
+    <string name="label_local_number_label">Local label: %1$s</string>
+    <string name="title_local_number_label">Local label</string>
+    <string name="msg_local_label_not_set">Not set yet</string>
+    <string name="action_set_local_label">Set label</string>
+    <string name="action_edit_local_label">Edit label</string>
+    <string name="title_set_local_label">Set local label</string>
+    <string name="title_edit_local_label">Edit local label</string>
+    <string name="title_delete_local_label">Delete local label?</string>
+    <string name="msg_delete_local_label_confirm">Delete the local label for this number? Intercept records will not be removed.</string>
+    <string name="error_local_label_too_long">Use 40 characters or fewer</string>
+    <string name="error_local_label_invalid_number">This phone number is invalid</string>
+    <string name="error_local_label_save_failed">Couldn\'t save the local label. Try again.</string>
+    <string name="label_local_label_char_count">%1$d / 40</string>
+    <string name="cd_local_label_char_count">%1$d of 40 characters</string>
+
     <!-- Settings Screen -->
     <string name="title_operation_success">Operation Successful</string>
     <string name="action_ok">OK</string>

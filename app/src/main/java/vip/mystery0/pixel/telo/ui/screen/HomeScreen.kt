@@ -49,6 +49,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,6 +78,8 @@ import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
+import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelEditorDialogs
+import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelManagementSection
 import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.formatMills
@@ -84,12 +87,14 @@ import vip.mystery0.pixel.telo.viewmodel.BlockedCallListItem
 import vip.mystery0.pixel.telo.viewmodel.CurrentListState
 import vip.mystery0.pixel.telo.viewmodel.FeedbackSubmissionState
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
+import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelEditorViewModel
 import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
 import vip.mystery0.pixel.telo.viewmodel.SelfHostedWarning
 
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
+    localLabelEditorViewModel: LocalNumberLabelEditorViewModel,
     onNavigateToSettings: () -> Unit,
     onNavigateToSourceSettings: () -> Unit,
     onNavigateToSelfHostedSettings: () -> Unit,
@@ -98,6 +103,9 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     val blockedCallItems = viewModel.blockedCallItems.collectAsLazyPagingItems()
     val contactNames by viewModel.contactNames.collectAsState()
+    val localLabels by viewModel.localLabels.collectAsState()
+    val showLocalNumberLabels by viewModel.showLocalNumberLabels.collectAsState()
+    val localLabelEditorState by localLabelEditorViewModel.state.collectAsState()
     val isDatabaseReady by viewModel.isDatabaseReady.collectAsState()
     val missingPermissions by viewModel.missingPermissions.collectAsState()
     val isDefaultApp by viewModel.isDefaultApp.collectAsState()
@@ -186,6 +194,7 @@ fun HomeScreen(
         blockedCallsList(
             callItems = blockedCallItems,
             contactNames = contactNames,
+            localLabels = localLabels,
             onRetry = { call -> viewModel.retryNetworkQuery(call) },
             onClick = { call -> viewModel.openQuickAdd(call) },
         )
@@ -330,6 +339,16 @@ fun HomeScreen(
         val contactName = contactNames[phone]
         val location = call.locationText()
         val noContactsAppMessage = stringResource(R.string.msg_no_contacts_app)
+        val identityLocalLabel = localLabelEditorState.currentLabel?.takeIf { it.isNotBlank() }
+        DisposableEffect(Unit) {
+            onDispose {
+                // 只在详情真正离开组合时清空，避免误伤管理页对同一 Editor 的复用
+                localLabelEditorViewModel.clearTarget()
+            }
+        }
+        LaunchedEffect(call.phoneNumber) {
+            localLabelEditorViewModel.observe(call.phoneNumber)
+        }
         ModalBottomSheet(onDismissRequest = { viewModel.closeQuickAdd() }) {
             Column(
                 modifier = Modifier
@@ -349,6 +368,16 @@ fun HomeScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (showLocalNumberLabels && identityLocalLabel != null) {
+                    Text(
+                        text = stringResource(
+                            R.string.label_local_number_label,
+                            identityLocalLabel,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 if (location != null) {
                     Text(
                         text = stringResource(R.string.label_phone_location, location),
@@ -367,6 +396,13 @@ fun HomeScreen(
                     call = call,
                     submissionState = viewModel.feedbackSubmissionState,
                     onSubmit = { positive -> viewModel.submitFeedback(call, positive) }
+                )
+                LocalNumberLabelManagementSection(
+                    state = localLabelEditorState,
+                    onSet = localLabelEditorViewModel::openEditor,
+                    onEdit = localLabelEditorViewModel::openEditor,
+                    onDelete = localLabelEditorViewModel::requestDelete,
+                    modifier = Modifier.padding(top = 8.dp),
                 )
                 Button(
                     onClick = {
@@ -449,6 +485,15 @@ fun HomeScreen(
             }
         }
     }
+
+    LocalNumberLabelEditorDialogs(
+        state = localLabelEditorState,
+        onDraftChange = localLabelEditorViewModel::updateDraft,
+        onSave = localLabelEditorViewModel::save,
+        onDismissEditor = localLabelEditorViewModel::close,
+        onConfirmDelete = localLabelEditorViewModel::confirmDelete,
+        onDismissDelete = localLabelEditorViewModel::close,
+    )
 }
 
 @Composable
@@ -647,6 +692,7 @@ fun DatabaseWarningCard(onClick: () -> Unit) {
 private fun LazyListScope.blockedCallsList(
     callItems: LazyPagingItems<BlockedCallListItem>,
     contactNames: Map<String, String>,
+    localLabels: Map<String, String>,
     onRetry: (BlockedCall) -> Unit,
     onClick: (BlockedCall) -> Unit,
 ) {
@@ -735,6 +781,7 @@ private fun LazyListScope.blockedCallsList(
                     BlockedCallItem(
                         call = call,
                         contactName = contactNames[call.phoneNumber],
+                        localLabel = localLabels[call.phoneNumber],
                         currentListState = item.currentListState,
                         onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
                             { onRetry(call) }
@@ -785,6 +832,7 @@ private fun BlockedCall.locationText(): String? = listOfNotNull(
 fun BlockedCallItem(
     call: BlockedCall,
     contactName: String? = null,
+    localLabel: String? = null,
     currentListState: CurrentListState = CurrentListState.NONE,
     onRetry: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
@@ -882,6 +930,21 @@ fun BlockedCallItem(
                                 text = location,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                        }
+
+                        // 独立本地标签行，不与数据源标签拼接
+                        if (!localLabel.isNullOrBlank()) {
+                            Text(
+                                text = stringResource(
+                                    R.string.label_local_number_label,
+                                    localLabel,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(top = 2.dp),
                             )
                         }

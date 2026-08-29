@@ -94,6 +94,22 @@
     <string name="action_save_to_contacts">保存到通讯录</string>
     <string name="msg_no_contacts_app">未找到通讯录应用</string>
 
+    <!-- Local number labels -->
+    <string name="label_local_number_label">本地标签：%1$s</string>
+    <string name="title_local_number_label">本地标签</string>
+    <string name="msg_local_label_not_set">尚未设置</string>
+    <string name="action_set_local_label">设置标签</string>
+    <string name="action_edit_local_label">修改标签</string>
+    <string name="title_set_local_label">设置本地标签</string>
+    <string name="title_edit_local_label">修改本地标签</string>
+    <string name="title_delete_local_label">删除本地标签？</string>
+    <string name="msg_delete_local_label_confirm">确定删除该号码的本地标签？拦截记录不会被删除。</string>
+    <string name="error_local_label_too_long">标签不能超过 40 个字符</string>
+    <string name="error_local_label_invalid_number">号码无效</string>
+    <string name="error_local_label_save_failed">保存失败，请重试</string>
+    <string name="label_local_label_char_count">%1$d / 40</string>
+    <string name="cd_local_label_char_count">已输入 %1$d / 40 个字符</string>
+
     <!-- Settings Screen -->
     <string name="title_operation_success">操作成功</string>
     <string name="action_ok">确定</string>

@@ -33,9 +33,11 @@ import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
 import vip.mystery0.pixel.telo.data.query.QueryBackendState
 import vip.mystery0.pixel.telo.data.query.SelfHostedBlockReason
 import vip.mystery0.pixel.telo.data.remote.QueryResponse
+import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.ContactRepository
 import vip.mystery0.pixel.telo.data.repository.FeedbackSubmitResult
+import vip.mystery0.pixel.telo.data.repository.LocalNumberLabelRepository
 import vip.mystery0.pixel.telo.data.repository.QueryRepository
 import vip.mystery0.pixel.telo.data.repository.QuerySourceState
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
@@ -98,7 +100,17 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val queryRepository: QueryRepository by inject()
     private val queryBackendProvider: QueryBackendProvider by inject()
     private val contactRepository: ContactRepository by inject()
+    private val localNumberLabelRepository: LocalNumberLabelRepository by inject()
+    private val localNumberLabelPreferences: LocalNumberLabelPreferences by inject()
     private val context: Context by inject()
+
+    /** 本地号码标签普通展示开关；关闭时列表不订阅窗口标签。 */
+    val showLocalNumberLabels: StateFlow<Boolean> = localNumberLabelPreferences.enabled
+
+    private val _localLabels = MutableStateFlow<Map<String, String>>(emptyMap())
+    val localLabels: StateFlow<Map<String, String>> = _localLabels.asStateFlow()
+    private var localLabelLookupJob: Job? = null
+    private var loadedPhoneNumbers: Set<String> = emptySet()
 
     /** 联网查询 source 配置状态，用于首页“已启用 source 下线”提示 */
     val sourceState: StateFlow<QuerySourceState> = queryRepository.sourceState
@@ -148,6 +160,11 @@ class HomeViewModel() : ViewModel(), KoinComponent {
                 resolveLoadedContacts()
             }
         }
+        viewModelScope.launch {
+            localNumberLabelPreferences.enabled.collect {
+                resolveLoadedLocalLabels()
+            }
+        }
     }
 
     private val userLists: Flow<UserLists> = combine(
@@ -177,7 +194,6 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val _contactNames = MutableStateFlow<Map<String, String>>(emptyMap())
     val contactNames: StateFlow<Map<String, String>> = _contactNames.asStateFlow()
 
-    private var loadedPhoneNumbers: Set<String> = emptySet()
     private var contactLookupJob: Job? = null
 
     val isDatabaseReady: StateFlow<Boolean> = syncRepository.versionFlow
@@ -207,6 +223,7 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         if (sanitized == loadedPhoneNumbers) return
         loadedPhoneNumbers = sanitized
         resolveLoadedContacts()
+        resolveLoadedLocalLabels()
     }
 
     fun refreshContactNames() {
@@ -223,6 +240,23 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         contactLookupJob = viewModelScope.launch {
             delay(100)
             _contactNames.value = contactRepository.resolveNames(loadedPhoneNumbers)
+        }
+    }
+
+    /** 仅在显示开关开启时观察当前 Paging 窗口的本地标签。 */
+    private fun resolveLoadedLocalLabels() {
+        localLabelLookupJob?.cancel()
+        if (!localNumberLabelPreferences.enabled.value || loadedPhoneNumbers.isEmpty()) {
+            _localLabels.value = emptyMap()
+            return
+        }
+        val numbers = loadedPhoneNumbers
+        localLabelLookupJob = viewModelScope.launch {
+            localNumberLabelRepository.observeLabels(numbers).collect { labels ->
+                if (localNumberLabelPreferences.enabled.value && loadedPhoneNumbers == numbers) {
+                    _localLabels.value = labels
+                }
+            }
         }
     }
 
@@ -272,6 +306,8 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             closeQuickAdd()
             loadedPhoneNumbers = emptySet()
             _contactNames.value = emptyMap()
+            // 只清空当前窗口映射，不得删除本地号码标签
+            resolveLoadedLocalLabels()
             repository.deleteAll()
         }
     }

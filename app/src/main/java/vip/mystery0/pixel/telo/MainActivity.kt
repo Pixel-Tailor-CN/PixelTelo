@@ -42,12 +42,14 @@ import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
 import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
+import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelEditorViewModel
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels()
     private val listViewModel: ListViewModel by viewModels()
     private val settingViewModel: SettingViewModel by viewModels()
+    private val localNumberLabelEditorViewModel: LocalNumberLabelEditorViewModel by viewModels()
     private val smartspacerInterceptRepository: SmartspacerInterceptRepository by inject()
 
     override fun onResume() {
@@ -123,7 +125,8 @@ class MainActivity : ComponentActivity() {
                         when (AppDestinations.entries[page]) {
                             AppDestinations.HOME -> {
                                 HomeScreen(
-                                    homeViewModel,
+                                    viewModel = homeViewModel,
+                                    localLabelEditorViewModel = localNumberLabelEditorViewModel,
                                     onNavigateToSettings = {
                                         coroutineScope.launch {
                                             pagerState.animateScrollToPage(
