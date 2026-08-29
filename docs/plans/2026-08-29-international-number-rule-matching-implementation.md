@@ -292,23 +292,33 @@ git add .agentdocs docs/plans/2026-08-29-international-number-rule-matching-impl
 git commit -m "docs: 更新国际号码规则匹配架构与验证记录"
 ```
 
-#### Task 3 静态验证记录（2026-08-30）
+#### Task 3 静态验证记录（2026-08-30；fix round 1 更新）
 
 以下结果来自本工作树实际执行，未包含模拟器或真机通过结论：
 
 * `./gradlew :app:assembleDebug`：通过；`BUILD SUCCESSFUL in 5s`，39 个 actionable tasks（13 executed，26 up-to-date）。
 * `./gradlew lint`：通过；`BUILD SUCCESSFUL in 56s`，30 个 actionable tasks（10 executed，20 up-to-date）。Lint 报告中错误数为 0，警告数为 45（`app/build/reports/lint-results-debug.xml` 中的 `Warning` issue）。
-* `git diff --check`：通过，无输出。
-* `git diff --name-only 68e478d..HEAD`：实际已审查提交范围包含以下 9 个文件：
-  `app/src/main/java/vip/mystery0/pixel/telo/data/PhoneNumberNormalizer.kt`、
-  `app/src/main/java/vip/mystery0/pixel/telo/data/PhoneNumberRuleMatcher.kt`、
-  `app/src/main/java/vip/mystery0/pixel/telo/data/repository/SpamNumberRepository.kt`、
-  `app/src/main/java/vip/mystery0/pixel/telo/data/repository/UserListRepository.kt`、
-  `app/src/main/java/vip/mystery0/pixel/telo/viewmodel/HomeViewModel.kt`、
-  `app/src/main/java/vip/mystery0/pixel/telo/viewmodel/SettingViewModel.kt`、
-  `app/src/main/res/values-zh/strings.xml`、`app/src/main/res/values/strings.xml`、
-  `docs/plans/2026-08-29-international-number-rule-matching-implementation.md`。
-* `git diff 68e478d..HEAD -- app/src/test app/src/androidTest gradle/libs.versions.toml app/build.gradle.kts app/src/main/AndroidManifest.xml`：无输出；该范围没有新增单元/仪器测试、依赖、权限、Room schema 或备份版本变更。
+* `git diff --check`：通过，无输出（fix round 1 后再次执行）。
+* `git diff --name-only 8fee857..e4f9e32`：Task 1–2 已审查代码边界实际为 8 个文件：`PhoneNumberNormalizer.kt`、`PhoneNumberRuleMatcher.kt`、`SpamNumberRepository.kt`、`UserListRepository.kt`、`HomeViewModel.kt`、`SettingViewModel.kt`、`values-zh/strings.xml`、`values/strings.xml`。
+* `git diff --name-only e4f9e32..HEAD`：Task 3 文档边界实际为 5 个文件：三份 `.agentdocs` 架构/UI 文档、实施计划和 `task-3-report.md`。
+* `git diff --name-only 68e478d..HEAD`：最终 HEAD 完整边界实际为以下 13 个文件，不能再描述为提交前的 9 文件代码边界：
+  ```text
+  .agentdocs/architecture/mvvm-structure.md
+  .agentdocs/architecture/native-integration.md
+  .agentdocs/ui/main-screen.md
+  .superpowers/sdd/2026-08-29-international-number-rule-matching-implementation/task-3-report.md
+  app/src/main/java/vip/mystery0/pixel/telo/data/PhoneNumberNormalizer.kt
+  app/src/main/java/vip/mystery0/pixel/telo/data/PhoneNumberRuleMatcher.kt
+  app/src/main/java/vip/mystery0/pixel/telo/data/repository/SpamNumberRepository.kt
+  app/src/main/java/vip/mystery0/pixel/telo/data/repository/UserListRepository.kt
+  app/src/main/java/vip/mystery0/pixel/telo/viewmodel/HomeViewModel.kt
+  app/src/main/java/vip/mystery0/pixel/telo/viewmodel/SettingViewModel.kt
+  app/src/main/res/values-zh/strings.xml
+  app/src/main/res/values/strings.xml
+  docs/plans/2026-08-29-international-number-rule-matching-implementation.md
+  ```
+* 原保护命令 `git diff 68e478d..HEAD -- app/src/test app/src/androidTest gradle/libs.versions.toml app/build.gradle.kts app/src/main/AndroidManifest.xml` 实际无输出，但其 pathspec 未覆盖 Room/备份文件，不能据此推导 Room schema 或备份版本无变更。
+* 扩大保护命令 `git diff 68e478d..HEAD -- app/src/test app/src/androidTest gradle/libs.versions.toml app/build.gradle.kts app/src/main/AndroidManifest.xml app/src/main/java/vip/mystery0/pixel/telo/data/AppDatabase.kt app/src/main/java/vip/mystery0/pixel/telo/data/MastDatabase.kt app/src/main/java/vip/mystery0/pixel/telo/data/dto/BackupData.kt app/src/main/java/vip/mystery0/pixel/telo/data/repository/BackupRepository.kt app/src/main/java/vip/mystery0/pixel/telo/data/dao app/src/main/java/vip/mystery0/pixel/telo/data/entity app/src/main/java/vip/mystery0/pixel/telo/ui/screen/settings/BackupRestorePreferences.kt` 实际无输出；该完整保护范围未发现测试、依赖、权限、Room schema、备份 DTO/repository/entity/DAO 或备份设置变更。
 
 尚未验证的运行时要求：Task 4 的 Android 模拟器规则矩阵、真实 `CallScreeningService` 来电路径、数据库/Backend 请求边界、Test Intercept 配置一致性、中国号码与和多号回归、备份恢复及运行时清理。
 
