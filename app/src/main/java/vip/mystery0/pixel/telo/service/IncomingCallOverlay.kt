@@ -80,7 +80,7 @@ class IncomingCallOverlay(
     private var currentLifecycleOwner: OverlayLifecycleOwner? = null
     private var dismissRunnable: Runnable? = null
 
-    fun show(phoneNumber: String, result: CheckResult) {
+    fun show(phoneNumber: String, result: CheckResult, localLabel: String?) {
         if (!Settings.canDrawOverlays(appContext) || !result.locationLookupAttempted) return
 
         val locationText = IncomingCallOverlayFormatter.formatLocation(
@@ -91,7 +91,8 @@ class IncomingCallOverlay(
         val content = IncomingCallOverlayFormatter.buildContent(
             phoneNumber = phoneNumber,
             locationText = locationText,
-            label = result.label.takeUnless {
+            localLabel = localLabel,
+            sourceLabel = result.label.takeUnless {
                 result.resultType == ResultType.NETWORK_TIMEOUT
             }
         )
@@ -123,7 +124,8 @@ class IncomingCallOverlay(
             content = IncomingCallOverlayFormatter.buildContent(
                 phoneNumber = appContext.getString(R.string.location_overlay_preview_phone),
                 locationText = appContext.getString(R.string.location_overlay_preview_location),
-                label = "快递外卖"
+                localLabel = appContext.getString(R.string.location_overlay_preview_local_label),
+                sourceLabel = "快递外卖"
             ),
             offsetDp = offsetDp,
             draggable = true,
@@ -315,7 +317,17 @@ class IncomingCallOverlay(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    content.labelText?.let { label ->
+                    content.localLabelText?.let { label ->
+                        Text(
+                            text = label,
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    content.sourceLabelText?.let { label ->
                         Surface(
                             shape = RoundedCornerShape(50.dp),
                             color = MaterialTheme.colorScheme.secondaryContainer
@@ -360,7 +372,21 @@ class IncomingCallOverlay(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth()
             )
-            content.labelText?.let { label ->
+            content.localLabelText?.let { label ->
+                Text(
+                    text = label,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        shadow = textShadow,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            content.sourceLabelText?.let { label ->
                 Text(
                     text = label,
                     color = Color.White.copy(alpha = 0.9f),

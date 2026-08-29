@@ -4,15 +4,20 @@ import android.content.SharedPreferences
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
+import vip.mystery0.pixel.telo.data.repository.LocalNumberLabelRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.receiver.QueryFeedbackNotifier
 import vip.mystery0.pixel.telo.viewmodel.RepeatCallStrategy
@@ -26,6 +31,8 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
     private val blockedCallRepository: BlockedCallRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
+    private val localNumberLabelRepository: LocalNumberLabelRepository by inject()
+    private val localNumberLabelPreferences: LocalNumberLabelPreferences by inject()
     private val prefs: SharedPreferences by inject()
     private val incomingCallOverlay: IncomingCallOverlay by inject()
 
@@ -42,95 +49,36 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
         runBlocking(Dispatchers.IO) {
             try {
-                val result = spamNumberRepository.checkSpam(phoneNumber)
-                Log.i(
-                    TAG,
-                    "Screen result: shouldBlock=${result.shouldBlock}, " +
-                        "notifyOnly=$notifyOnly, resultType=${result.resultType}, " +
-                        "forceBlock=${result.forceBlock}, " +
-                        "localCost=${result.localCost}ms, networkCost=${result.networkCost}ms"
-                )
-                val repeatStrategy = repeatCallStrategy(phoneNumber, callTime, result)
-
-                if (result.shouldBlock && result.forceBlock) {
-                    callRejected = true
-                    response.setDisallowCall(true)
-                    response.setRejectCall(true)
-                    response.setSkipCallLog(false)
-
-                    blockedCallRepository.insert(
-                        phoneNumber,
-                        remark = result.label,
-                        ResultType.BLACK_LIST,
-                        result.localCost,
-                        result.networkCost,
-                        label = result.label.takeIf { it.isNotBlank() },
-                        province = result.locationInfo?.province,
-                        city = result.locationInfo?.city,
-                        querySource = result.querySource,
-                        queryBackendId = result.queryBackendId,
-                        feedbackToken = result.feedbackToken
-                    )
-                } else if (repeatStrategy != null) {
-                    val repeatLabel = result.label.ifBlank { "骚扰电话" }
-                    response.setDisallowCall(false)
-                    response.setRejectCall(false)
-                    response.setSilenceCall(repeatStrategy == RepeatCallStrategy.SILENCE)
-                    response.setSkipCallLog(false)
-
-                    val recordId = blockedCallRepository.insert(
-                        phoneNumber,
-                        remark = when (repeatStrategy) {
-                            RepeatCallStrategy.SILENCE -> "$repeatLabel（重复来电，静音放行）"
-                            RepeatCallStrategy.ALLOW -> "$repeatLabel（重复来电，完全放行）"
-                            RepeatCallStrategy.UNCHANGED -> error("Unreachable strategy")
-                        },
-                        if (repeatStrategy == RepeatCallStrategy.ALLOW) {
-                            ResultType.PASS
-                        } else {
-                            ResultType.PASS_BUT_NOTIFY
-                        },
-                        result.localCost,
-                        result.networkCost,
-                        label = result.label.takeIf { it.isNotBlank() },
-                        province = result.locationInfo?.province,
-                        city = result.locationInfo?.city,
-                        querySource = result.querySource,
-                        queryBackendId = result.queryBackendId,
-                        feedbackToken = result.feedbackToken
-                    )
-                    markFeedbackPromptIfEligible(recordId, result)
-                } else if (result.shouldBlock) {
-                    if (notifyOnly) {
-                        response.setDisallowCall(false)
-                        response.setRejectCall(false)
-                        response.setSkipCallLog(false)
-
-                        val recordId = blockedCallRepository.insert(
-                            phoneNumber,
-                            remark = result.label + " (仅提示)",
-                            ResultType.PASS_BUT_NOTIFY,
-                            result.localCost,
-                            result.networkCost,
-                            label = result.label.takeIf { it.isNotBlank() },
-                            province = result.locationInfo?.province,
-                            city = result.locationInfo?.city,
-                            querySource = result.querySource,
-                            queryBackendId = result.queryBackendId,
-                            feedbackToken = result.feedbackToken
-                        )
-                        markFeedbackPromptIfEligible(recordId, result)
+                coroutineScope {
+                    val shouldLoadOverlayLabel =
+                        localNumberLabelPreferences.enabled.value &&
+                            prefs.getBoolean(SettingViewModel.KEY_SHOW_LOCATION_OVERLAY, false) &&
+                            !prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false)
+                    val localLabelDeferred = if (shouldLoadOverlayLabel) {
+                        async { loadOverlayLocalLabel(phoneNumber) }
                     } else {
+                        null
+                    }
+                    val result = spamNumberRepository.checkSpam(phoneNumber)
+                    Log.i(
+                        TAG,
+                        "Screen result: shouldBlock=${result.shouldBlock}, " +
+                            "notifyOnly=$notifyOnly, resultType=${result.resultType}, " +
+                            "forceBlock=${result.forceBlock}, " +
+                            "localCost=${result.localCost}ms, networkCost=${result.networkCost}ms"
+                    )
+                    val repeatStrategy = repeatCallStrategy(phoneNumber, callTime, result)
+
+                    if (result.shouldBlock && result.forceBlock) {
                         callRejected = true
                         response.setDisallowCall(true)
                         response.setRejectCall(true)
                         response.setSkipCallLog(false)
 
-                        // 记录类型沿用检查结果，号码黑名单拒接时忠实记为 BLACK_LIST
                         blockedCallRepository.insert(
                             phoneNumber,
                             remark = result.label,
-                            result.resultType,
+                            ResultType.BLACK_LIST,
                             result.localCost,
                             result.networkCost,
                             label = result.label.takeIf { it.isNotBlank() },
@@ -140,27 +88,25 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             queryBackendId = result.queryBackendId,
                             feedbackToken = result.feedbackToken
                         )
-                    }
-                } else {
-                    response.setDisallowCall(false)
-                    response.setRejectCall(false)
-                    response.setSkipCallLog(false)
+                    } else if (repeatStrategy != null) {
+                        val repeatLabel = result.label.ifBlank { "骚扰电话" }
+                        response.setDisallowCall(false)
+                        response.setRejectCall(false)
+                        response.setSilenceCall(repeatStrategy == RepeatCallStrategy.SILENCE)
+                        response.setSkipCallLog(false)
 
-                    if (result.resultType == ResultType.NETWORK_TIMEOUT) {
-                        blockedCallRepository.insert(
-                            phoneNumber,
-                            remark = "Network Timeout (Allowed)",
-                            result.resultType,
-                            result.localCost,
-                            result.networkCost,
-                            label = null,
-                            queryBackendId = result.queryBackendId,
-                        )
-                    } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
                         val recordId = blockedCallRepository.insert(
                             phoneNumber,
-                            remark = result.label.takeIf { it.isNotBlank() } ?: "正常来电",
-                            ResultType.PASS,
+                            remark = when (repeatStrategy) {
+                                RepeatCallStrategy.SILENCE -> "$repeatLabel（重复来电，静音放行）"
+                                RepeatCallStrategy.ALLOW -> "$repeatLabel（重复来电，完全放行）"
+                                RepeatCallStrategy.UNCHANGED -> error("Unreachable strategy")
+                            },
+                            if (repeatStrategy == RepeatCallStrategy.ALLOW) {
+                                ResultType.PASS
+                            } else {
+                                ResultType.PASS_BUT_NOTIFY
+                            },
                             result.localCost,
                             result.networkCost,
                             label = result.label.takeIf { it.isNotBlank() },
@@ -171,9 +117,86 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             feedbackToken = result.feedbackToken
                         )
                         markFeedbackPromptIfEligible(recordId, result)
+                    } else if (result.shouldBlock) {
+                        if (notifyOnly) {
+                            response.setDisallowCall(false)
+                            response.setRejectCall(false)
+                            response.setSkipCallLog(false)
+
+                            val recordId = blockedCallRepository.insert(
+                                phoneNumber,
+                                remark = result.label + " (仅提示)",
+                                ResultType.PASS_BUT_NOTIFY,
+                                result.localCost,
+                                result.networkCost,
+                                label = result.label.takeIf { it.isNotBlank() },
+                                province = result.locationInfo?.province,
+                                city = result.locationInfo?.city,
+                                querySource = result.querySource,
+                                queryBackendId = result.queryBackendId,
+                                feedbackToken = result.feedbackToken
+                            )
+                            markFeedbackPromptIfEligible(recordId, result)
+                        } else {
+                            callRejected = true
+                            response.setDisallowCall(true)
+                            response.setRejectCall(true)
+                            response.setSkipCallLog(false)
+
+                            // 记录类型沿用检查结果，号码黑名单拒接时忠实记为 BLACK_LIST
+                            blockedCallRepository.insert(
+                                phoneNumber,
+                                remark = result.label,
+                                result.resultType,
+                                result.localCost,
+                                result.networkCost,
+                                label = result.label.takeIf { it.isNotBlank() },
+                                province = result.locationInfo?.province,
+                                city = result.locationInfo?.city,
+                                querySource = result.querySource,
+                                queryBackendId = result.queryBackendId,
+                                feedbackToken = result.feedbackToken
+                            )
+                        }
+                    } else {
+                        response.setDisallowCall(false)
+                        response.setRejectCall(false)
+                        response.setSkipCallLog(false)
+
+                        if (result.resultType == ResultType.NETWORK_TIMEOUT) {
+                            blockedCallRepository.insert(
+                                phoneNumber,
+                                remark = "Network Timeout (Allowed)",
+                                result.resultType,
+                                result.localCost,
+                                result.networkCost,
+                                label = null,
+                                queryBackendId = result.queryBackendId,
+                            )
+                        } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
+                            val recordId = blockedCallRepository.insert(
+                                phoneNumber,
+                                remark = result.label.takeIf { it.isNotBlank() } ?: "正常来电",
+                                ResultType.PASS,
+                                result.localCost,
+                                result.networkCost,
+                                label = result.label.takeIf { it.isNotBlank() },
+                                province = result.locationInfo?.province,
+                                city = result.locationInfo?.city,
+                                querySource = result.querySource,
+                                queryBackendId = result.queryBackendId,
+                                feedbackToken = result.feedbackToken
+                            )
+                            markFeedbackPromptIfEligible(recordId, result)
+                        }
                     }
+                    showLocationOverlayIfNeeded(
+                        phoneNumber = phoneNumber,
+                        result = result,
+                        localLabel = localLabelDeferred?.await(),
+                        callRejected = callRejected,
+                    )
                 }
-                showLocationOverlayIfNeeded(phoneNumber, result, callRejected)
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking spam, allowing call", e)
                 response.setDisallowCall(false)
@@ -196,15 +219,28 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         QueryFeedbackNotifier.markPendingFeedback(this, prefs, recordId)
     }
 
+    /** 本地标签查询失败只隐藏 Overlay 标签，不得进入外层 catch 改变来电响应。 */
+    private suspend fun loadOverlayLocalLabel(phoneNumber: String): String? {
+        return try {
+            localNumberLabelRepository.find(phoneNumber)?.label
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            Log.w(TAG, "Local label lookup failed")
+            null
+        }
+    }
+
     private fun showLocationOverlayIfNeeded(
         phoneNumber: String,
         result: CheckResult,
+        localLabel: String?,
         callRejected: Boolean
     ) {
         val enabled = prefs.getBoolean(SettingViewModel.KEY_SHOW_LOCATION_OVERLAY, false)
         val noNetworkQuery = prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false)
         if (enabled && !noNetworkQuery && !callRejected) {
-            incomingCallOverlay.show(phoneNumber, result)
+            incomingCallOverlay.show(phoneNumber, result, localLabel)
         }
     }
 

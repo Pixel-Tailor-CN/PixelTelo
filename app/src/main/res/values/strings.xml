@@ -29,6 +29,7 @@
     <string name="setting_adjust_location_overlay_active_summary">Drag the simulated floating window vertically. Tap again to hide it.</string>
     <string name="location_overlay_preview_phone" translatable="false">13245678901</string>
     <string name="location_overlay_preview_location" translatable="false">浙江 宁波</string>
+    <string name="location_overlay_preview_local_label">Property</string>
     <string name="overlay_unknown_location">Unknown location</string>
     <string name="overlay_location_timeout">Location query timeout</string>
 

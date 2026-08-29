@@ -27,6 +27,7 @@
     <string name="location_overlay_style_minimal">简洁文本</string>
     <string name="overlay_unknown_location">未知归属地</string>
     <string name="overlay_location_timeout">归属地查询超时</string>
+    <string name="location_overlay_preview_local_label">物业</string>
     <string name="setting_adjust_location_overlay">悬浮窗位置调整</string>
     <string name="setting_adjust_location_overlay_summary">显示模拟来电归属地悬浮窗，上下拖动即可自动保存位置。</string>
     <string name="setting_adjust_location_overlay_active_summary">正在显示模拟悬浮窗，上下拖动调整位置，再次点击可隐藏。</string>

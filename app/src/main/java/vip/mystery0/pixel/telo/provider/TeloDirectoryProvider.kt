@@ -12,12 +12,18 @@ import android.provider.ContactsContract.Data
 import android.provider.ContactsContract.Directory
 import android.provider.ContactsContract.PhoneLookup
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.model.NumberLabelPresentation
+import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
+import vip.mystery0.pixel.telo.data.repository.LocalNumberLabelRepository
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 
 class TeloDirectoryProvider : ContentProvider(), KoinComponent {
@@ -57,6 +63,8 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
     }
 
     private val spamNumberRepository: SpamNumberRepository by inject()
+    private val localNumberLabelRepository: LocalNumberLabelRepository by inject()
+    private val localNumberLabelPreferences: LocalNumberLabelPreferences by inject()
 
     private val MATCHER = UriMatcher(UriMatcher.NO_MATCH).apply {
         addURI(AUTHORITY, "directories", MATCH_DIRECTORIES)
@@ -127,35 +135,69 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
         Log.d(TAG, "Looking up number")
 
         return runBlocking(Dispatchers.IO) {
-            val (shouldFilter, spamLabel) = spamNumberRepository.checkSpam(filter)
-            if (shouldFilter) {
-                Log.i(TAG, "Spam number found")
-            } else {
-                Log.i(TAG, "Spam number not found")
-                return@runBlocking emptyCursor
+            coroutineScope {
+                // 本地标签只并行增强展示，识别仍完整走 checkSpam，不得回写 CheckResult。
+                val localLabelDeferred = if (localNumberLabelPreferences.enabled.value) {
+                    async { loadDirectoryLocalLabel(filter) }
+                } else {
+                    null
+                }
+                val result = spamNumberRepository.checkSpam(filter)
+                val localLabel = localLabelDeferred?.await()
+                val sourceLabel = result.label.takeIf { result.shouldBlock && it.isNotBlank() }
+                val displayName = NumberLabelPresentation(
+                    localLabel = localLabel,
+                    sourceLabel = sourceLabel,
+                ).directoryDisplayName()
+
+                if (!result.shouldBlock && localLabel == null) {
+                    Log.i(TAG, "Phone number has no directory label")
+                    return@coroutineScope emptyCursor
+                }
+                if (displayName == null) {
+                    Log.i(TAG, "Phone number has no directory label")
+                    return@coroutineScope emptyCursor
+                }
+                if (result.shouldBlock) {
+                    Log.i(TAG, "Spam number found")
+                } else {
+                    Log.i(TAG, "Directory local label found")
+                }
+
+                val rowId = stablePositiveId(filter)
+                val values = mapOf(
+                    Data._ID to rowId,
+                    Data.MIMETYPE to Phone.CONTENT_ITEM_TYPE,
+                    Data.CONTACT_ID to rowId,
+                    Contacts._ID to rowId,
+                    Contacts.LOOKUP_KEY to "telo:$filter",
+                    Contacts.DISPLAY_NAME to displayName,
+                    PhoneLookup._ID to rowId,
+                    PhoneLookup.DISPLAY_NAME to displayName,
+                    PhoneLookup.NUMBER to filter,
+                    PhoneLookup.TYPE to Phone.TYPE_CUSTOM,
+                    PhoneLookup.LABEL to displayName,
+                    Phone.NUMBER to filter,
+                    Phone.TYPE to Phone.TYPE_CUSTOM,
+                    Phone.LABEL to displayName
+                )
+
+                val cursor = MatrixCursor(columns)
+                cursor.addProjectionAwareRow(columns, values)
+                cursor
             }
+        }
+    }
 
-            val rowId = stablePositiveId(filter)
-            val values = mapOf(
-                Data._ID to rowId,
-                Data.MIMETYPE to Phone.CONTENT_ITEM_TYPE,
-                Data.CONTACT_ID to rowId,
-                Contacts._ID to rowId,
-                Contacts.LOOKUP_KEY to "telo:$filter",
-                Contacts.DISPLAY_NAME to spamLabel,
-                PhoneLookup._ID to rowId,
-                PhoneLookup.DISPLAY_NAME to spamLabel,
-                PhoneLookup.NUMBER to filter,
-                PhoneLookup.TYPE to Phone.TYPE_CUSTOM,
-                PhoneLookup.LABEL to spamLabel,
-                Phone.NUMBER to filter,
-                Phone.TYPE to Phone.TYPE_CUSTOM,
-                Phone.LABEL to spamLabel
-            )
-
-            val cursor = MatrixCursor(columns)
-            cursor.addProjectionAwareRow(columns, values)
-            return@runBlocking cursor
+    /** 本地标签查询失败按无标签降级，避免中断 Directory 识别流程。 */
+    private suspend fun loadDirectoryLocalLabel(phoneNumber: String): String? {
+        return try {
+            localNumberLabelRepository.find(phoneNumber)?.label
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            Log.w(TAG, "Local label lookup failed")
+            null
         }
     }
 
