@@ -100,6 +100,32 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 * 页面恢复时重新建立联系人 ContentObserver，兼容首次无权限、后续授权的场景。
 * 联系人姓名不持久化、不进入备份，也不进入 `CallScreeningService` 的实时查询链路。
 
+## 本地号码标签
+
+本地号码标签是独立于识别结果和拦截记录的用户备注，使用 Room v10 的
+`local_number_labels` 表持久化。每个归一化号码最多一条标签；号码唯一键由
+`PhoneNumberNormalizer.normalizeForLookup()` 产生。
+
+* `LocalNumberLabelRepository` 是本地标签的单一事实来源：号码归一化、40 字符校验、
+  空标签删除、写入结果和备份恢复冲突规则都集中在此，UI、Directory Provider 和备份
+  不得复制实现。
+* `SpamNumberRepository` 与 `CheckResult` 不读取本地标签，也不修改 `CheckResult.label`
+  语义。识别、拦截、名单、反馈 Token、`ResultType` 和查询耗时保持原链路。
+* 本地标签不得写入或覆盖 `BlockedCall.label`。历史记录只按当前 Paging 窗口动态关联，
+  清空拦截记录只清窗口映射，不删除标签表。
+* `HomeViewModel` 只观察 Paging 当前已加载窗口中的去重号码；显示开关关闭或窗口为空时
+  不建立普通展示订阅，并把 `localLabels` 置为空 Map。详情/管理页的单号码编辑观察不受
+  该门禁影响。
+* 显示开关由进程级 `LocalNumberLabelPreferences` 暴露 `StateFlow`，键
+  `show_local_number_labels`，默认关闭。关闭只隐藏 Directory、Overlay 和历史列表的普通
+  展示，不影响编辑、统一管理、存储和备份恢复。
+* 统一管理页通过 `LocalNumberLabelsViewModel` 观察全部标签，支持按号码/标签搜索、编辑和
+  删除；不提供任意号码新增。设置页以现有 HorizontalPager 的非底部二级页面进入，不增加
+  `AppDestinations` 项，也不引入 Navigation Compose。
+* 备份格式 v5 把本地标签作为第四个独立选择范围。`BackupData.localNumberLabels` 缺省空列表
+  以兼容 v1–v4；新导出显式写入 `version = 5`。显示开关不进入备份。未选择该范围时恢复
+  不读取、不修改标签表。
+
 ## 依赖注入
 
 我们使用 **Koin** 进行依赖注入。

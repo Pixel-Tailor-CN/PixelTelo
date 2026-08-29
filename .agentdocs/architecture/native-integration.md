@@ -18,6 +18,21 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
     * **严禁**: 将悬浮窗 (Overlay) 作为默认行为。Overlay 仅在特定 ROM 被验证不支持 Directory Provider
       时，作为备选降级方案。
 
+### 本地号码标签组合
+
+* Directory Provider 必须完整执行现有 `SpamNumberRepository.checkSpam()` 识别查询，本地标签
+  不得短路、缩短或替代离线/联网查询，也不得回写 `CheckResult`。
+* 显示开关开启时，本地标签与识别查询并行读取；本地标签只参与最终 Cursor 展示。
+* 组合显示名由 `NumberLabelPresentation.directoryDisplayName()` 生成，格式为
+  `本地 · 数据源`。空白标签丢弃；仅有一项时只显示该项。所有 `DISPLAY_NAME` 与自定义
+  `LABEL` 字段使用同一个显示名。
+* 是否返回 Directory 行与组合显示名分离：
+    * 现有识别结果应拦截时，即使组合名为空也必须返回身份记录，显示名回退为原
+      `result.label`（允许空字符串）。
+    * 仅有本地标签的安全号码（`shouldBlock == false`）可以返回 Directory 身份记录。
+    * 既不应拦截又无本地标签时返回空 Cursor。
+* 本地标签查询失败按无标签降级，不得中断识别或影响来电侧 `respondToCall()`。
+
 ### 验证
 
 * **测试**: 使用特定的测试号码（例如在拨号器搜索栏输入号码），验证 Provider 是否返回了正确的标签。
@@ -30,6 +45,14 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
   并保留 12 小时安全兜底，避免系统未送达广播时悬浮窗永久残留。
 * 样式支持默认“卡片”和可选“简洁文本”。简洁文本不显示背景、边框、图标及重复电话号码，
   只居中显示归属地与标签，并通过文字阴影保证基本可读性。
+* 本地标签只参与最终 Overlay 展示，不改变 Overlay 触发条件、拦截语义或 `BlockedCall`
+  快照。`CallScreeningService` 仅在显示开关、Overlay 开关均开启且允许联网查询时并行读取
+  本地标签；拒接来电仍不展示 Overlay。
+* Overlay 分别接收 `localLabel` 与数据源标签，不拼接成一行。本地标签使用主强调色，数据源
+  标签沿用原样式；两者都有时分两行，单项为空不留空白行。数据源标签仍排除
+  `NETWORK_TIMEOUT`。
+* 本地标签查询失败只隐藏 Overlay 本地标签，不得进入 Service 外层 `catch` 改变已决定的
+  拦截结果，也不影响 `respondToCall()`。
 * 悬浮窗控制器由 Koin 以进程级单例提供，使 `CallScreeningService` 与 `CallStateReceiver`
   操作同一个窗口实例；设置页的位置预览仍使用独立实例，避免影响真实来电状态。
 
@@ -87,7 +110,7 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
       `true`。
 6. **落库**: 按现有记录策略写入 `BlockedCall` 时，一并保存 v2 响应中的 `querySource` 与
    `feedbackToken`（状态 `PENDING`）；本地命中、黑白名单命中与超时没有 token，状态保持
-   `UNAVAILABLE`。不为反馈扩大记录范围。
+   `UNAVAILABLE`。不为反馈扩大记录范围。本地标签不得写入或覆盖 `BlockedCall.label`。
 7. **通话结束反馈提醒**: 放行且记录带 token 的来电，筛查时把记录 id 写入 `SharedPreferences`
    标记；`receiver/CallStateReceiver`（需 `READ_PHONE_STATE`）监听 `PHONE_STATE` 回到 IDLE 后，
    经 `QueryFeedbackNotifier` 弹出通知，内容含号码、标签与数据源，提供“结果准确/结果不准确”
@@ -98,6 +121,7 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
 ### 服务隔离
 
 `CallScreeningService` 必须保持极度精简。**严禁**在此处执行网络请求或繁重的数据库写入操作。
+本地标签读取失败必须 Fail Open：只影响展示，不得阻止或改写 `respondToCall()`。
 
 ## 3. Smartspacer 插件（静默拦截数量 Complication）
 

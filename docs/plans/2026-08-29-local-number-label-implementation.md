@@ -26,6 +26,52 @@
 - 每个实现任务至少执行 `./gradlew :app:assembleDebug`；最终执行 `./gradlew lint` 和 Android 模拟器验收。
 - 不提交构建产物、模拟器数据或临时备份文件。
 
+## 执行结果
+
+截至 Task 7。实现分支起点 `bc45e1c`，Task 6 完成后 HEAD 为 `1fa0c3e`。下列结果均为实际命令输出，不包含模拟器验收。
+
+### Task 1–6 `assembleDebug`
+
+各任务均执行 `./gradlew :app:assembleDebug`，结果均为 `BUILD SUCCESSFUL`：
+
+- Task 1：基线 `BUILD SUCCESSFUL in 2m 30s`；提交前 `BUILD SUCCESSFUL in 13s`。
+- Task 2：`BUILD SUCCESSFUL in 13s`。
+- Task 3：`BUILD SUCCESSFUL in 8s`；Fix Round 1 后再编 `BUILD SUCCESSFUL in 4s`。
+- Task 4：`BUILD SUCCESSFUL in 7s`；三次修复后再编分别为 `5s` / `6s` / `6s`。
+- Task 5：结构修正后 `BUILD SUCCESSFUL in 10s`，最终一次 `BUILD SUCCESSFUL in 2s`。
+- Task 6：`BUILD SUCCESSFUL in 5s`；Fix Round 1 后再编 `BUILD SUCCESSFUL in 6s`。
+
+未执行 `./gradlew test`、`testDebugUnitTest` 或 `check`。
+
+### Task 7 最终静态验证
+
+- `./gradlew :app:assembleDebug`：`BUILD SUCCESSFUL in 3s`（39 actionable tasks: 13 executed, 26 up-to-date）。
+- `./gradlew lint`：`BUILD SUCCESSFUL in 1m 6s`；报告为 `0 errors, 44 warnings`。无本功能引入的 Error。
+- `git diff --check`：无输出。
+- `git diff --name-only 5f66517..HEAD`：无 `src/test` 新文件。
+- `git diff 5f66517..HEAD -- gradle/libs.versions.toml app/build.gradle.kts AndroidManifest.xml`：无变更。
+
+Lint 44 条均为 Warning。与本功能相关的新增/更新文案 `label_restore_local_number_labels`、`msg_restored_summary` 触发 `PluralsCandidate`，与既有备份恢复字符串同一模式，未当作 Error 修改。其余 Warning 属于自建 Backend、历史文案、KTX 与资源收缩等既有问题。
+
+### 尚未执行的模拟器项
+
+Task 8 尚未开始，以下均未在模拟器或真机执行，不得视为已完成：
+
+- v9 → v10 保留旧数据安装与迁移冒烟；
+- 显示开关默认关闭及关闭态编辑；
+- 号码变体动态历史关联；
+- 统一管理页搜索/编辑/删除/空状态与返回后 Pager 位置；
+- Directory Provider 四种组合与拨号器缓存；
+- Overlay 分层展示；
+- 备份 v5 选择范围矩阵；
+- 清空拦截记录不删除标签。
+
+### 已知限制
+
+- Task 2 deferred：`Icons.Default.Label` Kotlin deprecation warning，建议后续改用 `Icons.AutoMirrored.Filled.Label`。Task 7 复现：`AppFeaturesPreferences.kt:156`。
+- Task 4 deferred：`HomeScreen.kt` 现为 1051 行，超过项目“原则上不超过 1000 行”的指南；未拆详情 BottomSheet。
+- 来电识别、Directory 缓存刷新、Overlay 与备份恢复的端到端行为仍待 Task 8 模拟器验收。
+
 ---
 
 ## 文件结构与职责
