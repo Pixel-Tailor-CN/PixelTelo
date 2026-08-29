@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.ManageSearch
-import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Schedule
@@ -153,7 +153,7 @@ fun AppFeaturesPreferences(
         onValueChange = viewModel::updateShowLocalNumberLabels,
         title = { Text(stringResource(R.string.setting_show_local_number_labels)) },
         summary = { Text(stringResource(R.string.setting_show_local_number_labels_summary)) },
-        icon = { Icon(Icons.Default.Label, contentDescription = null) },
+        icon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) },
     )
 
     Preference(
