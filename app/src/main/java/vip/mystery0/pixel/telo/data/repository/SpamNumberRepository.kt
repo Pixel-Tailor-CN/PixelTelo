@@ -90,6 +90,11 @@ class SpamNumberRepository : KoinComponent {
      * 用于手动重试联网查询超时的记录。超时限制使用用户设置。
      */
     suspend fun queryNetwork(phoneNumber: String): BackendQueryResponse {
+        // 历史记录重试也必须复用统一国际号码语义，并在任何标准化或 Backend 访问前拦截。
+        if (PhoneNumberRuleMatcher.isExplicitInternational(phoneNumber)) {
+            Log.i(TAG, "Explicit international retry skipped")
+            throw BackendBlockedException()
+        }
         val phone = PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
         return withContext(Dispatchers.IO) {
             withTimeout(networkTimeoutMs().milliseconds) {
