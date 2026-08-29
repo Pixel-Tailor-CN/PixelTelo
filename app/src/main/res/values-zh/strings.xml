@@ -165,9 +165,9 @@
     <string name="setting_repeat_call_window_summary">当前: %1$d 分钟</string>
     <string name="summary_test_intercept">输入号码模拟拦截检查</string>
     <string name="setting_backup_records">备份应用数据</string>
-    <string name="setting_backup_records_summary">将拦截记录、黑名单和白名单导出为 ZIP 文件</string>
+    <string name="setting_backup_records_summary">将拦截记录、黑名单、白名单和本地号码标签导出为 ZIP 文件</string>
     <string name="setting_restore_records">恢复应用数据</string>
-    <string name="setting_restore_records_summary">从备份文件恢复拦截记录、黑名单和白名单</string>
+    <string name="setting_restore_records_summary">从备份文件恢复拦截记录、黑名单、白名单和本地号码标签</string>
     <string name="category_permissions">权限申请</string>
     <string name="category_intercept_behavior">拦截行为</string>
     <string name="category_online_query">在线查询</string>
@@ -275,13 +275,15 @@
     <string name="label_backup_blocked_calls">拦截记录</string>
     <string name="label_backup_blacklist">黑名单</string>
     <string name="label_backup_whitelist">白名单</string>
+    <string name="label_backup_local_number_labels">本地号码标签</string>
     <string name="action_backup">备份</string>
     <string name="title_restore_select">选择恢复内容</string>
     <string name="label_restore_blocked_calls">拦截记录（共 %1$d 条）</string>
     <string name="label_restore_blacklist">黑名单（共 %1$d 条）</string>
     <string name="label_restore_whitelist">白名单（共 %1$d 条）</string>
+    <string name="label_restore_local_number_labels">本地号码标签（共 %1$d 条）</string>
     <string name="action_restore">恢复</string>
-    <string name="msg_restored_summary">已恢复：%1$d 条拦截记录、%2$d 条黑名单、%3$d 条白名单</string>
+    <string name="msg_restored_summary">已恢复：%1$d 条拦截记录、%2$d 条黑名单、%3$d 条白名单、本地标签新增 %4$d、覆盖 %5$d、跳过 %6$d</string>
 
     <!-- Query Sources -->
     <string name="setting_query_backend">实时查询服务器</string>

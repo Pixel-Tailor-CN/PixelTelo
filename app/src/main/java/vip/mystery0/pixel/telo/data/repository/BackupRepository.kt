@@ -5,9 +5,11 @@ import vip.mystery0.pixel.telo.data.dao.BlockedCallDao
 import vip.mystery0.pixel.telo.data.dao.UserListDao
 import vip.mystery0.pixel.telo.data.dto.BackupData
 import vip.mystery0.pixel.telo.data.dto.BlockedCallDto
+import vip.mystery0.pixel.telo.data.dto.LocalNumberLabelDto
 import vip.mystery0.pixel.telo.data.dto.UserListEntryDto
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.ListType
+import vip.mystery0.pixel.telo.data.entity.LocalNumberLabel
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import java.io.InputStream
@@ -23,6 +25,7 @@ data class BackupOptions(
     val includeBlockedCalls: Boolean = true,
     val includeBlackList: Boolean = true,
     val includeWhiteList: Boolean = true,
+    val includeLocalNumberLabels: Boolean = true,
 )
 
 /**
@@ -33,24 +36,28 @@ data class BackupPreview(
     val blockedCallCount: Int,
     val blackListCount: Int,
     val whiteListCount: Int,
+    val localNumberLabelCount: Int,
 )
 
 /**
- * 恢复结果，包含各部分实际插入的数量
+ * 恢复结果，包含拦截记录/黑白名单插入数量，以及本地标签新增、覆盖、跳过统计。
  */
 data class RestoreResult(
     val insertedCalls: Int,
     val insertedBlack: Int,
     val insertedWhite: Int,
+    val localLabels: RestoreLocalLabelsResult,
 )
 
 /**
- * 负责拦截记录及黑白名单的备份与恢复操作。
+ * 负责拦截记录、黑白名单与本地号码标签的备份与恢复操作。
  * 备份格式：ZIP 压缩包，内含 backup.json。
+ * 显示开关不属于备份范围，本仓库不读取、不写入该偏好。
  */
 class BackupRepository(
     private val blockedCallDao: BlockedCallDao,
     private val userListDao: UserListDao,
+    private val localNumberLabelRepository: LocalNumberLabelRepository,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -70,11 +77,18 @@ class BackupRepository(
             userListDao.getAllByType(ListType.WHITE).map { it.toDto() }
         } else emptyList()
 
+        val localNumberLabels = if (options.includeLocalNumberLabels) {
+            localNumberLabelRepository.getAllSnapshot().map { it.toDto() }
+        } else {
+            emptyList()
+        }
+
         val backupData = BackupData(
             exportedAt = System.currentTimeMillis(),
             records = records,
             blackList = blackList,
             whiteList = whiteList,
+            localNumberLabels = localNumberLabels,
         )
         val jsonString = json.encodeToString(BackupData.serializer(), backupData)
 
@@ -97,12 +111,14 @@ class BackupRepository(
             blockedCallCount = data.records.size,
             blackListCount = data.blackList.size,
             whiteListCount = data.whiteList.size,
+            localNumberLabelCount = data.localNumberLabels.size,
         )
     }
 
     /**
      * 恢复数据，按 options 决定恢复哪些部分。
      * 去重策略：BlockedCall 按 (phoneNumber, blockTime)，UserListEntry 按 (phoneNumber, listType)。
+     * 本地标签仅在选中该范围时委托 [LocalNumberLabelRepository.restore]；未选择时不读取、不校验、不修改标签表。
      */
     suspend fun restore(preview: BackupPreview, options: BackupOptions): RestoreResult {
         var insertedCalls = 0
@@ -141,7 +157,22 @@ class BackupRepository(
             }
         }
 
-        return RestoreResult(insertedCalls, insertedBlack, insertedWhite)
+        val localLabels = if (options.includeLocalNumberLabels) {
+            localNumberLabelRepository.restore(
+                preview.data.localNumberLabels.map { dto ->
+                    LocalNumberLabelRestoreEntry(
+                        phoneNumber = dto.phoneNumber,
+                        label = dto.label,
+                        createdAt = dto.createdAt,
+                        updatedAt = dto.updatedAt,
+                    )
+                }
+            )
+        } else {
+            RestoreLocalLabelsResult(inserted = 0, overwritten = 0, skipped = 0)
+        }
+
+        return RestoreResult(insertedCalls, insertedBlack, insertedWhite, localLabels)
     }
 
     private fun readJsonFromZip(inputStream: InputStream): String {
@@ -200,5 +231,12 @@ class BackupRepository(
         tagMatch = tagMatch,
         locationMatch = locationMatch,
         forceBlock = forceBlock && listType == ListType.BLACK,
+    )
+
+    private fun LocalNumberLabel.toDto() = LocalNumberLabelDto(
+        phoneNumber = normalizedPhoneNumber,
+        label = label,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
     )
 }

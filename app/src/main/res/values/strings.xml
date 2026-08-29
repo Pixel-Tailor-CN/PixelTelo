@@ -158,9 +158,9 @@
     <string name="setting_repeat_call_window_summary">Current: %1$d minutes</string>
     <string name="summary_test_intercept">Enter a number to simulate intercept check.</string>
     <string name="setting_backup_records">Backup App Data</string>
-    <string name="setting_backup_records_summary">Export intercept records, blacklist, and whitelist to a ZIP file.</string>
+    <string name="setting_backup_records_summary">Export intercept records, blacklist, whitelist, and local number labels to a ZIP file.</string>
     <string name="setting_restore_records">Restore App Data</string>
-    <string name="setting_restore_records_summary">Restore intercept records, blacklist, and whitelist from a backup file.</string>
+    <string name="setting_restore_records_summary">Restore intercept records, blacklist, whitelist, and local number labels from a backup file.</string>
     <string name="category_permissions">Permissions</string>
     <string name="category_intercept_behavior">Intercept Behavior</string>
     <string name="category_online_query">Online Query</string>
@@ -277,13 +277,15 @@
     <string name="label_backup_blocked_calls">Intercept Records</string>
     <string name="label_backup_blacklist">Blacklist</string>
     <string name="label_backup_whitelist">Whitelist</string>
+    <string name="label_backup_local_number_labels">Local Number Labels</string>
     <string name="action_backup">Backup</string>
     <string name="title_restore_select">Select Data to Restore</string>
     <string name="label_restore_blocked_calls">Intercept Records (%1$d entries)</string>
     <string name="label_restore_blacklist">Blacklist (%1$d entries)</string>
     <string name="label_restore_whitelist">Whitelist (%1$d entries)</string>
+    <string name="label_restore_local_number_labels">Local Number Labels (%1$d entries)</string>
     <string name="action_restore">Restore</string>
-    <string name="msg_restored_summary">Restored: %1$d intercept records, %2$d blacklist, %3$d whitelist entries</string>
+    <string name="msg_restored_summary">Restored: %1$d intercept records, %2$d blacklist, %3$d whitelist, %4$d local labels added, %5$d overwritten, %6$d skipped</string>
 
     <!-- Query Sources -->
     <string name="setting_query_backend">Real-time query server</string>

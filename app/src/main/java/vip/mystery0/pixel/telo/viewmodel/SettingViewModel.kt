@@ -935,6 +935,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
                     includeBlockedCalls = preview.blockedCallCount > 0,
                     includeBlackList = preview.blackListCount > 0,
                     includeWhiteList = preview.whiteListCount > 0,
+                    includeLocalNumberLabels = preview.localNumberLabelCount > 0,
                 )
                 backupRestoreState = BackupRestoreState.Idle
             } catch (e: Exception) {
@@ -982,7 +983,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
                         R.string.msg_restored_summary,
                         result.insertedCalls,
                         result.insertedBlack,
-                        result.insertedWhite
+                        result.insertedWhite,
+                        result.localLabels.inserted,
+                        result.localLabels.overwritten,
+                        result.localLabels.skipped,
                     )
                 )
             } catch (e: Exception) {

@@ -394,6 +394,14 @@ fun SettingsScreen(
                             viewModel.backupOptions.copy(includeWhiteList = it)
                     }
                 )
+                BackupCheckboxRow(
+                    checked = viewModel.backupOptions.includeLocalNumberLabels,
+                    label = stringResource(R.string.label_backup_local_number_labels),
+                    onCheckedChange = {
+                        viewModel.backupOptions =
+                            viewModel.backupOptions.copy(includeLocalNumberLabels = it)
+                    }
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -406,7 +414,8 @@ fun SettingsScreen(
                     val date = LocalDateTime.now().format(backupDateTimeFormatter)
                     Button(
                         onClick = { backupLauncher.launch("pixeltelo_backup_$date.zip") },
-                        enabled = opts.includeBlockedCalls || opts.includeBlackList || opts.includeWhiteList,
+                        enabled = opts.includeBlockedCalls || opts.includeBlackList ||
+                            opts.includeWhiteList || opts.includeLocalNumberLabels,
                         modifier = Modifier.weight(1f)
                     ) { Text(stringResource(R.string.action_backup)) }
                 }
@@ -465,6 +474,19 @@ fun SettingsScreen(
                             viewModel.restoreOptions.copy(includeWhiteList = it)
                     }
                 )
+                BackupCheckboxRow(
+                    checked = viewModel.restoreOptions.includeLocalNumberLabels,
+                    label = stringResource(
+                        R.string.label_restore_local_number_labels,
+                        preview.localNumberLabelCount,
+                    ),
+                    enabled = preview.localNumberLabelCount > 0,
+                    onCheckedChange = {
+                        viewModel.restoreOptions = viewModel.restoreOptions.copy(
+                            includeLocalNumberLabels = it,
+                        )
+                    },
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -473,8 +495,15 @@ fun SettingsScreen(
                         onClick = { viewModel.closeRestoreOptionsSheet() },
                         modifier = Modifier.weight(1f)
                     ) { Text(stringResource(R.string.action_cancel)) }
+                    val opts = viewModel.restoreOptions
+                    val canRestore =
+                        (opts.includeBlockedCalls && preview.blockedCallCount > 0) ||
+                            (opts.includeBlackList && preview.blackListCount > 0) ||
+                            (opts.includeWhiteList && preview.whiteListCount > 0) ||
+                            (opts.includeLocalNumberLabels && preview.localNumberLabelCount > 0)
                     Button(
                         onClick = { viewModel.performRestoreWithOptions() },
+                        enabled = canRestore,
                         modifier = Modifier.weight(1f)
                     ) { Text(stringResource(R.string.action_restore)) }
                 }
