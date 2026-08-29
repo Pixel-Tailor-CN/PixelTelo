@@ -74,6 +74,20 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   `FeedbackActionReceiver` 三层都只允许 `queryBackendId == "official"` 的有效 Token 进入官方反馈 API；
   自建记录固定为 `UNAVAILABLE`。
 
+### 国际号码规则匹配与查询边界
+
+* `PhoneNumberRuleMatcher` 是纯 Kotlin 的号码规则语义单一事实来源，负责新增规则的存储规范、
+  有界匹配候选、明确国际号码判定和精确/前缀匹配。明确的 `+国家代码` 与 `00国家代码` 等价；
+  没有 `+`/`00` 标记的纯数字号码保留独立格式域，不与明确国际格式互相匹配。
+* `UserListRepository` 的黑名单、白名单 DAO 查询，以及 `HomeViewModel` 历史记录的
+  `CurrentListState` 都使用同一匹配器，避免实际来电命中结果与历史 UI 状态分叉。
+* `SpamNumberRepository.checkSpam()` 先执行本地自定义白名单和黑名单规则，再执行明确国际号码门禁。
+  未命中的明确非中国国际号码在来电决策路径中直接放行，跳过 `MastDatabase`、Backend Snapshot
+  和官方/Self-hosted 实时查询；`forceNetworkQuery` 也不能越过该门禁。
+* 中国号码与已确认和多号场景仍由 `PhoneNumberNormalizer` 负责国内查询域的标准化，随后才进入
+  `MastDatabase` 和按设置决定的联网查询。Settings 的 Test Intercept 调用与
+  `CallScreeningService` 相同的 `checkSpam()` 入口，并遵循相同的查询设置。
+
 ### 凭据与配置
 
 * `SelfHostedCredentialStore` 使用 Android Keystore AES-GCM 保存 Token 密文；凭据 SharedPreferences

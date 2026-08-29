@@ -22,7 +22,14 @@
     * **统计**: 显示已拦截通话数量、上次更新时间。
     * **操作**: 设置入口、手动检查更新。
 
-### 3. 数据源下线提示 (WarningCard)
+### 3. 历史记录名单状态
+
+* 历史记录中的 `CurrentListState` 由 `HomeViewModel` 使用 `PhoneNumberRuleMatcher` 计算，
+  与 `UserListRepository` 的实际来电匹配共享同一套精确/前缀规则。
+* 对明确国际号码，`+国家代码` 与 `00国家代码` 视为等价；没有 `+`/`00` 标记的纯数字号码保持
+  独立格式域，不会在历史名单状态中跨格式显示为命中。
+
+### 4. 数据源下线提示 (WarningCard)
 
 * **触发条件**: `HomeViewModel.unavailableSourceWarning` 非空，即 source 状态的 `backendId` 与当前
   `QueryBackendState.Ready.backendId` 匹配，且用户已启用的联网查询 source 被该 Backend 下线。source
@@ -32,7 +39,7 @@
 * **导航**: 按钮经 `MainActivity` 协调，先打开 `SettingViewModel` 的 source 设置 BottomSheet，
   再切换到设置页。用户修正配置后卡片自动消失。
 
-### 4. 自建服务安全提示 (WarningCard)
+### 5. 自建服务安全提示 (WarningCard)
 
 * **触发条件**: 用户选择了自建 Backend，但 `QueryBackendProvider` 因配置/凭据不可用、TLS/Pin、
   服务版本、API Version、Instance ID 或身份 Header 问题发布 `Blocked` 状态。

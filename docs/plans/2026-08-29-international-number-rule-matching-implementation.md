@@ -247,7 +247,7 @@ git commit -m "fix: 国际号码仅执行本地规则并对齐测试拦截"
 - Consumes final Task 1–2 behavior and actual command results.
 - Produces durable architecture and validation summary for final review and Task 4 emulator acceptance.
 
-- [ ] **Step 1: Document the two-domain number architecture**
+- [x] **Step 1: Document the two-domain number architecture**
 
 Update architecture docs to state:
 
@@ -261,7 +261,7 @@ Update architecture docs to state:
 
 Do not claim simulator results before Task 4 executes them.
 
-- [ ] **Step 2: Run final static gates**
+- [x] **Step 2: Run final static gates**
 
 Run:
 
@@ -281,16 +281,36 @@ Expected:
 - no unit/instrumentation test files were added;
 - no dependency, permission, Room schema or backup-version changes exist.
 
-- [ ] **Step 3: Record actual static results**
+- [x] **Step 3: Record actual static results**
 
 Append the real build/Lint/diff evidence to this implementation plan. Include warning count, changed-file boundary and any unverified runtime requirements. Do not invent emulator results.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .agentdocs docs/plans/2026-08-29-international-number-rule-matching-implementation.md
 git commit -m "docs: 更新国际号码规则匹配架构与验证记录"
 ```
+
+#### Task 3 静态验证记录（2026-08-30）
+
+以下结果来自本工作树实际执行，未包含模拟器或真机通过结论：
+
+* `./gradlew :app:assembleDebug`：通过；`BUILD SUCCESSFUL in 5s`，39 个 actionable tasks（13 executed，26 up-to-date）。
+* `./gradlew lint`：通过；`BUILD SUCCESSFUL in 56s`，30 个 actionable tasks（10 executed，20 up-to-date）。Lint 报告中错误数为 0，警告数为 45（`app/build/reports/lint-results-debug.xml` 中的 `Warning` issue）。
+* `git diff --check`：通过，无输出。
+* `git diff --name-only 68e478d..HEAD`：实际已审查提交范围包含以下 9 个文件：
+  `app/src/main/java/vip/mystery0/pixel/telo/data/PhoneNumberNormalizer.kt`、
+  `app/src/main/java/vip/mystery0/pixel/telo/data/PhoneNumberRuleMatcher.kt`、
+  `app/src/main/java/vip/mystery0/pixel/telo/data/repository/SpamNumberRepository.kt`、
+  `app/src/main/java/vip/mystery0/pixel/telo/data/repository/UserListRepository.kt`、
+  `app/src/main/java/vip/mystery0/pixel/telo/viewmodel/HomeViewModel.kt`、
+  `app/src/main/java/vip/mystery0/pixel/telo/viewmodel/SettingViewModel.kt`、
+  `app/src/main/res/values-zh/strings.xml`、`app/src/main/res/values/strings.xml`、
+  `docs/plans/2026-08-29-international-number-rule-matching-implementation.md`。
+* `git diff 68e478d..HEAD -- app/src/test app/src/androidTest gradle/libs.versions.toml app/build.gradle.kts app/src/main/AndroidManifest.xml`：无输出；该范围没有新增单元/仪器测试、依赖、权限、Room schema 或备份版本变更。
+
+尚未验证的运行时要求：Task 4 的 Android 模拟器规则矩阵、真实 `CallScreeningService` 来电路径、数据库/Backend 请求边界、Test Intercept 配置一致性、中国号码与和多号回归、备份恢复及运行时清理。
 
 ---
 
