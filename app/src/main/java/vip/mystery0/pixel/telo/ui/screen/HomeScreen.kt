@@ -77,6 +77,7 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelEditorDialogs
 import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelManagementSection
@@ -283,7 +284,14 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
-                                state.message,
+                                when (state.resultType) {
+                                    ResultType.NETWORK_TIMEOUT -> stringResource(R.string.retry_error_network_timeout)
+                                    ResultType.NETWORK_RATE_LIMITED -> stringResource(R.string.retry_error_rate_limited)
+                                    ResultType.NETWORK_SERVER_ERROR -> stringResource(R.string.retry_error_server)
+                                    ResultType.NETWORK_CONNECTION_ERROR -> stringResource(R.string.retry_error_connection)
+                                    ResultType.QUERY_SERVICE_UNAVAILABLE -> stringResource(R.string.retry_error_service_unavailable)
+                                    else -> stringResource(R.string.title_query_failed)
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -783,7 +791,7 @@ private fun LazyListScope.blockedCallsList(
                         contactName = contactNames[call.phoneNumber],
                         localLabel = localLabels[call.phoneNumber],
                         currentListState = item.currentListState,
-                        onRetry = if (call.resultType == ResultType.NETWORK_TIMEOUT) {
+                        onRetry = if (call.resultType.isNetworkFailure()) {
                             { onRetry(call) }
                         } else {
                             null
@@ -850,14 +858,18 @@ fun BlockedCallItem(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val icon = when (call.resultType) {
-                    ResultType.PASS_BUT_NOTIFY -> Icons.Default.Warning
-                    ResultType.PASS, ResultType.WHITE_LIST -> Icons.Default.CheckCircle
+                val icon = when {
+                    call.resultType.isNetworkFailure() -> Icons.Default.Warning
+                    call.resultType == ResultType.PASS_BUT_NOTIFY -> Icons.Default.Warning
+                    call.resultType == ResultType.PASS ||
+                        call.resultType == ResultType.WHITE_LIST -> Icons.Default.CheckCircle
                     else -> Icons.Default.Block
                 }
-                val iconColor = when (call.resultType) {
-                    ResultType.PASS_BUT_NOTIFY -> MaterialTheme.colorScheme.primary
-                    ResultType.PASS, ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary
+                val iconColor = when {
+                    call.resultType.isNetworkFailure() -> MaterialTheme.colorScheme.error
+                    call.resultType == ResultType.PASS_BUT_NOTIFY -> MaterialTheme.colorScheme.primary
+                    call.resultType == ResultType.PASS ||
+                        call.resultType == ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary
                     else -> MaterialTheme.colorScheme.error
                 }
 
@@ -969,13 +981,21 @@ fun BlockedCallItem(
                             ResultType.INTERCEPT -> stringResource(R.string.result_intercept_spam)
                             ResultType.PASS_BUT_NOTIFY -> stringResource(R.string.result_pass_but_notify)
                             ResultType.NETWORK_TIMEOUT -> stringResource(R.string.result_network_timeout)
+                            ResultType.NETWORK_RATE_LIMITED -> stringResource(R.string.result_network_rate_limited)
+                            ResultType.NETWORK_SERVER_ERROR -> stringResource(R.string.result_network_server_error)
+                            ResultType.NETWORK_CONNECTION_ERROR -> stringResource(R.string.result_network_connection_error)
+                            ResultType.QUERY_SERVICE_UNAVAILABLE -> stringResource(R.string.result_query_service_unavailable)
                             ResultType.PASS -> stringResource(R.string.result_pass_always_record)
                             ResultType.BLACK_LIST -> stringResource(R.string.result_black_list)
                             ResultType.WHITE_LIST -> stringResource(R.string.result_white_list)
                         }
                         val resultColor = when (call.resultType) {
                             ResultType.PASS -> MaterialTheme.colorScheme.secondary
-                            ResultType.NETWORK_TIMEOUT -> MaterialTheme.colorScheme.error
+                            ResultType.NETWORK_TIMEOUT,
+                            ResultType.NETWORK_RATE_LIMITED,
+                            ResultType.NETWORK_SERVER_ERROR,
+                            ResultType.NETWORK_CONNECTION_ERROR,
+                            ResultType.QUERY_SERVICE_UNAVAILABLE -> MaterialTheme.colorScheme.error
                             ResultType.BLACK_LIST -> MaterialTheme.colorScheme.error
                             ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary
                             else -> MaterialTheme.colorScheme.primary

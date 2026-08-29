@@ -248,6 +248,9 @@ class QueryRepository(
                     exception.code(),
                     serverErrorMessage(exception) ?: exception.message(),
                 )
+            } catch (exception: IOException) {
+                // 保留断网、DNS、TLS 与连接失败，供上层显示准确的连接错误分类。
+                throw exception
             } catch (exception: Exception) {
                 if (snapshot.type == QueryBackendType.SELF_HOSTED) {
                     throw BackendQueryException()

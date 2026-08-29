@@ -53,7 +53,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import vip.mystery0.pixel.telo.R
-import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
 import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
 import vip.mystery0.pixel.telo.viewmodel.LocationOverlayDisplayMode
@@ -86,14 +86,14 @@ class IncomingCallOverlay(
         val locationText = IncomingCallOverlayFormatter.formatLocation(
             appContext,
             result.locationInfo,
-            result.resultType == ResultType.NETWORK_TIMEOUT
+            result.resultType,
         )
         val content = IncomingCallOverlayFormatter.buildContent(
             phoneNumber = phoneNumber,
             locationText = locationText,
             localLabel = localLabel,
             sourceLabel = result.label.takeUnless {
-                result.resultType == ResultType.NETWORK_TIMEOUT
+                result.resultType.isNetworkFailure()
             }
         )
         val offsetDp = prefs.getInt(

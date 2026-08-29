@@ -56,7 +56,9 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 * `QueryRepository.queryNumber()` 一次读取 Snapshot 和该 Backend 专属 source 配置，只发送用户启用且
   最近已知可用的 source；实时来电查询不会临时刷新 source 清单。
 * `SpamNumberRepository` 继续负责黑白名单、本地离线库和最终拦截决策。联网查询沿用用户配置并夹紧到
-  1 至 10 秒的超时；自建失败统一放行并只记录稳定分类与耗时。
+  1 至 10 秒的超时；所有联网失败统一放行，并把超时、HTTP 429、其他服务响应异常、网络连接失败及
+  Backend 不可用映射为独立 `ResultType`。日志只记录稳定分类与耗时，历史记录、重试对话框和 Overlay
+  使用对应本地化文案。
 
 ### source 与反馈隔离
 

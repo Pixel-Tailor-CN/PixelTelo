@@ -32,6 +32,10 @@
     <string name="location_overlay_preview_local_label">Property</string>
     <string name="overlay_unknown_location">Unknown location</string>
     <string name="overlay_location_timeout">Location query timeout</string>
+    <string name="overlay_query_rate_limited">Queries are temporarily rate limited</string>
+    <string name="overlay_query_server_error">Query service response error</string>
+    <string name="overlay_network_connection_error">Network connection failed</string>
+    <string name="overlay_query_service_unavailable">Query service unavailable</string>
 
     <!-- Navigation -->
     <string name="nav_home">Intercepts</string>
@@ -56,6 +60,10 @@
     <string name="result_intercept_spam">Reason: Spam Call</string>
     <string name="result_pass_but_notify">Reason: Notify (Not Blocked)</string>
     <string name="result_network_timeout">Reason: Network Timeout (Allowed)</string>
+    <string name="result_network_rate_limited">Reason: Query Rate Limited (Allowed)</string>
+    <string name="result_network_server_error">Reason: Query Service Error (Allowed)</string>
+    <string name="result_network_connection_error">Reason: Network Connection Failed (Allowed)</string>
+    <string name="result_query_service_unavailable">Reason: Query Service Unavailable (Allowed)</string>
     <string name="result_pass_always_record">Reason: Always Record (Allowed)</string>
     <string name="result_black_list">Reason: User Blacklist (Blocked)</string>
     <string name="result_white_list">Reason: User Whitelist (Allowed)</string>
@@ -78,6 +86,11 @@
     <string name="action_close">Close</string>
     <string name="action_write_remark">Write Remark</string>
     <string name="title_query_failed">Query Failed</string>
+    <string name="retry_error_network_timeout">The query timed out. Please try again.</string>
+    <string name="retry_error_rate_limited">Requests are too frequent. Please try again later.</string>
+    <string name="retry_error_server">The query service returned an error. Please try again later.</string>
+    <string name="retry_error_connection">The network connection failed. Check your connection and try again.</string>
+    <string name="retry_error_service_unavailable">The query service is not ready. Please check the query service settings.</string>
     <string name="title_delete_record">Delete Record</string>
     <string name="msg_delete_record_confirm">Are you sure you want to delete this intercept record? This action cannot be undone.</string>
     <string name="action_delete">Delete</string>

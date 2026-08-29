@@ -16,6 +16,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
 import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
@@ -174,10 +175,10 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         response.setRejectCall(false)
                         response.setSkipCallLog(false)
 
-                        if (result.resultType == ResultType.NETWORK_TIMEOUT) {
+                        if (result.resultType.isNetworkFailure()) {
                             blockedCallRepository.insert(
                                 phoneNumber,
-                                remark = "Network Timeout (Allowed)",
+                                remark = networkFailureRemark(result.resultType),
                                 result.resultType,
                                 result.localCost,
                                 result.networkCost,
@@ -269,6 +270,16 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         if (enabled && !noNetworkQuery && !callRejected) {
             incomingCallOverlay.show(phoneNumber, result, localLabel)
         }
+    }
+
+    /** 联网失败落库使用稳定英文分类，不记录异常正文或服务端响应。 */
+    private fun networkFailureRemark(resultType: ResultType): String = when (resultType) {
+        ResultType.NETWORK_TIMEOUT -> "Network Timeout (Allowed)"
+        ResultType.NETWORK_RATE_LIMITED -> "Query Rate Limited (Allowed)"
+        ResultType.NETWORK_SERVER_ERROR -> "Query Server Error (Allowed)"
+        ResultType.NETWORK_CONNECTION_ERROR -> "Network Connection Error (Allowed)"
+        ResultType.QUERY_SERVICE_UNAVAILABLE -> "Query Service Unavailable (Allowed)"
+        else -> "Query Failed (Allowed)"
     }
 
     private fun repeatCallStrategy(

@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.os.SystemClock
 import android.util.Log
 import java.io.IOException
+import java.net.SocketTimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -22,7 +23,9 @@ import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.query.BackendQueryResponse
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
+import vip.mystery0.pixel.telo.data.query.QueryBackendRevokedException
 import vip.mystery0.pixel.telo.data.query.QueryBackendSnapshot
+import vip.mystery0.pixel.telo.data.query.SelfHostedCompatibilityException
 import vip.mystery0.pixel.telo.data.remote.PhoneLocationInfo
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 import kotlin.time.Duration.Companion.milliseconds
@@ -42,6 +45,23 @@ data class CheckResult(
     val queryBackendId: String? = null,
     val feedbackToken: String? = null,
 )
+
+/** 将联网异常转换为稳定结果类型，禁止依赖异常正文判断。 */
+fun classifyNetworkFailure(exception: Throwable): ResultType = when (exception) {
+    is TimeoutCancellationException,
+    is SocketTimeoutException -> ResultType.NETWORK_TIMEOUT
+    is BackendBlockedException,
+    is QueryBackendRevokedException,
+    is SelfHostedCompatibilityException -> ResultType.QUERY_SERVICE_UNAVAILABLE
+    is QueryApiException -> if (exception.code == 429) {
+        ResultType.NETWORK_RATE_LIMITED
+    } else {
+        ResultType.NETWORK_SERVER_ERROR
+    }
+    is BackendQueryException -> ResultType.NETWORK_SERVER_ERROR
+    is IOException -> ResultType.NETWORK_CONNECTION_ERROR
+    else -> ResultType.NETWORK_SERVER_ERROR
+}
 
 class SpamNumberRepository : KoinComponent {
     companion object {
@@ -153,7 +173,7 @@ class SpamNumberRepository : KoinComponent {
 
         var networkAttempt: NetworkAttempt? = null
         return withContext(Dispatchers.IO) {
-            try {
+            val backendResponse = try {
                 val reusedAttempt = if (forceNetworkQuery) {
                     ReusedNetworkAttempt(
                         attempt = executeNetworkQuery(
@@ -171,46 +191,36 @@ class SpamNumberRepository : KoinComponent {
                 if (reusedAttempt.reused) {
                     Log.d(TAG, "Network query result reused: cost=${networkCost}ms")
                 }
-                val backendResponse = reusedAttempt.attempt.result.getOrThrow()
-                Log.i(
-                    TAG,
-                    if (reusedAttempt.reused) {
-                        "Network query result reused: cost=${networkCost}ms"
-                    } else {
-                        "Network query succeeded: cost=${networkCost}ms"
-                    },
-                )
-
-                buildNetworkResult(backendResponse, localCost, networkCost)
+                reusedAttempt.attempt.result.getOrThrow().also {
+                    Log.i(
+                        TAG,
+                        if (reusedAttempt.reused) {
+                            "Network query result reused: cost=${networkCost}ms"
+                        } else {
+                            "Network query succeeded: cost=${networkCost}ms"
+                        },
+                    )
+                }
             } catch (exception: TimeoutCancellationException) {
                 networkCost = networkAttempt?.costMs ?: 0L
-                Log.w(TAG, "Network query failed: category=timeout, cost=${networkCost}ms")
-                CheckResult(
-                    shouldBlock = false,
-                    label = "Timeout/Error",
-                    resultType = ResultType.NETWORK_TIMEOUT,
+                return@withContext buildNetworkFailureResult(
+                    exception = exception,
                     localCost = localCost,
                     networkCost = networkCost,
-                    locationLookupAttempted = true
                 )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
                 networkCost = networkAttempt?.costMs ?: 0L
-                Log.w(
-                    TAG,
-                    "Network query failed: category=${networkFailureCategory(exception)}, " +
-                        "cost=${networkCost}ms",
-                )
-                CheckResult(
-                    shouldBlock = false,
-                    label = "Timeout/Error",
-                    resultType = ResultType.NETWORK_TIMEOUT,
+                return@withContext buildNetworkFailureResult(
+                    exception = exception,
                     localCost = localCost,
                     networkCost = networkCost,
-                    locationLookupAttempted = true
                 )
             }
+
+            // 名单与结果组装属于本地后处理，不应被误记为服务端响应错误。
+            buildNetworkResult(backendResponse, localCost, networkCost)
         }
     }
 
@@ -492,12 +502,34 @@ class SpamNumberRepository : KoinComponent {
         return "Location: $value"
     }
 
+    private fun buildNetworkFailureResult(
+        exception: Exception,
+        localCost: Long,
+        networkCost: Long,
+    ): CheckResult {
+        val resultType = classifyNetworkFailure(exception)
+        Log.w(
+            TAG,
+            "Network query failed: category=${networkFailureCategory(resultType)}, " +
+                "cost=${networkCost}ms",
+        )
+        return CheckResult(
+            shouldBlock = false,
+            label = "",
+            resultType = resultType,
+            localCost = localCost,
+            networkCost = networkCost,
+            locationLookupAttempted = true,
+        )
+    }
+
     /** 只返回稳定错误分类，禁止把 URL、Token、Header 或响应正文写入日志。 */
-    private fun networkFailureCategory(exception: Exception): String = when (exception) {
-        is BackendBlockedException -> "backend_blocked"
-        is BackendQueryException -> "backend_request"
-        is QueryApiException -> "server_response"
-        is IOException -> "network"
+    private fun networkFailureCategory(resultType: ResultType): String = when (resultType) {
+        ResultType.NETWORK_TIMEOUT -> "timeout"
+        ResultType.NETWORK_RATE_LIMITED -> "rate_limited"
+        ResultType.NETWORK_SERVER_ERROR -> "server_response"
+        ResultType.NETWORK_CONNECTION_ERROR -> "network"
+        ResultType.QUERY_SERVICE_UNAVAILABLE -> "backend_blocked"
         else -> "unexpected"
     }
 

@@ -27,6 +27,10 @@
     <string name="location_overlay_style_minimal">简洁文本</string>
     <string name="overlay_unknown_location">未知归属地</string>
     <string name="overlay_location_timeout">归属地查询超时</string>
+    <string name="overlay_query_rate_limited">查询过于频繁，请稍后再试</string>
+    <string name="overlay_query_server_error">查询服务响应异常</string>
+    <string name="overlay_network_connection_error">网络连接失败</string>
+    <string name="overlay_query_service_unavailable">查询服务暂不可用</string>
     <string name="location_overlay_preview_local_label">物业</string>
     <string name="setting_adjust_location_overlay">悬浮窗位置调整</string>
     <string name="setting_adjust_location_overlay_summary">显示模拟来电归属地悬浮窗，上下拖动即可自动保存位置。</string>
@@ -62,7 +66,11 @@
     <string name="label_phone_location">归属地：%1$s</string>
     <string name="result_intercept_spam">拦截原因: 骚扰电话</string>
     <string name="result_pass_but_notify">拦截原因: 提示(未拦截)</string>
-    <string name="result_network_timeout">拦截原因: 联网查询超时(已放行)</string>
+    <string name="result_network_timeout">放行原因: 联网查询超时</string>
+    <string name="result_network_rate_limited">放行原因: 请求过于频繁</string>
+    <string name="result_network_server_error">放行原因: 查询服务响应异常</string>
+    <string name="result_network_connection_error">放行原因: 网络连接失败</string>
+    <string name="result_query_service_unavailable">放行原因: 查询服务暂不可用</string>
     <string name="result_pass_always_record">记录原因: 始终显示记录</string>
     <string name="result_black_list">拦截原因: 用户黑名单</string>
     <string name="result_white_list">放行原因: 用户白名单</string>
@@ -85,6 +93,11 @@
     <string name="action_close">关闭</string>
     <string name="action_write_remark">写入备注</string>
     <string name="title_query_failed">查询失败</string>
+    <string name="retry_error_network_timeout">查询超时，请重试。</string>
+    <string name="retry_error_rate_limited">请求过于频繁，请稍后重试。</string>
+    <string name="retry_error_server">查询服务响应异常，请稍后重试。</string>
+    <string name="retry_error_connection">网络连接失败，请检查网络后重试。</string>
+    <string name="retry_error_service_unavailable">查询服务尚未就绪，请检查查询服务设置。</string>
     <string name="title_delete_record">删除记录</string>
     <string name="msg_delete_record_confirm">确定要删除这条拦截记录吗？此操作无法撤销。</string>
     <string name="action_delete">删除</string>

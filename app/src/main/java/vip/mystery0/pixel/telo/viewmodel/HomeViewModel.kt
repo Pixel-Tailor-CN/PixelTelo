@@ -9,7 +9,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.map
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +29,7 @@ import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ListType
+import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
@@ -43,13 +46,14 @@ import vip.mystery0.pixel.telo.data.repository.QuerySourceState
 import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
+import vip.mystery0.pixel.telo.data.repository.classifyNetworkFailure
 
 /** 联网重查的 UI 状态 */
 sealed interface RetryQueryState {
     data object Idle : RetryQueryState
     data class Loading(val call: BlockedCall) : RetryQueryState
     data class Success(val call: BlockedCall, val response: QueryResponse) : RetryQueryState
-    data class Failure(val call: BlockedCall, val message: String) : RetryQueryState
+    data class Failure(val call: BlockedCall, val resultType: ResultType?) : RetryQueryState
 }
 
 /** 查询结果反馈提交的 UI 状态 */
@@ -263,21 +267,38 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val _retryQueryState = MutableStateFlow<RetryQueryState>(RetryQueryState.Idle)
     val retryQueryState: StateFlow<RetryQueryState> = _retryQueryState.asStateFlow()
 
-    /** 对超时记录发起联网重查 */
+    /** 对联网失败记录发起联网重查。 */
     fun retryNetworkQuery(call: BlockedCall) {
         viewModelScope.launch {
             _retryQueryState.value = RetryQueryState.Loading(call)
+            val backendResponse = try {
+                spamNumberRepository.queryNetwork(call.phoneNumber)
+            } catch (exception: TimeoutCancellationException) {
+                _retryQueryState.value = RetryQueryState.Failure(
+                    call = call,
+                    resultType = classifyNetworkFailure(exception),
+                )
+                return@launch
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                _retryQueryState.value = RetryQueryState.Failure(
+                    call = call,
+                    resultType = classifyNetworkFailure(exception),
+                )
+                return@launch
+            }
+
             try {
-                val backendResponse = spamNumberRepository.queryNetwork(call.phoneNumber)
                 val response = backendResponse.response
                 // 立即写回可信 Backend 归属、source 与反馈 token，避免用户关闭对话框后丢失凭证
                 val updated = repository.attachQueryResult(call, backendResponse)
                 _retryQueryState.value = RetryQueryState.Success(updated, response)
-            } catch (e: Exception) {
-                _retryQueryState.value = RetryQueryState.Failure(
-                    call,
-                    e.message ?: context.getString(R.string.title_query_failed)
-                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                // 本地持久化失败不归因给远端服务，使用通用失败提示。
+                _retryQueryState.value = RetryQueryState.Failure(call = call, resultType = null)
             }
         }
     }

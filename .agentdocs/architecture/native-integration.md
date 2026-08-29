@@ -91,7 +91,11 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
     * **本地查询**: 必须在 **100ms** 内完成。
     * **网络回退**: 若本地无结果，通过 `QueryRepository.queryNumber()` 发起 v2 联网查询，
       有效超时可在设置中配置（**1 至 10 秒**，默认 5 秒，`withTimeout` 强制执行）。
-      超时则放行并记录 `NETWORK_TIMEOUT`。
+      所有联网失败均 Fail Open，并按原因分别记录：`NETWORK_TIMEOUT`（超时）、
+      `NETWORK_RATE_LIMITED`（HTTP 429）、`NETWORK_SERVER_ERROR`（其他服务响应异常）、
+      `NETWORK_CONNECTION_ERROR`（断网、DNS、TLS 或连接失败）及
+      `QUERY_SERVICE_UNAVAILABLE`（Backend 未就绪或被安全策略阻止）。历史记录与 Overlay
+      使用对应本地化文案，不得把服务端响应正文或异常消息当作标签展示。
     * **source 清单**: 联网查询只读取本地缓存的 source 配置，**严禁在来电主链路内请求
       source 清单**；source 清单与反馈接口的失败不得影响来电放行。
 4. **决策**:
@@ -109,7 +113,7 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
     * 如果被拦截，设置 `skipCallLog` 为 `false`（确保拦截记录出现在历史记录中）并设置 `disallowCall` 为
       `true`。
 6. **落库**: 按现有记录策略写入 `BlockedCall` 时，一并保存 v2 响应中的 `querySource` 与
-   `feedbackToken`（状态 `PENDING`）；本地命中、黑白名单命中与超时没有 token，状态保持
+   `feedbackToken`（状态 `PENDING`）；本地命中、黑白名单命中与所有联网失败没有 token，状态保持
    `UNAVAILABLE`。不为反馈扩大记录范围。本地标签不得写入或覆盖 `BlockedCall.label`。
 7. **通话结束反馈提醒**: 放行且记录带 token 的来电，筛查时把记录 id 写入 `SharedPreferences`
    标记；`receiver/CallStateReceiver`（需 `READ_PHONE_STATE`）监听 `PHONE_STATE` 回到 IDLE 后，

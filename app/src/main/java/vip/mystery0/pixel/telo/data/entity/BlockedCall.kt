@@ -62,7 +62,22 @@ enum class ResultType {
     INTERCEPT, // 拦截
     PASS_BUT_NOTIFY, // 提示但不拦截 (暂未实现完全逻辑，可用于白名单或低风险)
     NETWORK_TIMEOUT, // 联网查询超时
+    NETWORK_RATE_LIMITED, // 远端接口限流
+    NETWORK_SERVER_ERROR, // 服务端响应异常
+    NETWORK_CONNECTION_ERROR, // 网络连接失败
+    QUERY_SERVICE_UNAVAILABLE, // 查询服务未就绪
     PASS, // 正常放行并通过设置强制记录
     BLACK_LIST, // 用户黑名单拦截
     WHITE_LIST, // 用户白名单放行
+}
+
+/** 是否属于联网查询失败；这些结果必须 Fail Open，并允许用户手动重试。 */
+fun ResultType.isNetworkFailure(): Boolean = when (this) {
+    ResultType.NETWORK_TIMEOUT,
+    ResultType.NETWORK_RATE_LIMITED,
+    ResultType.NETWORK_SERVER_ERROR,
+    ResultType.NETWORK_CONNECTION_ERROR,
+    ResultType.QUERY_SERVICE_UNAVAILABLE -> true
+
+    else -> false
 }
