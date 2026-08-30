@@ -52,6 +52,21 @@ Android 设计风格，强调隐私保护和极速响应，提供零打扰的纯
 - **网络查询**: 实时查询，超时限制 3s
 - **手动查询**: 支持手动输入号码测试拦截逻辑
 
+#### 自建实时查询服务
+
+Pixel Telo 支持连接由用户自行部署的实时号码查询服务。自建服务只替换实时查询 Backend，不改变官方离线
+数据库的下载与更新链路；自建服务不可用时来电会 Fail Open，且不会自动回退并将号码发送到官方实时查询服务。
+自建服务必须通过 HTTPS 连接。
+
+可根据运行环境选择 Docker Compose、Docker、Windows 二进制或 Vercel 部署：
+
+- **快速部署与配对**：[`pixel-telo-mast-selfhost` 自建服务仓库](https://github.com/Pixel-Tailor-CN/pixel-telo-mast-selfhost)
+- **完整运维文档**：[TLS、反向代理、升级、备份与故障排查](https://github.com/Pixel-Tailor-CN/pixel-telo-mast-selfhost/blob/main/DEPLOY.md)
+- **版本下载**：[Self-host Releases](https://github.com/Pixel-Tailor-CN/pixel-telo-mast-selfhost/releases)
+
+部署完成后，在 Pixel Telo 中进入“设置 → 在线查询 → 实时查询服务器”，填写服务提供的 HTTPS 地址、Token
+及必要的 SPKI Pin，然后执行“测试并启用”。App 内的自建实例配置项旁也提供部署文档入口。
+
 #### 数据管理
 
 - **离线数据库**: 从云端下载骚扰号码库，支持增量更新
@@ -163,6 +178,23 @@ ultra-fast response, providing a clean and distraction-free experience.
 - **Local Query**: Offline database, response time < 100ms
 - **Network Query**: Real-time lookup, 3s timeout limit
 - **Manual Query**: Test blocking logic with manual number input
+
+#### Self-hosted Real-time Query Service
+
+Pixel Telo can connect to a real-time number query service deployed by the user. A self-hosted
+service replaces only the real-time query Backend and does not change official offline database
+updates. If it becomes unavailable, calls Fail Open; Pixel Telo does not automatically fall back
+and send the number to the official real-time query service. HTTPS is required.
+
+Docker Compose, Docker, Windows binary, and Vercel deployment options are available:
+
+- **Quick deployment and pairing**: [`pixel-telo-mast-selfhost` repository](https://github.com/Pixel-Tailor-CN/pixel-telo-mast-selfhost)
+- **Operations guide**: [TLS, reverse proxy, upgrades, backups, and troubleshooting](https://github.com/Pixel-Tailor-CN/pixel-telo-mast-selfhost/blob/main/DEPLOY.md)
+- **Downloads**: [Self-host Releases](https://github.com/Pixel-Tailor-CN/pixel-telo-mast-selfhost/releases)
+
+After deployment, open “Settings → Online Query → Real-time Query Server” in Pixel Telo, enter
+the HTTPS URL, Token, and SPKI Pin when required, then select “Test and enable.” A deployment
+documentation link is also placed next to the self-hosted instance configuration in the app.
 
 #### Data Management
 
