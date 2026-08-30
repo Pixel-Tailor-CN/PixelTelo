@@ -308,6 +308,9 @@
     <string name="setting_query_backend_self_hosted_version">Server version: %1$s</string>
     <string name="setting_query_backend_self_hosted_verified_at">Verified at: %1$s</string>
     <string name="setting_query_backend_self_hosted_unavailable_summary">Self-hosted service · configuration required</string>
+    <string name="setting_self_hosted_documentation">Self-hosted deployment guide</string>
+    <string name="setting_self_hosted_documentation_summary">View deployment, pairing, upgrade, backup, and troubleshooting documentation</string>
+    <string name="error_external_link_unavailable">No app is available to open this link</string>
     <string name="title_self_hosted_config">Configure self-hosted service</string>
     <string name="title_self_hosted_management">Self-hosted service</string>
     <string name="msg_self_hosted_management_hint">This service is active. You can run the full validation again, modify its configuration, or switch back to the official service.</string>

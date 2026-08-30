@@ -306,6 +306,9 @@
     <string name="setting_query_backend_self_hosted_version">服务版本：%1$s</string>
     <string name="setting_query_backend_self_hosted_verified_at">验证时间：%1$s</string>
     <string name="setting_query_backend_self_hosted_unavailable_summary">自建服务 · 需要重新配置</string>
+    <string name="setting_self_hosted_documentation">自建服务部署文档</string>
+    <string name="setting_self_hosted_documentation_summary">查看部署、配对、升级、备份与故障排查说明</string>
+    <string name="error_external_link_unavailable">未找到可打开此链接的应用</string>
     <string name="title_self_hosted_config">配置自建服务</string>
     <string name="title_self_hosted_management">自建服务</string>
     <string name="msg_self_hosted_management_hint">当前正在使用此服务。你可以重新执行完整验证、修改配置，或切换回官方服务。</string>

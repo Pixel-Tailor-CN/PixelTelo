@@ -1,8 +1,12 @@
 package vip.mystery0.pixel.telo.ui.screen.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.NetworkCheck
@@ -25,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import me.zhanghai.compose.preference.Preference
 import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
@@ -32,6 +37,9 @@ import vip.mystery0.pixel.telo.data.query.QueryBackendState
 import vip.mystery0.pixel.telo.data.query.QueryBackendType
 import vip.mystery0.pixel.telo.data.query.SelfHostedConnectionState
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
+
+private const val SELF_HOSTED_DOCUMENTATION_URL =
+    "https://github.com/Pixel-Tailor-CN/pixel-telo-mast-selfhost"
 
 /** 在线查询分类下的设置项。 */
 @Composable
@@ -43,6 +51,7 @@ fun OnlineQueryPreferences(
     onRequestFeedbackPermissions: (Array<String>) -> Unit,
 ) {
     val context = LocalContext.current
+    val externalLinkUnavailableMessage = stringResource(R.string.error_external_link_unavailable)
     var showTimeoutDialog by remember { mutableStateOf(false) }
     val querySourceState by viewModel.querySourceState.collectAsState()
     val selfHostedSelected = when (backendState) {
@@ -94,6 +103,25 @@ fun OnlineQueryPreferences(
         icon = { Icon(Icons.Default.Cloud, contentDescription = null) },
         enabled = onlineQueryEnabled,
         onClick = viewModel::openSelfHostedConfig,
+    )
+
+    Preference(
+        title = { Text(stringResource(R.string.setting_self_hosted_documentation)) },
+        summary = { Text(stringResource(R.string.setting_self_hosted_documentation_summary)) },
+        icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null) },
+        onClick = {
+            try {
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, SELF_HOSTED_DOCUMENTATION_URL.toUri()),
+                )
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(
+                    context,
+                    externalLinkUnavailableMessage,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        },
     )
 
     Preference(
