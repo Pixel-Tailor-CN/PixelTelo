@@ -3,7 +3,7 @@ agp = "9.3.2"
 kotlin = "2.4.10"
 ksp = "2.3.11"
 
-app-version = "1.4.1"
+app-version = "1.4.2"
 android-compileSdk = "37"
 android-minSdk = "29"
 android-targetSdk = "37"
