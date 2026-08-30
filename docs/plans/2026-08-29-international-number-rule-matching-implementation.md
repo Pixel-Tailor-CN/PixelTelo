@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- MinSDK 29，TargetSDK 35，JVM Target 21。
+- MinSDK 29，CompileSDK 37，TargetSDK 37，JVM Target 21。
 - `+国家代码` 与 `00国家代码` 明确国际格式等价；无 `+`/`00` 标记的纯数字格式与它们不等价。
 - `+86`、`0086` 与现有国内号码标准化保持兼容；已确认和多号前缀行为不得回归。
 - 明确非中国国际号码只允许本地自定义黑白名单匹配；未命中时不得打开 MastDatabase、获取 Backend Snapshot 或访问官方/Self-hosted Backend。

@@ -20,13 +20,24 @@ fun PermissionsPreferences(
     onRequestOverlayPermission: () -> Unit,
     onRequestPermission: (String) -> Unit,
 ) {
+    val grantedText = stringResource(R.string.permission_status_granted)
+    val notGrantedText = stringResource(R.string.permission_status_not_granted)
+
     Preference(
         title = { Text(stringResource(R.string.permission_overlay_name)) },
-        summary = { Text(stringResource(R.string.permission_overlay_desc)) },
+        summary = {
+            Text(
+                stringResource(
+                    R.string.permission_summary_with_status,
+                    stringResource(R.string.permission_overlay_desc),
+                    if (overlayPermissionGranted) grantedText else notGrantedText,
+                )
+            )
+        },
         icon = {
             Icon(
                 if (overlayPermissionGranted) Icons.Default.Check else Icons.Default.Close,
-                contentDescription = null,
+                contentDescription = if (overlayPermissionGranted) grantedText else notGrantedText,
                 tint = if (overlayPermissionGranted) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -38,18 +49,27 @@ fun PermissionsPreferences(
             if (!overlayPermissionGranted) {
                 onRequestOverlayPermission()
             }
-        }
+        },
+        enabled = !overlayPermissionGranted,
     )
 
     PermissionUtils.allPermissions.forEach { item ->
         val isGranted = permissionsState[item.permission] == true
         Preference(
             title = { Text(stringResource(item.nameResId)) },
-            summary = { Text(stringResource(item.descriptionResId)) },
+            summary = {
+                Text(
+                    stringResource(
+                        R.string.permission_summary_with_status,
+                        stringResource(item.descriptionResId),
+                        if (isGranted) grantedText else notGrantedText,
+                    )
+                )
+            },
             icon = {
                 Icon(
                     if (isGranted) Icons.Default.Check else Icons.Default.Close,
-                    contentDescription = null,
+                    contentDescription = if (isGranted) grantedText else notGrantedText,
                     tint = if (isGranted) {
                         MaterialTheme.colorScheme.primary
                     } else {
@@ -61,7 +81,8 @@ fun PermissionsPreferences(
                 if (!isGranted) {
                     onRequestPermission(item.permission)
                 }
-            }
+            },
+            enabled = !isGranted,
         )
     }
 }

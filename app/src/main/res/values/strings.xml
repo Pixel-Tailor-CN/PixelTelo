@@ -30,6 +30,7 @@
     <string name="location_overlay_preview_phone" translatable="false">13245678901</string>
     <string name="location_overlay_preview_location" translatable="false">浙江 宁波</string>
     <string name="location_overlay_preview_local_label">Property</string>
+    <string name="location_overlay_preview_source_label">Delivery</string>
     <string name="overlay_unknown_location">Unknown location</string>
     <string name="overlay_location_timeout">Location query timeout</string>
     <string name="overlay_query_rate_limited">Queries are temporarily rate limited</string>
@@ -175,6 +176,9 @@
     <string name="setting_restore_records">Restore App Data</string>
     <string name="setting_restore_records_summary">Restore intercept records, blacklist, whitelist, and local number labels from a backup file.</string>
     <string name="category_permissions">Permissions</string>
+    <string name="permission_status_granted">Granted</string>
+    <string name="permission_status_not_granted">Not granted</string>
+    <string name="permission_summary_with_status">%1$s Status: %2$s.</string>
     <string name="category_intercept_behavior">Intercept Behavior</string>
     <string name="category_online_query">Online Query</string>
     <string name="category_location_overlay">Floating Window</string>
@@ -284,6 +288,14 @@
     <string name="msg_already_in_blacklist">Already in blacklist</string>
     <string name="msg_added_to_whitelist">Added to whitelist</string>
     <string name="msg_already_in_whitelist">Already in whitelist</string>
+    <string name="action_add_tag_to_whitelist">Add tag to Whitelist (%1$s)</string>
+    <string name="msg_added_tag_to_whitelist">Added tag to whitelist</string>
+    <string name="msg_tag_already_in_whitelist">Tag already in whitelist</string>
+    <string name="call_label_spam_default">Spam call</string>
+    <string name="call_remark_repeat_silence">%1$s (repeat call, allowed silently)</string>
+    <string name="call_remark_repeat_allow">%1$s (repeat call, allowed completely)</string>
+    <string name="call_remark_notify_only">%1$s (notify only)</string>
+    <string name="call_remark_normal">Normal call</string>
 
     <!-- Backup/Restore Selection -->
     <string name="title_backup_select">Select Data to Backup</string>

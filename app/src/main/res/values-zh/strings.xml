@@ -32,6 +32,7 @@
     <string name="overlay_network_connection_error">网络连接失败</string>
     <string name="overlay_query_service_unavailable">查询服务暂不可用</string>
     <string name="location_overlay_preview_local_label">物业</string>
+    <string name="location_overlay_preview_source_label">快递外卖</string>
     <string name="setting_adjust_location_overlay">悬浮窗位置调整</string>
     <string name="setting_adjust_location_overlay_summary">显示模拟来电归属地悬浮窗，上下拖动即可自动保存位置。</string>
     <string name="setting_adjust_location_overlay_active_summary">正在显示模拟悬浮窗，上下拖动调整位置，再次点击可隐藏。</string>
@@ -182,6 +183,9 @@
     <string name="setting_restore_records">恢复应用数据</string>
     <string name="setting_restore_records_summary">从备份文件恢复拦截记录、黑名单、白名单和本地号码标签</string>
     <string name="category_permissions">权限申请</string>
+    <string name="permission_status_granted">已授权</string>
+    <string name="permission_status_not_granted">未授权</string>
+    <string name="permission_summary_with_status">%1$s 当前状态：%2$s。</string>
     <string name="category_intercept_behavior">拦截行为</string>
     <string name="category_online_query">在线查询</string>
     <string name="category_location_overlay">悬浮窗</string>
@@ -282,6 +286,14 @@
     <string name="msg_already_in_blacklist">该号码已在黑名单中</string>
     <string name="msg_added_to_whitelist">已加入白名单</string>
     <string name="msg_already_in_whitelist">该号码已在白名单中</string>
+    <string name="action_add_tag_to_whitelist">加入标签白名单（%1$s）</string>
+    <string name="msg_added_tag_to_whitelist">已加入标签白名单</string>
+    <string name="msg_tag_already_in_whitelist">该标签已在白名单中</string>
+    <string name="call_label_spam_default">骚扰电话</string>
+    <string name="call_remark_repeat_silence">%1$s（重复来电，静音放行）</string>
+    <string name="call_remark_repeat_allow">%1$s（重复来电，完全放行）</string>
+    <string name="call_remark_notify_only">%1$s（仅提示）</string>
+    <string name="call_remark_normal">正常来电</string>
 
     <!-- Backup/Restore Selection -->
     <string name="title_backup_select">选择备份内容</string>

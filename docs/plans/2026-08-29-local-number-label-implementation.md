@@ -4,7 +4,7 @@
 
 **Goal:** 为归一化号码增加独立、可管理、可选择备份的持久化本地标签，并在用户开启显示后接入 Directory Provider、来电 Overlay 和历史记录展示，同时完全保持现有识别与拦截语义。
 
-**Architecture:** 使用 Room v10 的 `local_number_labels` 独立表和 `LocalNumberLabelRepository` 作为单一事实来源；`SpamNumberRepository` 与 `CheckResult` 不感知本地标签，最终消费端分别取得本地标签和数据源标签。SharedPreferences 开关通过进程级 `LocalNumberLabelPreferences` 暴露 `StateFlow`，历史记录只观察 Paging 当前窗口，备份恢复把标签作为第四个独立范围。
+**Architecture:** 使用 AppDatabase schema v10 的 `local_number_labels` 独立表和 `LocalNumberLabelRepository` 作为单一事实来源；`SpamNumberRepository` 与 `CheckResult` 不感知本地标签，最终消费端分别取得本地标签和数据源标签。SharedPreferences 开关通过进程级 `LocalNumberLabelPreferences` 暴露 `StateFlow`，历史记录只观察 Paging 当前窗口，备份恢复把标签作为第四个独立范围。
 
 **Tech Stack:** Kotlin、Room、Kotlin Coroutines/Flow、Jetpack Compose Material3、Paging 3、Koin、Android Directory Provider、Kotlinx Serialization。
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 与用户的回复、代码注释、KDoc 和项目文档使用中文；日志使用英文。
-- MinSDK 29，TargetSDK 35，JVM Target 21。
+- MinSDK 29，CompileSDK 37，TargetSDK 37，JVM Target 21。
 - 不新增权限、第三方依赖、网络 API、上传状态或 WorkManager。
 - 每个归一化号码最多一个标签；标签 `trim()` 后最多 40 个字符，空标签按删除处理。
 - 唯一号码必须由 `PhoneNumberNormalizer.normalizeForLookup()` 产生；空结果或不含数字的结果视为无效。
@@ -146,7 +146,7 @@ UI: No intercept records
 
 ### 主要修改文件
 
-- `data/AppDatabase.kt`、`di/AppModule.kt`：Room v10、迁移、DAO/Repository/Preferences 注入。
+- `data/AppDatabase.kt`、`di/AppModule.kt`：AppDatabase schema v10、迁移、DAO/Repository/Preferences 注入。
 - `provider/TeloDirectoryProvider.kt`：并行读取本地标签并组合 Cursor 名称。
 - `service/TeloCallScreeningService.kt`、`service/IncomingCallOverlay.kt`、`service/IncomingCallOverlayFormatter.kt`：Overlay 分层展示。
 - `viewmodel/HomeViewModel.kt`、`ui/screen/HomeScreen.kt`：Paging 窗口标签观察和详情管理入口。
@@ -157,7 +157,7 @@ UI: No intercept records
 
 ---
 
-### Task 1：建立 Room v10 本地标签数据层
+### Task 1：建立 AppDatabase schema v10 本地标签数据层
 
 **Files:**
 
@@ -1141,7 +1141,7 @@ git commit -m "feat: 支持选择性备份恢复本地号码标签"
 
 **Interfaces:**
 
-- Documents: Room v10、本地标签边界、Directory Provider 组合、Paging 窗口观察、管理 UI、备份 v5。
+- Documents: AppDatabase schema v10、本地标签边界、Directory Provider 组合、Paging 窗口观察、管理 UI、备份 v5。
 
 - [ ] **Step 1：更新 MVVM 文档**
 
@@ -1214,7 +1214,7 @@ git commit -m "docs: 更新本地号码标签架构与实施记录"
 **Interfaces:**
 
 - Consumes: `app/build/outputs/apk/debug/app-debug.apk`
-- Verifies: Room v10、设置默认值、编辑管理、号码归一化、Directory Provider、Overlay、备份 v5。
+- Verifies: AppDatabase schema v10、设置默认值、编辑管理、号码归一化、Directory Provider、Overlay、备份 v5。
 
 - [ ] **Step 1：确认唯一目标模拟器**
 

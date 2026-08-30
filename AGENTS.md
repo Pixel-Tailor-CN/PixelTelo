@@ -17,7 +17,7 @@ Pixel Telo 是专为 Google Pixel 设备设计的来电识别与拦截应用，�
 **核心定位**: 轻量级、隐私优先、零打扰的原生体验
 **核心价值**: 原生体验、隐私优先、极致轻量
 **目标设备**: Google Pixel 系列及类原生 Android (AOSP) 设备
-**兼容性**: MinSDK 29 (Android 10), TargetSDK 35 (Android 15)
+**兼容性**: MinSDK 29 (Android 10), CompileSDK 37, TargetSDK 37
 
 ## 开发原则
 
@@ -110,7 +110,7 @@ Pixel Telo 是专为 Google Pixel 设备设计的来电识别与拦截应用，�
 2. **TeloDirectoryProvider** (`provider/TeloDirectoryProvider.kt`)
    - 继承 `ContentProvider`，实现 Directory Provider。
    - 在系统拨号器中显示来电信息，这是唯一推荐方式。
-   - 严禁默认使用悬浮窗 (Overlay)，除非作为特定 ROM 的降级方案。
+   - 严禁默认使用悬浮窗 (Overlay)；Overlay 默认关闭，仅作为用户显式启用并授权的可选降级展示。
 
 3. **SpamNumberRepository** (`data/repository/SpamNumberRepository.kt`)
    - 号码查询核心逻辑：先本地查询，再网络查询。

@@ -31,7 +31,7 @@ Android 设计风格，强调隐私保护和极速响应，提供零打扰的纯
 **核心特性**
 
 - 🎨 **原生设计**: Material3 + Monet 动态取色，完美融入 Pixel 系统
-- 🚀 **极速响应**: 本地查询 < 100ms，网络查询 < 5s
+- 🚀 **极速响应**: 本地查询目标 < 100ms，网络超时可配置为 1–10 秒（默认 5 秒）
 - 🔒 **隐私优先**: 本地数据库，可选离线模式，无需上传通讯录
 - 📞 **系统集成**: 通过 Directory Provider 在系统拨号器中显示来电信息
 - 🛡️ **智能拦截**: 支持本地数据库 + 实时网络查询双重验证
@@ -49,14 +49,16 @@ Android 设计风格，强调隐私保护和极速响应，提供零打扰的纯
 #### 号码查询
 
 - **本地查询**: 离线数据库，响应速度 < 100ms
-- **网络查询**: 实时查询，超时限制 3s
+- **网络查询**: 超时可配置为 1–10 秒，默认 5 秒；超时或失败时 Fail Open
+- **国际号码**: 明确的非中国国际号码优先匹配本地黑白名单；未命中时直接放行，不访问离线骚扰库或实时查询服务
 - **手动查询**: 支持手动输入号码测试拦截逻辑
 
 #### 自建实时查询服务
 
 Pixel Telo 支持连接由用户自行部署的实时号码查询服务。自建服务只替换实时查询 Backend，不改变官方离线
 数据库的下载与更新链路；自建服务不可用时来电会 Fail Open，且不会自动回退并将号码发送到官方实时查询服务。
-自建服务必须通过 HTTPS 连接。
+自建服务必须通过 HTTPS 连接。当前 App 要求自建查询服务版本不低于 `0.1.5`；权威兼容版本以
+`gradle/libs.versions.toml` 中的 `selfhost-min-server` 为准。
 
 可根据运行环境选择 Docker Compose、Docker、Windows 二进制或 Vercel 部署：
 
@@ -69,8 +71,8 @@ Pixel Telo 支持连接由用户自行部署的实时号码查询服务。自建
 
 #### 数据管理
 
-- **离线数据库**: 从云端下载骚扰号码库，支持增量更新
-- **备份恢复**: 支持拦截记录、黑名单、白名单的备份与恢复
+- **离线数据库**: 支持云端版本检查及数据库下载/替换；增量更新能力取决于后端协议
+- **备份恢复**: 支持拦截记录、黑名单、白名单及本地号码标签的备份与恢复（当前格式 v5）
 - **黑白名单**: 自定义拦截规则，支持精确/前缀/标签匹配
 
 #### 系统集成
@@ -93,7 +95,7 @@ Pixel Telo 支持连接由用户自行部署的实时号码查询服务。自建
 ### 📋 系统要求
 
 - **最低版本**: Android 10 (API 29)
-- **目标版本**: Android 15 (API 37)
+- **目标 SDK**: API 37
 - **推荐设备**: Google Pixel 系列及类原生 Android 设备
 
 ### 🚀 快速开始
@@ -111,18 +113,20 @@ Pixel Telo 支持连接由用户自行部署的实时号码查询服务。自建
 ./gradlew installDebug
 ```
 
-#### 运行测试
+#### 验证
 
 ```bash
-# 运行单元测试
-./gradlew test
+# 编译 app Debug 版本
+./gradlew :app:assembleDebug
 
 # 运行 Lint 检查
 ./gradlew lint
 
-# 运行所有检查
-./gradlew check
+# 连接设备后运行 instrumentation 测试
+./gradlew connectedAndroidTest
 ```
+
+项目默认不运行单元测试或包含单元测试的 `check`；仅在任务明确要求时执行。
 
 ### 📖 使用指南
 
@@ -158,7 +162,7 @@ ultra-fast response, providing a clean and distraction-free experience.
 **Key Features**
 
 - 🎨 **Native Design**: Material3 + Monet dynamic theming, perfectly integrated with Pixel system
-- 🚀 **Ultra-Fast**: Local query < 100ms, network query < 3s
+- 🚀 **Ultra-Fast**: Local query target < 100ms; configurable 1–10s network timeout (5s default)
 - 🔒 **Privacy First**: Local database, optional offline mode, no contact upload required
 - 📞 **System Integration**: Display caller info in system dialer via Directory Provider
 - 🛡️ **Smart Blocking**: Dual verification with local database + real-time network query
@@ -176,7 +180,8 @@ ultra-fast response, providing a clean and distraction-free experience.
 #### Number Lookup
 
 - **Local Query**: Offline database, response time < 100ms
-- **Network Query**: Real-time lookup, 3s timeout limit
+- **Network Query**: Configurable 1–10s timeout, default 5s; timeouts and failures Fail Open
+- **International Numbers**: Explicit non-China international numbers use local allow/block rules only; unmatched calls bypass the offline spam database and real-time query services
 - **Manual Query**: Test blocking logic with manual number input
 
 #### Self-hosted Real-time Query Service
@@ -184,7 +189,9 @@ ultra-fast response, providing a clean and distraction-free experience.
 Pixel Telo can connect to a real-time number query service deployed by the user. A self-hosted
 service replaces only the real-time query Backend and does not change official offline database
 updates. If it becomes unavailable, calls Fail Open; Pixel Telo does not automatically fall back
-and send the number to the official real-time query service. HTTPS is required.
+and send the number to the official real-time query service. HTTPS is required. The current app
+requires self-hosted server version `0.1.5` or newer; the authoritative compatibility value is
+`selfhost-min-server` in `gradle/libs.versions.toml`.
 
 Docker Compose, Docker, Windows binary, and Vercel deployment options are available:
 
@@ -198,8 +205,8 @@ documentation link is also placed next to the self-hosted instance configuration
 
 #### Data Management
 
-- **Offline Database**: Download spam number database from cloud, support incremental updates
-- **Backup & Restore**: Backup and restore blocked calls, blacklist, and whitelist
+- **Offline Database**: Check cloud versions and download/replace the database; incremental updates depend on the backend protocol
+- **Backup & Restore**: Backup and restore intercept records, blacklist, whitelist, and local number labels (current format v5)
 - **Block/Allow Lists**: Custom blocking rules with exact/prefix/tag matching
 
 #### System Integration
@@ -222,7 +229,7 @@ documentation link is also placed next to the self-hosted instance configuration
 ### 📋 Requirements
 
 - **Minimum SDK**: Android 10 (API 29)
-- **Target SDK**: Android 15 (API 37)
+- **Target SDK**: API 37
 - **Recommended**: Google Pixel series and AOSP-based devices
 
 ### 🚀 Quick Start
@@ -240,18 +247,20 @@ documentation link is also placed next to the self-hosted instance configuration
 ./gradlew installDebug
 ```
 
-#### Testing
+#### Validation
 
 ```bash
-# Run unit tests
-./gradlew test
+# Build the app debug variant
+./gradlew :app:assembleDebug
 
 # Run lint checks
 ./gradlew lint
 
-# Run all checks
-./gradlew check
+# Run instrumentation tests on a connected device
+./gradlew connectedAndroidTest
 ```
+
+Unit tests and `check` tasks that include unit tests are run only when explicitly requested.
 
 ### 📖 Usage Guide
 

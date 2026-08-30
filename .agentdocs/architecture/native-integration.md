@@ -14,9 +14,9 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
 * **Provider**: 实现一个 `ContentProvider`，用于响应系统对来电号码的查询。
 * **Permissions**: 需要申请 `READ_CONTACTS` 权限（专门用于 Provider 读取访问）并在
   `AndroidManifest.xml` 中配置元数据。
-* **约束**: 这是**主要且唯一**的显示方式。
-    * **严禁**: 将悬浮窗 (Overlay) 作为默认行为。Overlay 仅在特定 ROM 被验证不支持 Directory Provider
-      时，作为备选降级方案。
+* **约束**: 这是主要显示方式。
+    * **严禁**: 将悬浮窗 (Overlay) 作为默认行为。Overlay 默认关闭，仅作为用户显式启用并授权的可选
+      降级展示，不得替代 Directory Provider 的核心地位。
 
 ### 本地号码标签组合
 

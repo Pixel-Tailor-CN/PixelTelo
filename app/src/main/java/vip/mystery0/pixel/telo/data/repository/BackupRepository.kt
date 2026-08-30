@@ -13,6 +13,7 @@ import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.LocalNumberLabel
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.ZipEntry
@@ -92,11 +93,18 @@ class BackupRepository(
             whiteList = whiteList,
             localNumberLabels = localNumberLabels,
         )
-        val jsonString = json.encodeToString(BackupData.serializer(), backupData)
+        val totalEntries = records.size.toLong() +
+            blackList.size +
+            whiteList.size +
+            localNumberLabels.size
+        require(totalEntries <= MAX_BACKUP_ENTRY_COUNT) { "Backup contains too many entries" }
+        val jsonBytes = json.encodeToString(BackupData.serializer(), backupData)
+            .toByteArray(Charsets.UTF_8)
+        require(jsonBytes.size <= MAX_BACKUP_JSON_BYTES) { "Backup JSON is too large" }
 
         ZipOutputStream(outputStream).use { zip ->
             zip.putNextEntry(ZipEntry("backup.json"))
-            zip.write(jsonString.toByteArray(Charsets.UTF_8))
+            zip.write(jsonBytes)
             zip.closeEntry()
         }
     }
@@ -108,6 +116,12 @@ class BackupRepository(
     fun parseBackup(inputStream: InputStream): BackupPreview {
         val jsonString = readJsonFromZip(inputStream)
         val data = json.decodeFromString(BackupData.serializer(), jsonString)
+        require(data.version in 1..CURRENT_BACKUP_VERSION) { "Unsupported backup version" }
+        val totalEntries = data.records.size.toLong() +
+            data.blackList.size +
+            data.whiteList.size +
+            data.localNumberLabels.size
+        require(totalEntries <= MAX_BACKUP_ENTRY_COUNT) { "Backup contains too many entries" }
         return BackupPreview(
             data = data,
             blockedCallCount = data.records.size,
@@ -182,7 +196,17 @@ class BackupRepository(
             var entry = zip.nextEntry
             while (entry != null) {
                 if (entry.name == "backup.json") {
-                    return zip.readBytes().toString(Charsets.UTF_8)
+                    val output = ByteArrayOutputStream()
+                    val buffer = ByteArray(BACKUP_READ_BUFFER_SIZE)
+                    var totalBytes = 0
+                    while (true) {
+                        val count = zip.read(buffer)
+                        if (count < 0) break
+                        totalBytes += count
+                        require(totalBytes <= MAX_BACKUP_JSON_BYTES) { "Backup JSON is too large" }
+                        output.write(buffer, 0, count)
+                    }
+                    return output.toString(Charsets.UTF_8.name())
                 }
                 entry = zip.nextEntry
             }
@@ -241,4 +265,10 @@ class BackupRepository(
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
+
+    private companion object {
+        const val MAX_BACKUP_JSON_BYTES = 16 * 1024 * 1024
+        const val MAX_BACKUP_ENTRY_COUNT = 100_000L
+        const val BACKUP_READ_BUFFER_SIZE = 8 * 1024
+    }
 }

@@ -169,10 +169,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         }
         viewModelScope.launch {
             val oldEntry = editingEntry
-            if (oldEntry != null) {
-                userListRepository.delete(oldEntry)
-            }
-            val success =
+            val success = if (oldEntry == null) {
                 userListRepository.add(
                     phone,
                     type == RuleType.NUMBER && inputIsPrefix,
@@ -180,24 +177,26 @@ class ListViewModel : ViewModel(), KoinComponent {
                     inputRemark,
                     type == RuleType.TAG,
                     type == RuleType.LOCATION,
-                    forceBlock = currentTab == ListType.BLACK && inputForceBlock
+                    forceBlock = currentTab == ListType.BLACK && inputForceBlock,
                 )
+            } else {
+                userListRepository.update(
+                    existing = oldEntry,
+                    phoneNumber = phone,
+                    isPrefix = type == RuleType.NUMBER && inputIsPrefix,
+                    remark = inputRemark,
+                    tagMatch = type == RuleType.TAG,
+                    locationMatch = type == RuleType.LOCATION,
+                    forceBlock = oldEntry.listType == ListType.BLACK && inputForceBlock,
+                )
+            }
             if (success) {
                 showAddSheet = false
                 editingEntry = null
-                toastMessage = context.getString(if (oldEntry == null) R.string.msg_added_to_list else R.string.msg_updated_in_list)
+                toastMessage = context.getString(
+                    if (oldEntry == null) R.string.msg_added_to_list else R.string.msg_updated_in_list
+                )
             } else {
-                if (oldEntry != null) {
-                    userListRepository.add(
-                        oldEntry.phoneNumber,
-                        oldEntry.isPrefix,
-                        oldEntry.listType,
-                        oldEntry.remark,
-                        oldEntry.tagMatch,
-                        oldEntry.locationMatch,
-                        forceBlock = oldEntry.forceBlock
-                    )
-                }
                 addErrorMessage = context.getString(R.string.error_phone_already_exists)
             }
         }

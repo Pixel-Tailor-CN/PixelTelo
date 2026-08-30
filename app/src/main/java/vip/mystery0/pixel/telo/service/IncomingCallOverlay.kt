@@ -125,7 +125,7 @@ class IncomingCallOverlay(
                 phoneNumber = appContext.getString(R.string.location_overlay_preview_phone),
                 locationText = appContext.getString(R.string.location_overlay_preview_location),
                 localLabel = appContext.getString(R.string.location_overlay_preview_local_label),
-                sourceLabel = "快递外卖"
+                sourceLabel = appContext.getString(R.string.location_overlay_preview_source_label),
             ),
             offsetDp = offsetDp,
             draggable = true,

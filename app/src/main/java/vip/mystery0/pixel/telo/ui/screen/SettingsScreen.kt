@@ -293,10 +293,13 @@ fun SettingsScreen(
         }
     }
 
-    // Handling Toast for Sync Status
-    if (viewModel.syncStatusMessage != null) {
-        Toast.makeText(context, viewModel.syncStatusMessage, Toast.LENGTH_SHORT).show()
-        viewModel.clearStatusMessage()
+    // 同步状态属于一次性 UI 事件，必须在副作用中消费，避免重组时重复显示或写状态。
+    val syncStatusMessage = viewModel.syncStatusMessage
+    LaunchedEffect(syncStatusMessage) {
+        if (syncStatusMessage != null) {
+            Toast.makeText(context, syncStatusMessage, Toast.LENGTH_SHORT).show()
+            viewModel.clearStatusMessage()
+        }
     }
 
     // 备份/恢复结果 Bottom Sheet

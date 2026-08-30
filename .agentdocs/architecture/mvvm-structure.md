@@ -70,7 +70,7 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   WarningCard 还会校验 `sourceState.backendId` 与当前 Ready Backend ID，切换窗口不展示旧告警。
 * `BackendQueryResponse` 从 Snapshot 派生可信 Backend ID 和反馈能力。自建响应即使返回反馈 Token，
   也会在这一边界被强制清除。
-* `BlockedCall`（Room v9）持久化 `queryBackendId`。Repository、首页 UI 与
+* `BlockedCall`（AppDatabase schema v9）持久化 `queryBackendId`。Repository、首页 UI 与
   `FeedbackActionReceiver` 三层都只允许 `queryBackendId == "official"` 的有效 Token 进入官方反馈 API；
   自建记录固定为 `UNAVAILABLE`。
 
@@ -106,7 +106,7 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 
 ## 拦截记录分页与联系人解析
 
-* `BlockedCall` 在 Room v8 新增可空的 `province`、`city`，只持久化联网结果中的省份和城市。
+* `BlockedCall` 在 AppDatabase schema v8 新增可空的 `province`、`city`，只持久化联网结果中的省份和城市。
 * 拦截记录由 Room `PagingSource` 分页加载，`HomeViewModel` 组合黑白名单状态后输出
   `PagingData<BlockedCallListItem>`，不再为 UI 持有全部历史记录。
 * `ContactRepository` 只解析 Paging 当前已加载窗口中的去重号码，依次尝试原始号码、
@@ -118,8 +118,8 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 
 ## 本地号码标签
 
-本地号码标签是独立于识别结果和拦截记录的用户备注，使用 Room v10 的
-`local_number_labels` 表持久化。每个归一化号码最多一条标签；号码唯一键由
+本地号码标签是独立于识别结果和拦截记录的用户备注，使用 AppDatabase schema v10 的
+`local_number_labels` 表持久化（Room library 版本由 `gradle/libs.versions.toml` 管理）。每个归一化号码最多一条标签；号码唯一键由
 `PhoneNumberNormalizer.normalizeForLookup()` 产生。
 
 * `LocalNumberLabelRepository` 是本地标签的单一事实来源：号码归一化、40 字符校验、

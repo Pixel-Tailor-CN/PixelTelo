@@ -348,6 +348,12 @@ fun HomeScreen(
         val contactName = contactNames[phone]
         val location = call.locationText()
         val noContactsAppMessage = stringResource(R.string.msg_no_contacts_app)
+        val addedToBlacklistMessage = stringResource(R.string.msg_added_to_blacklist)
+        val alreadyInBlacklistMessage = stringResource(R.string.msg_already_in_blacklist)
+        val addedToWhitelistMessage = stringResource(R.string.msg_added_to_whitelist)
+        val alreadyInWhitelistMessage = stringResource(R.string.msg_already_in_whitelist)
+        val addedTagToWhitelistMessage = stringResource(R.string.msg_added_tag_to_whitelist)
+        val tagAlreadyInWhitelistMessage = stringResource(R.string.msg_tag_already_in_whitelist)
         val identityLocalLabel = localLabelEditorState.currentLabel?.takeIf { it.isNotBlank() }
         DisposableEffect(Unit) {
             onDispose {
@@ -417,37 +423,47 @@ fun HomeScreen(
                     onClick = {
                         coroutineScope.launch {
                             val success = viewModel.quickAddToBlackList(phone)
-                            val msg: String = if (success) "已加入黑名单" else "该号码已在黑名单中"
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                if (success) addedToBlacklistMessage else alreadyInBlacklistMessage,
+                                Toast.LENGTH_SHORT,
+                            ).show()
                             viewModel.closeQuickAdd()
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("加入黑名单") }
+                ) { Text(stringResource(R.string.action_add_to_blacklist)) }
                 OutlinedButton(
                     onClick = {
                         coroutineScope.launch {
                             val success = viewModel.quickAddToWhiteList(phone)
-                            val msg: String = if (success) "已加入白名单" else "该号码已在白名单中"
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                if (success) addedToWhitelistMessage else alreadyInWhitelistMessage,
+                                Toast.LENGTH_SHORT,
+                            ).show()
                             viewModel.closeQuickAdd()
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("加入白名单") }
+                ) { Text(stringResource(R.string.action_add_to_whitelist)) }
                 if (label != null) {
                     OutlinedButton(
                         onClick = {
                             coroutineScope.launch {
                                 val success = viewModel.quickAddTagToWhiteList(label)
-                                val msg: String =
-                                    if (success) "已加入标签白名单" else "该标签已在白名单中"
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    if (success) addedTagToWhitelistMessage else tagAlreadyInWhitelistMessage,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
                                 viewModel.closeQuickAdd()
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("加入标签白名单 ($label)") }
+                    ) {
+                        Text(stringResource(R.string.action_add_tag_to_whitelist, label))
+                    }
                 }
                 OutlinedButton(
                     onClick = {
