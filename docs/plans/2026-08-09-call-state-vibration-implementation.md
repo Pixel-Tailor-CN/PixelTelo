@@ -10,7 +10,7 @@
 
 ## 全局约束
 
-- MinSDK 29，TargetSDK 35，JVM Target 21。
+- MinSDK 29，CompileSDK 37，TargetSDK 37，JVM Target 21。
 - 用户沟通、代码注释与项目文档使用中文，日志使用英文。
 - 开关默认关闭；去电、未接、拒接和拦截来电不震动。
 - 不新增或运行单元测试，不执行包含单元测试的 Gradle 任务。

@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
@@ -101,7 +102,9 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             feedbackToken = result.feedbackToken
                         )
                     } else if (repeatStrategy != null) {
-                        val repeatLabel = result.label.ifBlank { "骚扰电话" }
+                        val repeatLabel = result.label.ifBlank {
+                            getString(R.string.call_label_spam_default)
+                        }
                         response.setDisallowCall(false)
                         response.setRejectCall(false)
                         response.setSilenceCall(repeatStrategy == RepeatCallStrategy.SILENCE)
@@ -110,8 +113,14 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         val recordId = blockedCallRepository.insert(
                             phoneNumber,
                             remark = when (repeatStrategy) {
-                                RepeatCallStrategy.SILENCE -> "$repeatLabel（重复来电，静音放行）"
-                                RepeatCallStrategy.ALLOW -> "$repeatLabel（重复来电，完全放行）"
+                                RepeatCallStrategy.SILENCE -> getString(
+                                    R.string.call_remark_repeat_silence,
+                                    repeatLabel,
+                                )
+                                RepeatCallStrategy.ALLOW -> getString(
+                                    R.string.call_remark_repeat_allow,
+                                    repeatLabel,
+                                )
                                 RepeatCallStrategy.UNCHANGED -> error("Unreachable strategy")
                             },
                             if (repeatStrategy == RepeatCallStrategy.ALLOW) {
@@ -137,7 +146,10 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
                             val recordId = blockedCallRepository.insert(
                                 phoneNumber,
-                                remark = result.label + " (仅提示)",
+                                remark = getString(
+                                    R.string.call_remark_notify_only,
+                                    result.label,
+                                ),
                                 ResultType.PASS_BUT_NOTIFY,
                                 result.localCost,
                                 result.networkCost,
@@ -188,7 +200,8 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
                             val recordId = blockedCallRepository.insert(
                                 phoneNumber,
-                                remark = result.label.takeIf { it.isNotBlank() } ?: "正常来电",
+                                remark = result.label.takeIf { it.isNotBlank() }
+                                    ?: getString(R.string.call_remark_normal),
                                 ResultType.PASS,
                                 result.localCost,
                                 result.networkCost,

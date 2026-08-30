@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
@@ -25,6 +26,10 @@ interface UserListDao {
 
     @Delete
     suspend fun delete(entry: UserListEntry)
+
+    /** 原位更新规则；唯一键冲突时保留旧规则并返回 0。 */
+    @Update(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun update(entry: UserListEntry): Int
 
     /** 查询是否存在匹配的条目（精确或前缀），用于拦截判断。
      *  前缀匹配使用 SUBSTR 而非 LIKE，避免 phoneNumber 中含有 '%'/'_' 等 LIKE 通配符时产生语义错误。

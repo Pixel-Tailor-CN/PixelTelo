@@ -108,22 +108,70 @@ class UserListRepository(private val dao: UserListDao) {
         locationMatch: Boolean = false,
         forceBlock: Boolean = false
     ): Boolean {
+        val entry = buildEntry(
+            existing = null,
+            phoneNumber = phoneNumber,
+            isPrefix = isPrefix,
+            listType = listType,
+            remark = remark,
+            tagMatch = tagMatch,
+            locationMatch = locationMatch,
+            forceBlock = forceBlock,
+        )
+        return dao.insert(entry) != -1L
+    }
+
+    /**
+     * 原位更新规则。唯一键冲突时 Room 忽略本次更新，旧规则保持不变。
+     */
+    suspend fun update(
+        existing: UserListEntry,
+        phoneNumber: String,
+        isPrefix: Boolean,
+        remark: String?,
+        tagMatch: Boolean = false,
+        locationMatch: Boolean = false,
+        forceBlock: Boolean = false,
+    ): Boolean {
+        val entry = buildEntry(
+            existing = existing,
+            phoneNumber = phoneNumber,
+            isPrefix = isPrefix,
+            listType = existing.listType,
+            remark = remark,
+            tagMatch = tagMatch,
+            locationMatch = locationMatch,
+            forceBlock = forceBlock,
+        )
+        return dao.update(entry) > 0
+    }
+
+    private fun buildEntry(
+        existing: UserListEntry?,
+        phoneNumber: String,
+        isPrefix: Boolean,
+        listType: ListType,
+        remark: String?,
+        tagMatch: Boolean,
+        locationMatch: Boolean,
+        forceBlock: Boolean,
+    ): UserListEntry {
         val normalizedValue = if (tagMatch || locationMatch) {
             phoneNumber.trim()
         } else {
             PhoneNumberRuleMatcher.normalizeRuleForStorage(phoneNumber)
         }
-        val entry = UserListEntry(
+        return UserListEntry(
+            id = existing?.id ?: 0,
             phoneNumber = normalizedValue,
             isPrefix = isPrefix && !tagMatch && !locationMatch,
             listType = listType,
             remark = remark?.trim()?.takeIf { it.isNotBlank() },
-            addedAt = System.currentTimeMillis(),
+            addedAt = existing?.addedAt ?: System.currentTimeMillis(),
             tagMatch = tagMatch,
             locationMatch = locationMatch,
-            forceBlock = forceBlock && listType == ListType.BLACK
+            forceBlock = forceBlock && listType == ListType.BLACK,
         )
-        return dao.insert(entry) != -1L
     }
 
     /** 删除指定条目 */

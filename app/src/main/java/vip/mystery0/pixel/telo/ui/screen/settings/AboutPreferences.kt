@@ -1,6 +1,9 @@
 package vip.mystery0.pixel.telo.ui.screen.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -27,6 +30,7 @@ import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 @Composable
 fun AboutPreferences(viewModel: SettingViewModel) {
     val context = LocalContext.current
+    val externalLinkUnavailableMessage = stringResource(R.string.error_external_link_unavailable)
 
     Preference(
         title = { Text(stringResource(R.string.setting_version_name)) },
@@ -46,11 +50,10 @@ fun AboutPreferences(viewModel: SettingViewModel) {
         summary = { Text(stringResource(R.string.setting_feedback_summary)) },
         icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
         onClick = {
-            context.startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    "https://github.com/Pixel-Tailor-CN/PixelTelo/issues/new".toUri()
-                )
+            openExternalLink(
+                context,
+                "https://github.com/Pixel-Tailor-CN/PixelTelo/issues/new",
+                externalLinkUnavailableMessage,
             )
         }
     )
@@ -70,11 +73,10 @@ fun AboutPreferences(viewModel: SettingViewModel) {
             }
         },
         onClick = {
-            context.startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    "https://pixel.mystery0.app".toUri()
-                )
+            openExternalLink(
+                context,
+                "https://pixel.mystery0.app",
+                externalLinkUnavailableMessage,
             )
         }
     )
@@ -84,12 +86,20 @@ fun AboutPreferences(viewModel: SettingViewModel) {
         summary = { Text(stringResource(R.string.setting_telegram_summary)) },
         icon = { Icon(Icons.Default.Forum, contentDescription = null) },
         onClick = {
-            context.startActivity(
-                Intent(
-                    Intent.ACTION_VIEW,
-                    "https://t.me/pixel_tailor_cn".toUri()
-                )
+            openExternalLink(
+                context,
+                "https://t.me/pixel_tailor_cn",
+                externalLinkUnavailableMessage,
             )
         }
     )
+}
+
+/** 安全打开外部链接；设备没有可用处理程序时仅显示提示，不中断设置页。 */
+private fun openExternalLink(context: Context, url: String, unavailableMessage: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, unavailableMessage, Toast.LENGTH_SHORT).show()
+    }
 }

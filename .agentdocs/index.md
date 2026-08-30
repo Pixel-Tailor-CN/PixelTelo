@@ -10,18 +10,35 @@
 
 ### 设计与实施计划 (`../docs/plans/`)
 
-* [拦截记录信息增强设计](../docs/plans/2026-07-26-blocked-call-record-enrichment-design.md):
-  归属地持久化、联系人动态识别、分页展示与模拟器验收方案。
-* [拦截记录信息增强实现计划](../docs/plans/2026-07-26-blocked-call-record-enrichment-implementation.md):
-  具体文件、接口、验证命令与模拟器验收步骤。
-* [自建查询客户端设计](../docs/plans/2026-08-08-self-hosted-query-client-design.md):
-  官方/自建 Backend 边界、TLS 与 SPKI Pinning、凭据保护、版本身份校验及反馈隔离设计。
-* [自建查询客户端实施计划](../docs/plans/2026-08-08-self-hosted-query-client-implementation.md):
-  分阶段实现、静态安全审计、构建验证和待执行真机矩阵。
-* [持久化本地号码标签设计](../docs/plans/2026-08-29-local-number-label-design.md):
-  独立号码标签模型、展示开关、Directory Provider 组合、统一管理与备份恢复方案。
-* [持久化本地号码标签实施计划](../docs/plans/2026-08-29-local-number-label-implementation.md):
-  Room v10、系统展示、历史记录、统一管理、备份恢复及模拟器验收任务拆分。
+* GitHub Actions Release：
+  [设计](../docs/plans/2026-02-27-github-actions-release-design.md) ·
+  [实施](../docs/plans/2026-02-27-github-actions-release.md)
+* 用户黑白名单：
+  [设计](../docs/plans/2026-03-07-user-blackwhitelist-design.md) ·
+  [实施](../docs/plans/2026-03-07-user-blackwhitelist-impl.md)
+* source 优先级与查询反馈：
+  [设计](../docs/plans/2026-07-10-source-priority-query-feedback-client-design.md) ·
+  [实施](../docs/plans/2026-07-10-source-priority-query-feedback-client-plan.md)
+* 拦截记录信息增强：
+  [设计](../docs/plans/2026-07-26-blocked-call-record-enrichment-design.md) ·
+  [实施](../docs/plans/2026-07-26-blocked-call-record-enrichment-implementation.md)
+* 自建查询客户端：
+  [设计](../docs/plans/2026-08-08-self-hosted-query-client-design.md) ·
+  [实施](../docs/plans/2026-08-08-self-hosted-query-client-implementation.md)
+* 来电查询结果复用：
+  [实施](../docs/plans/2026-08-09-call-query-result-reuse-implementation.md)
+* 通话状态震动：
+  [设计](../docs/plans/2026-08-09-call-state-vibration-design.md) ·
+  [实施](../docs/plans/2026-08-09-call-state-vibration-implementation.md)
+* 自建服务摘要布局：
+  [设计](../docs/plans/2026-08-09-self-hosted-summary-layout-design.md) ·
+  [实施](../docs/plans/2026-08-09-self-hosted-summary-layout-implementation.md)
+* 国际号码规则匹配：
+  [设计](../docs/plans/2026-08-29-international-number-rule-matching-design.md) ·
+  [实施](../docs/plans/2026-08-29-international-number-rule-matching-implementation.md)
+* 持久化本地号码标签：
+  [设计](../docs/plans/2026-08-29-local-number-label-design.md) ·
+  [实施](../docs/plans/2026-08-29-local-number-label-implementation.md)（AppDatabase schema v10）
 
 ### 架构与技术 (`architecture/`)
 
@@ -42,4 +59,4 @@
 
 ## 快速链接
 
-* [项目 README](../GEMINI.md)
+* [项目 README](../README.md)

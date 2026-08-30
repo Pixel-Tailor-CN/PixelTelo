@@ -13,7 +13,7 @@
 
 * **Directory Provider**:
     * 必须使用 `Directory Provider` API 将来电显示标签直接注入系统拨号器。
-    * **约束**: 严禁将悬浮窗 (Overlay) 作为默认显示方式。Overlay 仅允许作为特定 ROM 的降级方案。
+    * **约束**: 严禁将悬浮窗 (Overlay) 作为默认显示方式。Overlay 默认关闭，仅作为用户显式启用并授权的可选降级展示。
 * **Call Screening**:
     * 实现 `CallScreeningService` 以拦截来电。
     * 被拦截的通话必须正确写入系统通话记录，标记为 "Blocked Calls" (拦截通话)。
@@ -34,7 +34,13 @@
 * **核心权限**:
     * `READ_CALL_LOG`
     * `READ_CONTACTS` (Directory Provider 必需)
-    * `ANSWER_PHONE_CALLS`
+    * `WRITE_CONTACTS` (Android Directory Provider 转发查询所需)
+    * `INTERNET` (联网查询与离线数据库更新)
+* **可选功能权限**:
+    * `READ_PHONE_STATE` (通话状态震动与反馈通知)
+    * `POST_NOTIFICATIONS` (更新提醒与反馈通知)
+    * `SYSTEM_ALERT_WINDOW` (用户主动开启的 Overlay 降级展示)
+    * `VIBRATE` (通话状态震动)
 
 ### F04: 可选自建实时查询
 
@@ -44,7 +50,8 @@
     * 支持系统信任 TLS，以及面向自签名证书的精确 SPKI SHA-256 Pinning；两种模式都必须校验证书
       有效期和域名/IP SAN。
     * 启用前必须验证服务名称、最低 SemVer、API Version 2、Instance ID、`query_v2` capability 和
-      响应身份 Header。
+      响应身份 Header。当前最低版本为 `0.1.5`，权威值由 `gradle/libs.versions.toml` 中的
+      `selfhost-min-server` 定义。
 * **Backend 切换**: 配置完整验证并安全提交后才原子发布新的 Backend Snapshot；进行中的请求持 lease
   继续使用旧 Snapshot，普通切换等待最后 lease 后再关闭旧 Client。普通存储失败保留旧 Backend 且不
   宣称候选生效；自建配置损坏或安全校验失败时保持用户选择但立即撤销联网，不静默切回官方。
