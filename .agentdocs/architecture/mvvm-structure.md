@@ -55,6 +55,10 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   Snapshot 或再次请求官方实时查询。
 * `QueryRepository.queryNumber()` 一次读取 Snapshot 和该 Backend 专属 source 配置，只发送用户启用且
   最近已知可用的 source；实时来电查询不会临时刷新 source 清单。
+* 离线库仍优先匹配，命中后直接返回，不追加联网查询。号码及标签黑白名单保持原有优先级；
+  未命中名单规则时，`source == "pixel_text_hub"` 视为机构身份资料，保留 `tag` 名称并返回
+  `shouldBlock = false`、`PASS_BUT_NOTIFY` 和 `isIdentityProfile = true`，其他来源仍返回拦截。
+  `isIdentityProfile` 仅用于允许 Directory 展示放行资料，不改变数据库结构或 Service 名单策略。
 * `SpamNumberRepository` 继续负责黑白名单、本地离线库和最终拦截决策。联网查询沿用用户配置并夹紧到
   1 至 10 秒的超时；所有联网失败统一放行，并把超时、HTTP 429、其他服务响应异常、网络连接失败及
   Backend 不可用映射为独立 `ResultType`。日志只记录稳定分类与耗时，历史记录、重试对话框和 Overlay

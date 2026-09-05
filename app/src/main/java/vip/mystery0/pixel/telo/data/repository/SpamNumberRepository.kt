@@ -45,6 +45,8 @@ data class CheckResult(
     /** 联网结果所属的稳定 Backend ID；纯本地结果或联网失败时为 null。 */
     val queryBackendId: String? = null,
     val feedbackToken: String? = null,
+    /** 离线身份资料仅提供名称，Directory 展示不依赖是否拦截。 */
+    val isIdentityProfile: Boolean = false,
 )
 
 /** 将联网异常转换为稳定结果类型，禁止依赖异常正文判断。 */
@@ -67,6 +69,7 @@ fun classifyNetworkFailure(exception: Throwable): ResultType = when (exception) 
 class SpamNumberRepository : KoinComponent {
     companion object {
         private const val TAG = "SpamNumberRepository"
+        private const val HUB_IDENTITY_SOURCE = "pixel_text_hub"
         private const val QUERY_REUSE_TTL_MS = 60_000L
         private const val QUERY_REUSE_MAX_ENTRIES = 32
     }
@@ -173,6 +176,17 @@ class SpamNumberRepository : KoinComponent {
                     return CheckResult(false, spamNumber.tag, ResultType.WHITE_LIST, localCost, 0)
                 }
                 Log.i(TAG, "Local hit: cost=${localCost}ms")
+                // Hub 机构资料不是骚扰标记；沿用离线命中即返回，并保留前面的用户名单优先级。
+                if (spamNumber.source == HUB_IDENTITY_SOURCE) {
+                    return CheckResult(
+                        shouldBlock = false,
+                        label = spamNumber.tag,
+                        resultType = ResultType.PASS_BUT_NOTIFY,
+                        localCost = localCost,
+                        networkCost = 0,
+                        isIdentityProfile = true,
+                    )
+                }
                 return CheckResult(true, spamNumber.tag, ResultType.INTERCEPT, localCost, 0)
             }
         } else {

@@ -30,7 +30,9 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
     * 现有识别结果应拦截时，即使组合名为空也必须返回身份记录，显示名回退为原
       `result.label`（允许空字符串）。
     * 仅有本地标签的安全号码（`shouldBlock == false`）可以返回 Directory 身份记录。
-    * 既不应拦截又无本地标签时返回空 Cursor。
+    * 离线 `source == "pixel_text_hub"` 且未命中前置名单规则时，作为身份资料放行，
+      `CheckResult.isIdentityProfile` 标记其名称可展示；即使没有本地标签，也返回包含机构名称的记录。
+    * 既不应拦截、又无可展示的身份资料名称或本地标签时返回空 Cursor。
 * 本地标签查询失败按无标签降级，不得中断识别或影响来电侧 `respondToCall()`。
 
 ### 验证
