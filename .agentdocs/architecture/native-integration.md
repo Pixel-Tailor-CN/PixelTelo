@@ -89,7 +89,10 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
     * `PhoneNumberNormalizer` 继续负责中国号码及已确认的中国移动“和多号/一卡多号”在国内查询域的
       标准化（包括去除 `+86`、`0086` 和 `125831`、`125832`、`125833` 前缀）；该域不改变明确
       非中国国际号码的本地规则语义。
-    * `SpamNumberRepository.checkSpam()` 先查本地白名单和黑名单，再执行明确国际号码门禁。未命中的
+    * `SpamNumberRepository.checkSpam()` 最先检查系统本地通讯录，确认是联系人便直接放行，
+      即使用户配置了号码黑名单或强制拦截也不拒接；不再查询离线库或网络。检查只读取联系人 ID，
+      无权限、异常或超过 200ms 时继续原识别流程，联系人姓名交由系统拨号器显示。
+    * 未确认是联系人时，先查本地白名单和黑名单，再执行明确国际号码门禁。未命中的
       明确非中国国际号码直接放行，不打开 `MastDatabase`，也不获取 Backend Snapshot 或调用官方/
       Self-hosted 实时 Backend；`forceNetworkQuery` 不能绕过门禁。
 3. **性能约束 (CRITICAL)**:

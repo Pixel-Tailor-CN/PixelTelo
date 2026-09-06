@@ -79,6 +79,7 @@ class SpamNumberRepository : KoinComponent {
     private val queryBackendProvider: QueryBackendProvider by inject()
     private val prefs: SharedPreferences by inject()
     private val userListRepository: UserListRepository by inject()
+    private val contactRepository: ContactRepository by inject()
     private val queryReuseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val queryReuseMutex = Mutex()
     private val completedNetworkQueries = LinkedHashMap<QueryReuseKey, CachedNetworkAttempt>(
@@ -111,6 +112,18 @@ class SpamNumberRepository : KoinComponent {
         val phone = PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
         var localCost: Long
         var networkCost: Long
+
+        // 通讯录优先于所有黑白名单及数据源，包括用户强制黑名单；姓名仍只在页面动态解析。
+        if (contactRepository.isContact(phoneNumber)) {
+            Log.i(TAG, "Contact found, allowing call")
+            return CheckResult(
+                shouldBlock = false,
+                label = "",
+                resultType = ResultType.PASS,
+                localCost = System.currentTimeMillis() - start,
+                networkCost = 0,
+            )
+        }
 
         val whiteMatch = userListRepository.findWhiteListMatch(phoneNumber)
         if (whiteMatch != null) {

@@ -55,7 +55,8 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   Snapshot 或再次请求官方实时查询。
 * `QueryRepository.queryNumber()` 一次读取 Snapshot 和该 Backend 专属 source 配置，只发送用户启用且
   最近已知可用的 source；实时来电查询不会临时刷新 source 清单。
-* 离线库仍优先匹配，命中后直接返回，不追加联网查询。号码及标签黑白名单保持原有优先级；
+* 确认存在于系统通讯录的号码最优先放行，跳过所有用户名单（包括强制黑名单）、离线库和自动联网查询。
+  其余号码仍优先匹配离线库，命中后直接返回，不追加联网查询。号码及标签黑白名单保持原有优先级；
   未命中名单规则时，`source == "pixel_text_hub"` 视为机构身份资料，保留 `tag` 名称并返回
   `shouldBlock = false`、`PASS_BUT_NOTIFY` 和 `isIdentityProfile = true`，其他来源仍返回拦截。
   `isIdentityProfile` 仅用于允许 Directory 展示放行资料，不改变数据库结构或 Service 名单策略。
@@ -85,7 +86,8 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   没有 `+`/`00` 标记的纯数字号码保留独立格式域，不与明确国际格式互相匹配。
 * `UserListRepository` 的黑名单、白名单 DAO 查询，以及 `HomeViewModel` 历史记录的
   `CurrentListState` 都使用同一匹配器，避免实际来电命中结果与历史 UI 状态分叉。
-* `SpamNumberRepository.checkSpam()` 先执行本地自定义白名单和黑名单规则，再执行明确国际号码门禁。
+* `SpamNumberRepository.checkSpam()` 先执行通讯录放行，再执行本地自定义白名单和黑名单规则，
+  随后执行明确国际号码门禁。
   未命中的明确非中国国际号码在来电决策路径中直接放行，跳过 `MastDatabase`、Backend Snapshot
   和官方/Self-hosted 实时查询；`forceNetworkQuery` 也不能越过该门禁。
 * 中国号码与已确认和多号场景仍由 `PhoneNumberNormalizer` 负责国内查询域的标准化，随后才进入
@@ -113,12 +115,22 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 * `BlockedCall` 在 AppDatabase schema v8 新增可空的 `province`、`city`，只持久化联网结果中的省份和城市。
 * 拦截记录由 Room `PagingSource` 分页加载，`HomeViewModel` 组合黑白名单状态后输出
   `PagingData<BlockedCallListItem>`，不再为 UI 持有全部历史记录。
-* `ContactRepository` 只解析 Paging 当前已加载窗口中的去重号码，依次尝试原始号码、
+* `ContactRepository.resolveNames()` 只解析 Paging 当前已加载窗口中的去重号码，依次尝试原始号码、
   去国家码号码和 `PhoneNumberNormalizer.normalizeForLookup()` 的标准号码。
 * 联系人姓名仅保存在有界内存缓存中；未命中结果缓存 30 秒，Provider 查询异常不缓存。
   缓存使用代次保护，联系人变化后未完成的旧查询不能回灌已失效结果。
 * 页面恢复时重新建立联系人 ContentObserver，兼容首次无权限、后续授权的场景。
 * 联系人姓名不持久化、不进入备份，也不进入 `CallScreeningService` 的实时查询链路。
+* 实时识别使用独立的 `ContactRepository.isContact()`，只读取默认本地 Directory 中的联系人 ID，
+  不要求姓名非空，不复用页面缓存，联系人增删可在下一次识别生效。候选号码使用
+  `PhoneNumberRuleMatcher.matchCandidates()` 并保留原始号码；国内查询域额外尝试 `+86` 格式
+  （固定电话移除长途冠码 `0`），兼容非中国地区 Contacts Provider 中保存的中国号码。
+  明确境外号码不补充中国国家码，国内和多号前缀仍沿用现有标准化。
+* 联系人检查（含排队）预算为 200ms，超过 100ms 记录英文 warning；同步 Provider 查询独立调度，
+  调用方超时不等待其结束，使用 `CancellationSignal` 异步通知 Provider 取消。
+  无权限、异常、超时均视为未确认联系人，继续原识别流程。
+* 联系人命中返回 `PASS`，不携带姓名、来源或反馈 token；`forceNetworkQuery` 不能绕过该放行。
+  历史记录的显式联网重试 `queryNetwork()` 仍是用户主动操作，保留原行为。
 
 ## 本地号码标签
 

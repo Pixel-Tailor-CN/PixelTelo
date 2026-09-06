@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
+import android.os.CancellationSignal
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.ContactsContract
@@ -24,7 +25,12 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
+import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.resume
 
 private data class ContactLookupResult(
     val name: String?,
@@ -38,7 +44,7 @@ private sealed interface ContactQueryResult {
 }
 
 /**
- * 动态解析系统联系人姓名。
+ * 查询系统联系人是否存在，并为页面动态解析联系人姓名。
  *
  * 查询范围由页面当前已加载的 Paging 窗口决定；姓名只保存在有界内存缓存中，
  * 不写入 Room、备份或日志。
@@ -48,6 +54,7 @@ class ContactRepository(private val context: Context) {
         private const val TAG = "ContactRepository"
         private const val CACHE_SIZE = 256
         private const val NEGATIVE_CACHE_DURATION_MS = 30_000L
+        private const val SCREENING_LOOKUP_TIMEOUT_MS = 200L
     }
 
     private val resolver = context.contentResolver
@@ -55,6 +62,80 @@ class ContactRepository(private val context: Context) {
     private val lookupDispatcher = Dispatchers.IO.limitedParallelism(4)
     private val observationGeneration = MutableStateFlow(0L)
     private var cacheGeneration = 0L
+
+    /**
+     * 实时识别只查询本地通讯录的号码存在性，不读取姓名，也不使用页面姓名缓存。
+     *
+     * 独立调度同步 Binder 查询，使超时方无需等待 Provider 返回；取消同时通知 Provider。
+     * 未授权、异常、排队或查询超过预算均按未确认联系人处理，继续原识别流程。
+     */
+    suspend fun isContact(phoneNumber: String): Boolean {
+        if (phoneNumber.isBlank() || ContextCompat.checkSelfPermission(
+                context, Manifest.permission.READ_CONTACTS,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) return false
+
+        val startedAt = SystemClock.elapsedRealtime()
+        val found = withTimeoutOrNull(SCREENING_LOOKUP_TIMEOUT_MS) {
+            suspendCancellableCoroutine { continuation ->
+                val signal = CancellationSignal()
+                continuation.invokeOnCancellation {
+                    // Provider 的取消也可能触发 Binder，不能占用来电超时返回线程。
+                    Dispatchers.IO.dispatch(EmptyCoroutineContext) { signal.cancel() }
+                }
+                lookupDispatcher.dispatch(EmptyCoroutineContext) {
+                    if (!continuation.isActive) return@dispatch
+                    val exists = try {
+                        // 明确国际号码保留国际标记，避免姓名展示用的国内兼容逻辑扩大放行范围。
+                        screeningCandidates(phoneNumber).any { candidate ->
+                            signal.throwIfCanceled()
+                            val uri = Uri.withAppendedPath(
+                                ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                                Uri.encode(candidate),
+                            ).buildUpon().appendQueryParameter(
+                                ContactsContract.DIRECTORY_PARAM_KEY,
+                                ContactsContract.Directory.DEFAULT.toString(),
+                            ).build()
+                            resolver.query(
+                                uri,
+                                arrayOf(ContactsContract.PhoneLookup._ID),
+                                null, null, null, signal,
+                            )?.use { it.moveToFirst() } == true
+                        }
+                    } catch (_: Exception) {
+                        if (!signal.isCanceled) Log.w(TAG, "Contact screening lookup failed")
+                        false
+                    }
+                    continuation.resume(exists)
+                }
+            }
+        }
+        val cost = SystemClock.elapsedRealtime() - startedAt
+        if (found == null) {
+            Log.w(TAG, "Contact screening lookup timed out: cost=${cost}ms")
+        } else if (cost > 100L) {
+            Log.w(TAG, "Contact screening lookup too slow: cost=${cost}ms")
+        }
+        return found == true
+    }
+
+    /**
+     * 保留原始格式及规则候选；国内查询域额外尝试 +86 格式，固定电话移除长途冠码 0。
+     * 非中国地区的 Contacts Provider 不一定将国内号码与已保存的 +86 号码视为相同号码。
+     * 明确境外号码（包括和多号前缀处理后暴露的国际标记）不得补充中国国家码。
+     */
+    private fun screeningCandidates(phoneNumber: String): List<String> {
+        val candidates = listOf(phoneNumber.trim()) + PhoneNumberRuleMatcher.matchCandidates(phoneNumber)
+        val normalized = PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
+        val chinaCandidate = if (
+            !PhoneNumberRuleMatcher.isExplicitInternational(phoneNumber) &&
+            !PhoneNumberRuleMatcher.isExplicitInternational(normalized) &&
+            normalized.isNotBlank() && normalized.all(Char::isDigit)
+        ) {
+            "+86${normalized.removePrefix("0")}"
+        } else null
+        return (candidates + listOfNotNull(chinaCandidate)).filter(String::isNotBlank).distinct()
+    }
 
     /** 联系人 Provider 发生变化时清空缓存，并通知当前页面重新解析已加载号码。 */
     @OptIn(ExperimentalCoroutinesApi::class)
