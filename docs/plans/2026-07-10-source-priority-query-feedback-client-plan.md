@@ -383,9 +383,9 @@ git commit -m "feat: add persisted query quality feedback"
 ### Task 6: 更新架构文档并完成验证
 
 **Files:**
-- Modify: `.agentdocs/architecture/mvvm-structure.md`
-- Modify: `.agentdocs/architecture/native-integration.md`
-- Modify: `.agentdocs/ui/main-screen.md`
+- Modify: `docs/architecture/mvvm-structure.md`
+- Modify: `docs/architecture/native-integration.md`
+- Modify: `docs/ui/main-screen.md`
 - Modify: `docs/plans/2026-07-10-source-priority-query-feedback-client-plan.md`
 
 **Interfaces:**
@@ -418,7 +418,7 @@ Expected: `BUILD SUCCESSFUL`，无本次变更新增 error。
 - [x] **Step 6: 提交文档与验证收尾**
 
 ```bash
-git add .agentdocs docs/plans/2026-07-10-source-priority-query-feedback-client-plan.md
+git add docs docs/plans/2026-07-10-source-priority-query-feedback-client-plan.md
 git commit -m "docs: document source query feedback flow"
 ```
 

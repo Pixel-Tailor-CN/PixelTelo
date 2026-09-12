@@ -60,7 +60,7 @@
 - `app/src/main/java/vip/mystery0/pixel/telo/ui/screen/settings/OnlineQueryPreferences.kt`：Backend 设置入口和摘要。
 - `app/src/main/res/values/strings.xml`、`app/src/main/res/values-zh/strings.xml`：中英文 UI 文案。
 - `app/src/main/res/xml/backup_rules.xml`、`app/src/main/res/xml/data_extraction_rules.xml`：排除凭据文件。
-- `.agentdocs/architecture/mvvm-structure.md`、`.agentdocs/architecture/sync-strategy.md`、`.agentdocs/prd/requirements.md`、`.agentdocs/ui/main-screen.md`、`.agentdocs/index.md`：架构和产品文档。
+- `docs/architecture/mvvm-structure.md`、`docs/architecture/sync-strategy.md`、`docs/prd/requirements.md`、`docs/ui/main-screen.md`、`docs/README.md`：架构和产品文档。
 
 ---
 
@@ -480,11 +480,11 @@ Expected: `BUILD SUCCESSFUL`。
 ### Task 11：架构文档、静态安全审计与最终验证
 
 **Files:**
-- Modify: `.agentdocs/architecture/mvvm-structure.md`
-- Modify: `.agentdocs/architecture/sync-strategy.md`
-- Modify: `.agentdocs/prd/requirements.md`
-- Modify: `.agentdocs/ui/main-screen.md`
-- Modify: `.agentdocs/index.md`
+- Modify: `docs/architecture/mvvm-structure.md`
+- Modify: `docs/architecture/sync-strategy.md`
+- Modify: `docs/prd/requirements.md`
+- Modify: `docs/ui/main-screen.md`
+- Modify: `docs/README.md`
 - Modify: `docs/plans/2026-08-08-self-hosted-query-client-implementation.md`（勾选实际完成项和记录偏差）
 
 **Interfaces:**
@@ -502,8 +502,8 @@ Run:
 ```powershell
 $privatePattern = $env:PIXEL_TELO_PRIVATE_INSTANCE_PATTERN
 if ([string]::IsNullOrWhiteSpace($privatePattern)) { throw "Private instance denylist is missing" }
-rg -n -S $privatePattern app .agentdocs docs gradle
-rg -n -S "Authorization:\s*Bearer\s+[^<]" app .agentdocs docs gradle
+rg -n -S $privatePattern app docs gradle
+rg -n -S "Authorization:\s*Bearer\s+[^<]" app docs gradle
 ```
 
 Expected: 第一个命令无匹配；第二个命令中的 Bearer 只可能出现在使用 `<token>` 占位符的公开协议文档中。环境变量只在本机设置，不写入脚本、Shell 历史或仓库文件。

@@ -48,12 +48,12 @@ Windows PowerShell 使用 `.\gradlew.bat`，其他环境使用 `./gradlew`。没
 
 | 任务涉及 | 阅读入口 |
 | --- | --- |
-| 产品规则、权限、隐私 | [.agentdocs/prd/requirements.md](.agentdocs/prd/requirements.md) |
-| 分层、Backend、号码规则、本地标签 | [.agentdocs/architecture/mvvm-structure.md](.agentdocs/architecture/mvvm-structure.md) |
-| Provider、CallScreeningService | [.agentdocs/architecture/native-integration.md](.agentdocs/architecture/native-integration.md) |
-| 初始化、离线同步、Fail Open | [.agentdocs/architecture/sync-strategy.md](.agentdocs/architecture/sync-strategy.md) |
-| 主页、通知 | [.agentdocs/ui/main-screen.md](.agentdocs/ui/main-screen.md)、[notifications.md](.agentdocs/ui/notifications.md) |
-| 开发、审查、技能维护 | [.agentdocs/workflow/development.md](.agentdocs/workflow/development.md) |
-| 其他文档与历史计划 | [.agentdocs/index.md](.agentdocs/index.md) |
+| 产品规则、权限、隐私 | [docs/prd/requirements.md](docs/prd/requirements.md) |
+| 分层、Backend、号码规则、本地标签 | [docs/architecture/mvvm-structure.md](docs/architecture/mvvm-structure.md) |
+| Provider、CallScreeningService | [docs/architecture/native-integration.md](docs/architecture/native-integration.md) |
+| 初始化、离线同步、Fail Open | [docs/architecture/sync-strategy.md](docs/architecture/sync-strategy.md) |
+| 主页、通知 | [docs/ui/main-screen.md](docs/ui/main-screen.md)、[notifications.md](docs/ui/notifications.md) |
+| 开发、审查、技能维护 | [docs/workflow/development.md](docs/workflow/development.md) |
+| 其他文档与历史计划 | [docs/README.md](docs/README.md) |
 
-仅在产品行为、共享组件或架构边界变化时更新对应长期文档；新增文档补充索引。功能设计与实现计划统一放在 `docs/plans/`，不要复制本文件的通用规则。
+项目文档统一位于 `docs/`，入口为 `docs/README.md`。仅在产品行为、共享组件或架构边界变化时更新对应长期文档；新增文档补充索引。功能设计与实现计划放在 `docs/plans/`，一次性审计与评估放在 `docs/reports/`，不要复制本文件的通用规则。

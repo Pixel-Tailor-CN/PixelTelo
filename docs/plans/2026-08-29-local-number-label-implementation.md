@@ -153,7 +153,7 @@ UI: No intercept records
 - `viewmodel/SettingViewModel.kt`、`ui/screen/settings/AppFeaturesPreferences.kt`：显示开关和管理入口。
 - `MainActivity.kt`：二级管理页状态和返回导航。
 - `data/dto/BackupData.kt`、`data/repository/BackupRepository.kt`、`ui/screen/SettingsScreen.kt`：备份格式 v5 和第四个选择范围。
-- 中英文 `strings.xml` 与 `.agentdocs/` 架构/UI 文档。
+- 中英文 `strings.xml` 与 `docs/` 架构/UI 文档。
 
 ---
 
@@ -1133,10 +1133,10 @@ git commit -m "feat: 支持选择性备份恢复本地号码标签"
 
 **Files:**
 
-- Modify: `.agentdocs/architecture/mvvm-structure.md`
-- Modify: `.agentdocs/architecture/native-integration.md`
-- Modify: `.agentdocs/ui/main-screen.md`
-- Modify: `.agentdocs/index.md`
+- Modify: `docs/architecture/mvvm-structure.md`
+- Modify: `docs/architecture/native-integration.md`
+- Modify: `docs/ui/main-screen.md`
+- Modify: `docs/README.md`
 - Modify: `docs/plans/2026-08-29-local-number-label-implementation.md`
 
 **Interfaces:**
@@ -1145,7 +1145,7 @@ git commit -m "feat: 支持选择性备份恢复本地号码标签"
 
 - [ ] **Step 1：更新 MVVM 文档**
 
-在 `.agentdocs/architecture/mvvm-structure.md` 增加“本地号码标签”小节，明确：
+在 `docs/architecture/mvvm-structure.md` 增加“本地号码标签”小节，明确：
 
 - `LocalNumberLabelRepository` 是单一事实来源；
 - `SpamNumberRepository` 不读取标签；
@@ -1155,7 +1155,7 @@ git commit -m "feat: 支持选择性备份恢复本地号码标签"
 
 - [ ] **Step 2：更新原生集成文档**
 
-在 `.agentdocs/architecture/native-integration.md` 的 Directory Provider 和 Overlay 部分记录：
+在 `docs/architecture/native-integration.md` 的 Directory Provider 和 Overlay 部分记录：
 
 - 原识别查询完整执行；
 - 本地标签只参与最终展示；
@@ -1165,7 +1165,7 @@ git commit -m "feat: 支持选择性备份恢复本地号码标签"
 
 - [ ] **Step 3：更新首页和索引文档**
 
-在 `.agentdocs/ui/main-screen.md` 记录本地标签独立行、详情管理入口、显示开关语义和动态历史关联；在 `.agentdocs/index.md` 增加本实施计划链接。
+在 `docs/ui/main-screen.md` 记录本地标签独立行、详情管理入口、显示开关语义和动态历史关联；在 `docs/README.md` 增加本实施计划链接。
 
 - [ ] **Step 4：执行最终静态验证**
 
@@ -1200,7 +1200,7 @@ Expected:
 在本文件顶部 Global Constraints 之后增加“执行结果”小节，写入实际构建/Lint结果、尚未执行的模拟器项和已知限制，不填写虚构结果。
 
 ```bash
-git add .agentdocs/architecture/mvvm-structure.md .agentdocs/architecture/native-integration.md .agentdocs/ui/main-screen.md .agentdocs/index.md docs/plans/2026-08-29-local-number-label-implementation.md
+git add docs/architecture/mvvm-structure.md docs/architecture/native-integration.md docs/ui/main-screen.md docs/README.md docs/plans/2026-08-29-local-number-label-implementation.md
 git commit -m "docs: 更新本地号码标签架构与实施记录"
 ```
 

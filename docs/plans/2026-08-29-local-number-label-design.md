@@ -500,10 +500,10 @@ val includeLocalNumberLabels: Boolean = true
 - `data/repository/BackupRepository.kt`
 - `viewmodel/SettingViewModel.kt`
 - 备份/恢复 BottomSheet 与中英文字符串资源
-- `.agentdocs/architecture/mvvm-structure.md`
-- `.agentdocs/architecture/native-integration.md`
-- `.agentdocs/ui/main-screen.md`
-- `.agentdocs/index.md`
+- `docs/architecture/mvvm-structure.md`
+- `docs/architecture/native-integration.md`
+- `docs/ui/main-screen.md`
+- `docs/README.md`
 
 实现时应避免继续扩大已经较大的 `HomeScreen.kt` 和 `SettingViewModel.kt`。新增的标签管理页面、编辑 Dialog
 和标签业务状态应放入独立文件；现有页面只负责组合和导航。

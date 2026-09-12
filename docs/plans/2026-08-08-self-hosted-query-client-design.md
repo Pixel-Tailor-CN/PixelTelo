@@ -708,10 +708,10 @@ data/query/
 
 实现完成后检查并更新：
 
-- `.agentdocs/architecture/mvvm-structure.md`：补充 Backend Provider 与三 Client 隔离。
-- `.agentdocs/architecture/sync-strategy.md`：明确官方离线同步不受自建配置影响。
-- `.agentdocs/prd/requirements.md`：补充自建实时查询产品要求。
-- `.agentdocs/ui/main-screen.md`：补充自建安全告警状态。
+- `docs/architecture/mvvm-structure.md`：补充 Backend Provider 与三 Client 隔离。
+- `docs/architecture/sync-strategy.md`：明确官方离线同步不受自建配置影响。
+- `docs/prd/requirements.md`：补充自建实时查询产品要求。
+- `docs/ui/main-screen.md`：补充自建安全告警状态。
 - 设置页相关文档：补充 Backend 切换、配置验证与凭据展示边界。
 
 ## 二十三、开放项

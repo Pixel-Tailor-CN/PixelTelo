@@ -67,7 +67,7 @@ Pixel Telo 成为默认电话应用。无法可靠识别的去电状态不产生
 
 ## 文档与验证
 
-- 更新 `.agentdocs/architecture/native-integration.md`，记录可靠识别范围、状态转换和 Android 限制。
+- 更新 `docs/architecture/native-integration.md`，记录可靠识别范围、状态转换和 Android 限制。
 - 不新增或运行单元测试，遵循项目默认测试策略。
 - 执行 `./gradlew :app:assembleDebug`。
 - 执行 `./gradlew lint`。

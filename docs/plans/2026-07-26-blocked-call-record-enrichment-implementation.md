@@ -801,8 +801,8 @@ git commit -m "feat: 分页展示拦截记录联系人和归属地"
 
 **Files:**
 
-- Modify: `.agentdocs/architecture/mvvm-structure.md`
-- Modify: `.agentdocs/ui/main-screen.md`
+- Modify: `docs/architecture/mvvm-structure.md`
+- Modify: `docs/ui/main-screen.md`
 - Modify: `docs/plans/2026-07-26-blocked-call-record-enrichment-implementation.md`
 
 **Interfaces:**
@@ -811,7 +811,7 @@ git commit -m "feat: 分页展示拦截记录联系人和归属地"
 
 - [ ] **Step 1：更新架构文档**
 
-在 `.agentdocs/architecture/mvvm-structure.md` 增加：
+在 `docs/architecture/mvvm-structure.md` 增加：
 
 ```markdown
 ### 拦截记录分页与联系人解析
@@ -823,7 +823,7 @@ git commit -m "feat: 分页展示拦截记录联系人和归属地"
 
 - [ ] **Step 2：更新主页文档**
 
-在 `.agentdocs/ui/main-screen.md` 增加：
+在 `docs/ui/main-screen.md` 增加：
 
 ```markdown
 ### 拦截记录展示
@@ -859,7 +859,7 @@ Expected: 无 whitespace error；状态只包含本任务预期文件。
 - [ ] **Step 5：提交**
 
 ```bash
-git add .agentdocs/architecture/mvvm-structure.md .agentdocs/ui/main-screen.md docs/plans/2026-07-26-blocked-call-record-enrichment-implementation.md
+git add docs/architecture/mvvm-structure.md docs/ui/main-screen.md docs/plans/2026-07-26-blocked-call-record-enrichment-implementation.md
 git commit -m "docs: 更新拦截记录分页与联系人解析文档"
 ```
 

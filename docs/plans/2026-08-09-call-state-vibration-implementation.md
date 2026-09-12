@@ -54,7 +54,7 @@
 
 **文件：**
 - 修改：`app/src/main/java/vip/mystery0/pixel/telo/receiver/CallStateReceiver.kt`
-- 修改：`.agentdocs/architecture/native-integration.md`
+- 修改：`docs/architecture/native-integration.md`
 
 **接口：**
 - 消费：`CallStateVibrationController.onPhoneStateChanged(String?)`。

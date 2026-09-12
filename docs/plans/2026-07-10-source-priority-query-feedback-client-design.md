@@ -151,9 +151,9 @@ source 配置使用现有 `SharedPreferences`，以 JSON 保存以下信息：
 
 实现完成后同步更新：
 
-- `.agentdocs/architecture/mvvm-structure.md`
-- `.agentdocs/architecture/native-integration.md`
-- `.agentdocs/ui/main-screen.md`
+- `docs/architecture/mvvm-structure.md`
+- `docs/architecture/native-integration.md`
+- `docs/ui/main-screen.md`
 
 如现有文档实际内容与上述主题无关，则只更新直接受影响的文档，并在最终说明中注明。
 

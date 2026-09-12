@@ -19,6 +19,8 @@
 
 [English](#english) | [中文](#中文)
 
+[项目文档](docs/README.md) · [协作指南](AGENTS.md)
+
 ---
 
 ## 中文
