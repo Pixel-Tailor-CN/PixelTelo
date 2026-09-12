@@ -1,6 +1,6 @@
 # 通话状态震动实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **目标：** 增加默认关闭的通话状态震动设置，仅在可靠识别的来电接通和挂断状态转换中短震一次。
 

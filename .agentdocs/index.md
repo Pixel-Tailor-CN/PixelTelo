@@ -1,6 +1,6 @@
 # Pixel Telo 文档索引
 
-欢迎阅读 Pixel Telo 项目文档。本文档旨在帮助您理解项目的需求、架构和开发指南。
+按当前任务选择下列文档。协作约定与验证要求见 [AGENTS.md](../AGENTS.md)，无需每次预读全部文档。
 
 ## 文档结构
 
@@ -9,6 +9,8 @@
 * [需求规范](prd/requirements.md): 详细的功能和非功能需求，包括 Call Guardian, Data Sync 和性能约束。
 
 ### 设计与实施计划 (`../docs/plans/`)
+
+以下文档保留当时的设计与实施记录。继续工作前先核对当前代码和用户目标；旧命令、检查清单及验证结果不自动适用于新任务。
 
 * GitHub Actions Release：
   [设计](../docs/plans/2026-02-27-github-actions-release-design.md) ·
@@ -55,7 +57,8 @@
 
 ### 工作流 (`workflow/`)
 
-* 此目录包含任务流文档（待补充）。
+* [开发与技能维护](workflow/development.md)：任务推进、按范围验证、Skills 适用边界与 CI 区分。
+* [2026-09-12 协作规则审计](workflow/2026-09-12-agent-guidance-audit.md)：官方依据、发现、修改范围与验证记录；仅在追溯本次调整时阅读。
 
 ## 快速链接
 

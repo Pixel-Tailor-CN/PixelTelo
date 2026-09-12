@@ -1,6 +1,6 @@
 # 持久化本地号码标签 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **Goal:** 为归一化号码增加独立、可管理、可选择备份的持久化本地标签，并在用户开启显示后接入 Directory Provider、来电 Overlay 和历史记录展示，同时完全保持现有识别与拦截语义。
 

@@ -1,6 +1,6 @@
 # 国际号码自定义规则匹配回归修复实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **Goal:** 修复 Issue #10，使 `+国家代码` 与 `00国家代码` 国际号码可稳定命中本地自定义黑白名单，同时与无国际标记的纯数字号码保持不等价，并阻止明确国际号码进入国内数据库或任何实时查询 Backend。
 

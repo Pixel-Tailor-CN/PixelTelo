@@ -1,6 +1,6 @@
 # 来电查询结果复用实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **Goal:** 将同一次来电触发的 CallScreeningService 与 Directory Provider 联网查询合并为一次，并在 1 分钟内复用结果。
 

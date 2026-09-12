@@ -1,7 +1,6 @@
 # 拦截记录信息增强 Implementation Plan
 
-> **执行要求：** REQUIRED SUB-SKILL: 使用 `superpowers:subagent-driven-development`
->（推荐）或 `superpowers:executing-plans` 按任务逐项实施。所有步骤使用 checkbox 跟踪。
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **目标：** 为拦截记录增加归属地持久化、联系人动态识别和 Paging 3 分页展示，并在
 Android 模拟器完成性能与显示验收。

@@ -1,6 +1,6 @@
 # 自建实时查询服务 App 接入实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **目标：** 为 Pixel Telo 完整实现官方/自建实时查询 Backend 切换、安全凭据、系统 TLS 与 SPKI Pinning、运行期版本身份校验、source 隔离、反馈隔离和安全告警。
 

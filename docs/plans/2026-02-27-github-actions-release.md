@@ -1,6 +1,6 @@
 # GitHub Actions 跨仓库发布 Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **Goal:** 在私有仓库推送 `v*` tag 时，自动构建 Release AAB + Universal APK 并发布到公开仓库 `PixelTelo/AppRelease`。
 

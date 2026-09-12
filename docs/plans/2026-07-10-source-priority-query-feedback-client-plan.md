@@ -1,6 +1,6 @@
 # 数据源优先级查询与质量反馈客户端实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **Goal:** 为 Pixel Telo 接入 mast v2 查询、可配置 source 优先级、source 下线提示和持久化质量反馈。
 

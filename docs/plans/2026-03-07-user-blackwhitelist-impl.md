@@ -1,6 +1,6 @@
 # 用户自定义黑白名单 Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
 
 **Goal:** 为 PixelTelo 添加用户自定义黑白名单功能，优先级高于骚扰库与联网查询。
 
