@@ -680,20 +680,17 @@ fun SettingsScreen(
     }
 
     val selfHostedDraft = viewModel.selfHostedDraft
-    if (viewModel.showSelfHostedConfigDialog && selfHostedDraft != null) {
+    if (viewModel.showSelfHostedSettings && !viewModel.selfHostedConfigEditing && selfHostedDraft != null) {
         val currentConfig = when (val state = selfHostedConnectionState) {
             is SelfHostedConnectionState.Ready -> state.config
             is SelfHostedConnectionState.Blocked -> state.config
             SelfHostedConnectionState.NotConfigured -> null
         }
         SelfHostedQueryDialog(
-            initialDraft = selfHostedDraft,
-            editing = viewModel.selfHostedConfigEditing,
             currentConfig = currentConfig,
             blockedReason = (queryBackendState as? QueryBackendState.Blocked)?.reason,
             validationInProgress = viewModel.selfHostedValidationInProgress,
             validationError = viewModel.selfHostedValidationError,
-            onValidateAndEnable = viewModel::validateAndEnableSelfHosted,
             onRevalidate = viewModel::revalidateSelfHosted,
             onEdit = viewModel::editSelfHostedConfig,
             onUseOfficial = viewModel::useOfficialBackend,

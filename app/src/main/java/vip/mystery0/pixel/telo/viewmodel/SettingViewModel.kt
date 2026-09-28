@@ -575,7 +575,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
         selfHostedConfigRepository.connectionState
 
     /** 自建服务配置/管理 Dialog 是否展示。 */
-    var showSelfHostedConfigDialog by mutableStateOf(false)
+    var showSelfHostedSettings by mutableStateOf(false)
         private set
 
     /** 当前 Dialog 是否处于配置编辑模式；false 时展示已启用服务的管理动作。 */
@@ -600,12 +600,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
         selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
         selfHostedConfigEditing = !queryBackendProvider.state.value.isSelfHostedSelected()
         selfHostedValidationError = null
-        showSelfHostedConfigDialog = true
+        showSelfHostedSettings = true
     }
 
     /** 从管理视图进入配置编辑，Token 始终重新输入，不从凭据存储回填。 */
     fun editSelfHostedConfig() {
-        if (!showSelfHostedConfigDialog || selfHostedValidationInProgress) return
+        if (!showSelfHostedSettings || selfHostedValidationInProgress) return
         selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
         selfHostedConfigEditing = true
         selfHostedValidationError = null
@@ -614,7 +614,30 @@ class SettingViewModel : ViewModel(), KoinComponent {
     /** 关闭 Dialog，并主动断开所有草稿引用。验证进行中时拒绝关闭，避免后台静默切换 Backend。 */
     fun closeSelfHostedConfig() {
         if (selfHostedValidationInProgress) return
-        clearSelfHostedDialogState()
+        clearSelfHostedSettingsState()
+    }
+
+    /** 配对材料同步交回输入控件，不进入 ViewModel 状态或持久化存储。 */
+    fun parseSelfHostedPairing(raw: String) =
+        vip.mystery0.pixel.telo.data.query.parseSelfHostedPairingJson(raw)
+
+    /** 手动输入也先检查字段，确认后才允许发起网络验证。 */
+    fun prepareManualSelfHostedPairing(draft: SelfHostedDraftUiState, token: String):
+        vip.mystery0.pixel.telo.data.query.SelfHostedPairingResult {
+        // 手动选择 Pin 模式时必须提供 Pin；JSON 的空字段则按协议表示系统信任。
+        if (draft.tlsMode == SelfHostedTlsMode.SPKI_PIN && draft.spkiPin.isBlank()) {
+            return vip.mystery0.pixel.telo.data.query.SelfHostedPairingResult.Failure(
+                vip.mystery0.pixel.telo.data.query.SelfHostedPairingError.INVALID_PIN,
+            )
+        }
+        return vip.mystery0.pixel.telo.data.query.validateSelfHostedPairingFields(
+            draft.baseUrl, token,
+            if (draft.tlsMode == SelfHostedTlsMode.SPKI_PIN) draft.spkiPin else "",
+        )
+    }
+
+    fun clearSelfHostedValidationError() {
+        if (!selfHostedValidationInProgress) selfHostedValidationError = null
     }
 
     /**
@@ -623,7 +646,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
      * Job 完成回调承担最终幂等清零，覆盖协程体尚未开始即被父作用域取消的边界。
      */
     fun validateAndEnableSelfHosted(draft: SelfHostedDraftUiState, token: CharArray) {
-        if (!showSelfHostedConfigDialog || selfHostedValidationInProgress) {
+        if (!showSelfHostedSettings || selfHostedValidationInProgress) {
             token.fill('\u0000')
             return
         }
@@ -647,7 +670,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
                     )
                 }
                 when (result) {
-                    is SelfHostedValidationResult.Success -> clearSelfHostedDialogState()
+                    is SelfHostedValidationResult.Success -> clearSelfHostedSettingsState()
                     is SelfHostedValidationResult.Failure -> {
                         selfHostedValidationError = result.category
                     }
@@ -690,18 +713,18 @@ class SettingViewModel : ViewModel(), KoinComponent {
             selfHostedValidationInProgress = false
             val state = queryBackendProvider.state.value
             if (state is QueryBackendState.Ready && state.type == QueryBackendType.OFFICIAL) {
-                clearSelfHostedDialogState()
+                clearSelfHostedSettingsState()
             } else {
                 selfHostedValidationError = SelfHostedErrorCategory.STORAGE
             }
         }
     }
 
-    private fun clearSelfHostedDialogState() {
+    private fun clearSelfHostedSettingsState() {
         selfHostedDraft = null
         selfHostedValidationError = null
         selfHostedConfigEditing = false
-        showSelfHostedConfigDialog = false
+        showSelfHostedSettings = false
     }
 
     private fun currentSelfHostedConfig(): VerifiedSelfHostedConfig? =

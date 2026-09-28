@@ -45,6 +45,9 @@
 * 持久化本地号码标签：
   [设计](plans/2026-08-29-local-number-label-design.md) ·
   [实施](plans/2026-08-29-local-number-label-implementation.md)（AppDatabase schema v10）
+* 自建服务配对体验：
+  [设计](plans/2026-09-27-self-hosted-pairing-design.md) ·
+  [实施](plans/2026-09-27-self-hosted-pairing-implementation.md)（Issue #14，独立配对页面、JSON 粘贴与二维码扫描）
 
 ### 架构与技术 (`architecture/`)
 

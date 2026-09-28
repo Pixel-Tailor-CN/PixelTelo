@@ -106,7 +106,10 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   运行期安全阻止另写 no-backup AtomicFile 哨兵；哨兵未可靠写入时，在任何活动记录提交前先销毁并
   复核 Keystore 主密钥不存在，使 journal 可能引用的全部槽位密文不可恢复。密钥销毁失败时不提交可能
   刷盘受污染活动指针的记录；只有完整重验证和新活动指针提交成功才解除哨兵。
-* Compose/ViewModel 公开状态只保存非敏感草稿。Dialog 将 Token 一次性移交为 `CharArray`，验证调用的
+* `SelfHostedPairingParser` 对扫码、粘贴与手动字段采用同一有界校验，导入只建立本地候选，不发起网络请求。
+  `MainActivity` 切换独立配对页并隐藏主导航；管理弹窗仅展示已配置服务操作。
+  嵌入式 QR 预览仅识别 QR，离开或暂停时释放相机；`CAMERA` 不进入来电必需权限引导。
+* Compose/ViewModel 公开状态只保存非敏感草稿。配对输入控件将 Token 一次性移交为 `CharArray`，验证调用的
   `finally` 与 Job 完成回调共同覆盖成功、失败、取消、拒绝及协程体尚未开始即取消的清零路径，不进入
   `mutableStateOf`、StateFlow 或 SavedState。
 

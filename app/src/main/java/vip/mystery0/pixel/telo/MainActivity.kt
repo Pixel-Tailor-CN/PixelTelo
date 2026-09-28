@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,6 +43,7 @@ import vip.mystery0.pixel.telo.ui.screen.HomeScreen
 import vip.mystery0.pixel.telo.ui.screen.ListScreen
 import vip.mystery0.pixel.telo.ui.screen.LocalNumberLabelsScreen
 import vip.mystery0.pixel.telo.ui.screen.SettingsScreen
+import vip.mystery0.pixel.telo.ui.screen.settings.SelfHostedPairingScreen
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
 import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
@@ -78,6 +80,16 @@ class MainActivity : ComponentActivity() {
                     .collectAsStateWithLifecycle()
                 var showClearRecordsDialog by remember { mutableStateOf(false) }
                 var showLocalNumberLabelsScreen by rememberSaveable { mutableStateOf(false) }
+                val showPairingScreen = settingViewModel.showSelfHostedSettings &&
+                    settingViewModel.selfHostedConfigEditing
+
+                LaunchedEffect(showPairingScreen) {
+                    // 从主页告警进入配对后，取消和成功均回到设置页。
+                    if (showPairingScreen) pagerState.requestScrollToPage(AppDestinations.SETTINGS.ordinal)
+                }
+                BackHandler(enabled = showPairingScreen) {
+                    settingViewModel.closeSelfHostedConfig()
+                }
 
                 fun closeLocalNumberLabelsScreen() {
                     showLocalNumberLabelsScreen = false
@@ -95,7 +107,9 @@ class MainActivity : ComponentActivity() {
                             title = {
                                 Text(
                                     stringResource(
-                                        if (showLocalNumberLabelsScreen) {
+                                        if (showPairingScreen) {
+                                            R.string.title_self_hosted_pairing
+                                        } else if (showLocalNumberLabelsScreen) {
                                             R.string.title_local_number_labels
                                         } else {
                                             currentDestination.titleResId
@@ -104,7 +118,15 @@ class MainActivity : ComponentActivity() {
                                 )
                             },
                             navigationIcon = {
-                                if (showLocalNumberLabelsScreen) {
+                                if (showPairingScreen) {
+                                    IconButton(
+                                        onClick = settingViewModel::closeSelfHostedConfig,
+                                        enabled = !settingViewModel.selfHostedValidationInProgress,
+                                    ) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = stringResource(R.string.action_back))
+                                    }
+                                } else if (showLocalNumberLabelsScreen) {
                                     IconButton(onClick = { closeLocalNumberLabelsScreen() }) {
                                         Icon(
                                             Icons.AutoMirrored.Filled.ArrowBack,
@@ -115,7 +137,7 @@ class MainActivity : ComponentActivity() {
                             },
                             actions = {
                                 if (
-                                    !showLocalNumberLabelsScreen &&
+                                    !showLocalNumberLabelsScreen && !showPairingScreen &&
                                     currentDestination == AppDestinations.HOME &&
                                     hasBlockedCallRecords
                                 ) {
@@ -132,7 +154,7 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     bottomBar = {
-                        if (!showLocalNumberLabelsScreen) {
+                        if (!showLocalNumberLabelsScreen && !showPairingScreen) {
                             NavigationBar {
                                 AppDestinations.entries.forEach { destination ->
                                     NavigationBarItem(
@@ -157,7 +179,12 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                 ) { innerPadding ->
-                    if (showLocalNumberLabelsScreen) {
+                    if (showPairingScreen) {
+                        SelfHostedPairingScreen(
+                            viewModel = settingViewModel,
+                            modifier = Modifier.padding(innerPadding).fillMaxSize(),
+                        )
+                    } else if (showLocalNumberLabelsScreen) {
                         LocalNumberLabelsScreen(
                             viewModel = localNumberLabelsViewModel,
                             editorViewModel = localNumberLabelEditorViewModel,
