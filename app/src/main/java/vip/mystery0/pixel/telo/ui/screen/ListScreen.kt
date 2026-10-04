@@ -109,8 +109,13 @@ fun ListScreen(
         if (viewModel.showAddSheet) {
             showSheet = true
         } else if (showSheet) {
-            sheetState.hide()
-            showSheet = false
+            try {
+                sheetState.hide()
+            } finally {
+                // 遮罩点击、返回或拖动可能取消 hide 动画；关闭请求仍须移除模态窗口。
+                // 若取消来自重新打开，则不能让旧协程关闭新表单。
+                if (!viewModel.showAddSheet) showSheet = false
+            }
         }
     }
 

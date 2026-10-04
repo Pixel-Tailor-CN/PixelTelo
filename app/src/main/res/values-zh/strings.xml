@@ -26,7 +26,6 @@
     <string name="location_overlay_style_card">卡片</string>
     <string name="location_overlay_style_minimal">简洁文本</string>
     <string name="overlay_unknown_location">未知归属地</string>
-    <string name="overlay_location_timeout">归属地查询超时</string>
     <string name="overlay_query_rate_limited">查询过于频繁，请稍后再试</string>
     <string name="overlay_query_server_error">查询服务响应异常</string>
     <string name="overlay_network_connection_error">网络连接失败</string>
@@ -271,6 +270,7 @@
     <string name="label_rule_type_tag">标签</string>
     <string name="label_rule_type_location">归属地</string>
     <string name="error_phone_empty">号码不能为空</string>
+    <string name="error_phone_invalid">请输入有效号码或前缀，去除格式字符后必须包含数字，且仅允许开头保留一个 +。</string>
     <string name="error_tag_empty">标签名不能为空</string>
     <string name="error_location_empty">归属地关键词不能为空</string>
     <string name="error_phone_already_exists">相同规则已存在</string>
@@ -436,6 +436,7 @@
     <string name="notification_feedback_failed">反馈提交失败，可稍后在拦截记录详情中重试。</string>
     <!-- 查询失败分类和逐条标签规则匹配方式 -->
     <string name="result_query_failure">放行原因：%1$s</string>
+    <string name="query_failure_timeout">网络查询超时</string>
     <string name="query_failure_invalid_request">查询参数无效</string>
     <string name="query_failure_auth">查询服务认证失败或访问被拒绝</string>
     <string name="query_failure_invalid_response">查询响应格式不兼容</string>

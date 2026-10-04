@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
@@ -172,6 +173,10 @@ class ListViewModel : ViewModel(), KoinComponent {
             )
             return
         }
+        if (type == RuleType.NUMBER && !PhoneNumberRuleMatcher.isValidRule(phone)) {
+            addErrorMessage = context.getString(R.string.error_phone_invalid)
+            return
+        }
         viewModelScope.launch {
             val oldEntry = editingEntry
             val success = if (oldEntry == null) {
@@ -243,8 +248,8 @@ class ListViewModel : ViewModel(), KoinComponent {
     }
 
     /**
-     * 从首页快捷添加，不校验重复（由 Repository 的 IGNORE 策略处理）。
-     * @return true 表示成功插入，false 表示已存在
+     * 从首页快捷添加，由 Repository 校验号码并处理重复。
+     * @return true 表示成功插入，false 表示输入无效或已存在
      */
     suspend fun quickAdd(phoneNumber: String, listType: ListType): Boolean {
         return userListRepository.add(phoneNumber, false, listType, null)

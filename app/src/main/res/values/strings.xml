@@ -32,7 +32,6 @@
     <string name="location_overlay_preview_local_label">Property</string>
     <string name="location_overlay_preview_source_label">Delivery</string>
     <string name="overlay_unknown_location">Unknown location</string>
-    <string name="overlay_location_timeout">Location query timeout</string>
     <string name="overlay_query_rate_limited">Queries are temporarily rate limited</string>
     <string name="overlay_query_server_error">Query service response error</string>
     <string name="overlay_network_connection_error">Network connection failed</string>
@@ -273,6 +272,7 @@
     <string name="label_rule_type_tag">Tag</string>
     <string name="label_rule_type_location">Location</string>
     <string name="error_phone_empty">Phone number cannot be empty</string>
+    <string name="error_phone_invalid">Enter a valid number or prefix. After formatting is removed, it must contain digits with an optional leading +.</string>
     <string name="error_tag_empty">Tag name cannot be empty</string>
     <string name="error_location_empty">Location keyword cannot be empty</string>
     <string name="error_phone_already_exists">The same rule already exists</string>
@@ -438,6 +438,7 @@
     <string name="notification_feedback_failed">Feedback failed. You can retry later from the record detail.</string>
     <!-- 查询失败分类和逐条标签规则匹配方式 -->
     <string name="result_query_failure">Allowed: %1$s</string>
+    <string name="query_failure_timeout">Network query timed out</string>
     <string name="query_failure_invalid_request">Invalid query parameters</string>
     <string name="query_failure_auth">Query authentication failed or access denied</string>
     <string name="query_failure_invalid_response">Incompatible query response</string>

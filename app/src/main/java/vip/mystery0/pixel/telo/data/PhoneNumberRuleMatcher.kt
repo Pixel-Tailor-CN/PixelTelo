@@ -7,6 +7,12 @@ package vip.mystery0.pixel.telo.data
  * 没有国际标记的号码继续使用国内查询域的现有标准化逻辑。
  */
 object PhoneNumberRuleMatcher {
+    private val numberRulePattern = Regex("\\+?[0-9]+")
+
+    /** 精确号码与前缀共用校验：标准化后必须含数字，仅允许开头保留一个 +。 */
+    fun isValidRule(value: String): Boolean =
+        numberRulePattern.matches(normalizeRuleForStorage(value))
+
     /** 将输入中的安全格式字符移除，但保留号码开头的 +。 */
     private fun compact(value: String): String = value.trim().filterNot { char ->
         char.isWhitespace() || char == '-' || char == '(' || char == ')'
@@ -63,7 +69,7 @@ object PhoneNumberRuleMatcher {
     /** 判断号码规则是否精确命中或前缀命中来电号码。 */
     fun ruleMatches(rule: String, isPrefix: Boolean, phoneNumber: String): Boolean {
         val compactRule = compact(rule)
-        if (compactRule.isBlank()) return false
+        if (!isValidRule(rule)) return false
         return matchCandidates(phoneNumber).any { candidate ->
             if (candidate.isBlank()) return false
             if (isPrefix) candidate.startsWith(compactRule) else candidate == compactRule

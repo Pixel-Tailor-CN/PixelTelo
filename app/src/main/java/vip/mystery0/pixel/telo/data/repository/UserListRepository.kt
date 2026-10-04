@@ -115,7 +115,7 @@ class UserListRepository(private val dao: UserListDao) {
 
     /**
      * 添加条目到指定名单。
-     * 若 (phoneNumber, listType) 已存在则忽略并返回 false，成功插入返回 true。
+     * 输入无效或唯一键已存在时返回 false，成功插入返回 true。
      */
     suspend fun add(
         phoneNumber: String,
@@ -137,12 +137,12 @@ class UserListRepository(private val dao: UserListDao) {
             tagMatch = tagMatch,
             locationMatch = locationMatch,
             forceBlock = forceBlock,
-        )
+        ) ?: return false
         return dao.insert(entry) != -1L
     }
 
     /**
-     * 原位更新规则。唯一键冲突时 Room 忽略本次更新，旧规则保持不变。
+     * 原位更新规则。输入无效或唯一键冲突时返回 false，旧规则保持不变。
      */
     suspend fun update(
         existing: UserListEntry,
@@ -164,7 +164,7 @@ class UserListRepository(private val dao: UserListDao) {
             tagMatch = tagMatch,
             locationMatch = locationMatch,
             forceBlock = forceBlock,
-        )
+        ) ?: return false
         return dao.update(entry) > 0
     }
 
@@ -178,12 +178,17 @@ class UserListRepository(private val dao: UserListDao) {
         locationMatch: Boolean,
         forceBlock: Boolean,
         tagContains: Boolean,
-    ): UserListEntry {
+    ): UserListEntry? {
+        // 保护首页快捷添加等非表单入口，不能只依赖 ViewModel 校验。
+        if (!tagMatch && !locationMatch && !PhoneNumberRuleMatcher.isValidRule(phoneNumber)) {
+            return null
+        }
         val normalizedValue = if (tagMatch || locationMatch) {
             phoneNumber.trim()
         } else {
             PhoneNumberRuleMatcher.normalizeRuleForStorage(phoneNumber)
         }
+        if (normalizedValue.isBlank()) return null
         return UserListEntry(
             id = existing?.id ?: 0,
             phoneNumber = normalizedValue,

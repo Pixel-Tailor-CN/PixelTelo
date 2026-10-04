@@ -34,12 +34,19 @@ interface UserListDao {
     /** 查询是否存在匹配的条目（精确或前缀），用于拦截判断。
      *  前缀匹配使用 SUBSTR 而非 LIKE，避免 phoneNumber 中含有 '%'/'_' 等 LIKE 通配符时产生语义错误。
      *  tagMatch=0 时按号码匹配，tagMatch=1 时忽略（标签匹配由 Repository 层处理）。
+     *  旧数据或备份中的空/非法号码不参与匹配，尤其不能将空前缀当作全匹配。
      */
     @Query("""
         SELECT * FROM user_list
         WHERE listType = :type
         AND tagMatch = 0
         AND locationMatch = 0
+        AND LENGTH(phoneNumber) > 0
+        AND (
+            phoneNumber NOT GLOB '*[^0-9]*' OR
+            (SUBSTR(phoneNumber, 1, 1) = '+' AND LENGTH(phoneNumber) > 1
+                AND SUBSTR(phoneNumber, 2) NOT GLOB '*[^0-9]*')
+        )
         AND (
             (isPrefix = 0 AND phoneNumber = :phone) OR
             (isPrefix = 1 AND SUBSTR(:phone, 1, LENGTH(phoneNumber)) = phoneNumber)
