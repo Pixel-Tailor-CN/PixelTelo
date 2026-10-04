@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -30,6 +31,9 @@ data class UserListEntry(
     val addedAt: Long = System.currentTimeMillis(),
     /** true = 标签匹配，false = 号码匹配 */
     val tagMatch: Boolean = false,
+    /** 仅标签规则有效：false 精确匹配，true 按字面包含匹配，不解释正则或通配符。 */
+    @ColumnInfo(defaultValue = "0")
+    val tagContains: Boolean = false,
     /** true = 归属地匹配，依赖联网查询结果 */
     val locationMatch: Boolean = false,
     /**

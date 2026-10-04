@@ -73,6 +73,9 @@ class ListViewModel : ViewModel(), KoinComponent {
     /** 添加表单：是否前缀匹配（仅号码类型有效） */
     var inputIsPrefix by mutableStateOf(false)
 
+    /** 标签规则匹配方式，新建和旧规则默认精确。 */
+    var inputTagContains by mutableStateOf(false)
+
     /** 添加表单：是否忽略“仅提示不拦截”强制挂断（仅黑名单有效，新建默认开启） */
     var inputForceBlock by mutableStateOf(true)
 
@@ -107,6 +110,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         inputRuleType = null
         inputPhone = ""
         inputIsPrefix = false
+        inputTagContains = false
         inputForceBlock = true
         inputRemark = ""
         addErrorMessage = null
@@ -123,6 +127,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         }
         inputPhone = entry.phoneNumber
         inputIsPrefix = entry.isPrefix
+        inputTagContains = entry.tagContains
         inputForceBlock = entry.forceBlock
         inputRemark = entry.remark ?: ""
         addErrorMessage = null
@@ -178,6 +183,7 @@ class ListViewModel : ViewModel(), KoinComponent {
                     type == RuleType.TAG,
                     type == RuleType.LOCATION,
                     forceBlock = currentTab == ListType.BLACK && inputForceBlock,
+                    tagContains = type == RuleType.TAG && inputTagContains,
                 )
             } else {
                 userListRepository.update(
@@ -188,6 +194,7 @@ class ListViewModel : ViewModel(), KoinComponent {
                     tagMatch = type == RuleType.TAG,
                     locationMatch = type == RuleType.LOCATION,
                     forceBlock = oldEntry.listType == ListType.BLACK && inputForceBlock,
+                    tagContains = type == RuleType.TAG && inputTagContains,
                 )
             }
             if (success) {

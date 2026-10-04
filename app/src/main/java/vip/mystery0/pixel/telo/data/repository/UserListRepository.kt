@@ -46,8 +46,7 @@ class UserListRepository(private val dao: UserListDao) {
      * @return 匹配的条目，未命中返回 null
      */
     suspend fun findWhiteListTagMatch(tag: String): UserListEntry? {
-        val tagRules = dao.getTagRules(ListType.WHITE)
-        return tagRules.firstOrNull { it.phoneNumber == tag }
+        return findTagMatch(tag, ListType.WHITE)
     }
 
     /**
@@ -58,8 +57,27 @@ class UserListRepository(private val dao: UserListDao) {
      * @return 匹配的条目，未命中返回 null
      */
     suspend fun findBlackListTagMatch(tag: String): UserListEntry? {
-        val tagRules = dao.getTagRules(ListType.BLACK)
-        return tagRules.firstOrNull { it.phoneNumber == tag }
+        return findTagMatch(tag, ListType.BLACK)
+    }
+
+    /** 精确规则优先，包含规则按关键词长度优先；同长度按 ID 保证结果稳定。 */
+    private suspend fun findTagMatch(tag: String, type: ListType): UserListEntry? {
+        if (tag.isBlank()) return null
+        return dao.getTagRules(type)
+            .asSequence()
+            .filter { rule ->
+                rule.phoneNumber.isNotBlank() && if (rule.tagContains) {
+                    tag.contains(rule.phoneNumber)
+                } else {
+                    tag == rule.phoneNumber
+                }
+            }
+            .sortedWith(
+                compareBy<UserListEntry> { it.tagContains }
+                    .thenByDescending { it.phoneNumber.length }
+                    .thenBy { it.id }
+            )
+            .firstOrNull()
     }
 
     suspend fun findWhiteListLocationMatch(locationInfo: PhoneLocationInfo?): UserListEntry? {
@@ -106,10 +124,12 @@ class UserListRepository(private val dao: UserListDao) {
         remark: String?,
         tagMatch: Boolean = false,
         locationMatch: Boolean = false,
-        forceBlock: Boolean = false
+        forceBlock: Boolean = false,
+        tagContains: Boolean = false,
     ): Boolean {
         val entry = buildEntry(
             existing = null,
+            tagContains = tagContains,
             phoneNumber = phoneNumber,
             isPrefix = isPrefix,
             listType = listType,
@@ -132,9 +152,11 @@ class UserListRepository(private val dao: UserListDao) {
         tagMatch: Boolean = false,
         locationMatch: Boolean = false,
         forceBlock: Boolean = false,
+        tagContains: Boolean = false,
     ): Boolean {
         val entry = buildEntry(
             existing = existing,
+            tagContains = tagContains,
             phoneNumber = phoneNumber,
             isPrefix = isPrefix,
             listType = existing.listType,
@@ -155,6 +177,7 @@ class UserListRepository(private val dao: UserListDao) {
         tagMatch: Boolean,
         locationMatch: Boolean,
         forceBlock: Boolean,
+        tagContains: Boolean,
     ): UserListEntry {
         val normalizedValue = if (tagMatch || locationMatch) {
             phoneNumber.trim()
@@ -169,6 +192,7 @@ class UserListRepository(private val dao: UserListDao) {
             remark = remark?.trim()?.takeIf { it.isNotBlank() },
             addedAt = existing?.addedAt ?: System.currentTimeMillis(),
             tagMatch = tagMatch,
+            tagContains = tagMatch && !locationMatch && tagContains,
             locationMatch = locationMatch,
             forceBlock = forceBlock && listType == ListType.BLACK,
         )

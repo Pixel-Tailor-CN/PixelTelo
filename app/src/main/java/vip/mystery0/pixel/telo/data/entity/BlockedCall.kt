@@ -63,7 +63,13 @@ enum class ResultType {
     PASS_BUT_NOTIFY, // 提示但不拦截 (暂未实现完全逻辑，可用于白名单或低风险)
     NETWORK_TIMEOUT, // 联网查询超时
     NETWORK_RATE_LIMITED, // 远端接口限流
-    NETWORK_SERVER_ERROR, // 服务端响应异常
+    NETWORK_SERVER_ERROR, // 服务端内部或未分类异常
+    NETWORK_INVALID_REQUEST, // 查询参数无效
+    NETWORK_AUTH_ERROR, // 查询服务拒绝认证或授权
+    NETWORK_INVALID_RESPONSE, // 查询响应格式不兼容
+    NETWORK_UPSTREAM_TIMEOUT, // 服务端访问上游超时
+    NETWORK_UPSTREAM_UNAVAILABLE, // 上游数据源暂不可用
+    NETWORK_FEEDBACK_ERROR, // 查询结果反馈凭据签发失败
     NETWORK_CONNECTION_ERROR, // 网络连接失败
     QUERY_SERVICE_UNAVAILABLE, // 查询服务未就绪
     PASS, // 正常放行并通过设置强制记录
@@ -76,6 +82,12 @@ fun ResultType.isNetworkFailure(): Boolean = when (this) {
     ResultType.NETWORK_TIMEOUT,
     ResultType.NETWORK_RATE_LIMITED,
     ResultType.NETWORK_SERVER_ERROR,
+    ResultType.NETWORK_INVALID_REQUEST,
+    ResultType.NETWORK_AUTH_ERROR,
+    ResultType.NETWORK_INVALID_RESPONSE,
+    ResultType.NETWORK_UPSTREAM_TIMEOUT,
+    ResultType.NETWORK_UPSTREAM_UNAVAILABLE,
+    ResultType.NETWORK_FEEDBACK_ERROR,
     ResultType.NETWORK_CONNECTION_ERROR,
     ResultType.QUERY_SERVICE_UNAVAILABLE -> true
 

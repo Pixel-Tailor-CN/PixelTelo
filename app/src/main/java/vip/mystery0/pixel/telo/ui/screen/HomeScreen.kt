@@ -74,6 +74,8 @@ import androidx.paging.compose.itemKey
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.util.queryFailureSummaryRes
+import vip.mystery0.pixel.telo.util.queryFailureAdviceRes
 import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
@@ -285,14 +287,7 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
-                                when (state.resultType) {
-                                    ResultType.NETWORK_TIMEOUT -> stringResource(R.string.retry_error_network_timeout)
-                                    ResultType.NETWORK_RATE_LIMITED -> stringResource(R.string.retry_error_rate_limited)
-                                    ResultType.NETWORK_SERVER_ERROR -> stringResource(R.string.retry_error_server)
-                                    ResultType.NETWORK_CONNECTION_ERROR -> stringResource(R.string.retry_error_connection)
-                                    ResultType.QUERY_SERVICE_UNAVAILABLE -> stringResource(R.string.retry_error_service_unavailable)
-                                    else -> stringResource(R.string.title_query_failed)
-                                },
+                                stringResource(state.resultType?.queryFailureAdviceRes() ?: R.string.title_query_failed),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -998,25 +993,21 @@ fun BlockedCallItem(
                         }
 
                         // 第二部分：拦截结果
-                        val resultText = when (call.resultType) {
+                        val failureSummary = call.resultType.queryFailureSummaryRes()
+                        val resultText = if (failureSummary != null) {
+                            stringResource(R.string.result_query_failure, stringResource(failureSummary))
+                        } else when (call.resultType) {
                             ResultType.INTERCEPT -> stringResource(R.string.result_intercept_spam)
                             ResultType.PASS_BUT_NOTIFY -> stringResource(R.string.result_pass_but_notify)
-                            ResultType.NETWORK_TIMEOUT -> stringResource(R.string.result_network_timeout)
-                            ResultType.NETWORK_RATE_LIMITED -> stringResource(R.string.result_network_rate_limited)
-                            ResultType.NETWORK_SERVER_ERROR -> stringResource(R.string.result_network_server_error)
-                            ResultType.NETWORK_CONNECTION_ERROR -> stringResource(R.string.result_network_connection_error)
-                            ResultType.QUERY_SERVICE_UNAVAILABLE -> stringResource(R.string.result_query_service_unavailable)
                             ResultType.PASS -> stringResource(R.string.result_pass_always_record)
                             ResultType.BLACK_LIST -> stringResource(R.string.result_black_list)
                             ResultType.WHITE_LIST -> stringResource(R.string.result_white_list)
+                            else -> stringResource(R.string.title_query_failed)
                         }
-                        val resultColor = when (call.resultType) {
+                        val resultColor = if (call.resultType.isNetworkFailure()) {
+                            MaterialTheme.colorScheme.error
+                        } else when (call.resultType) {
                             ResultType.PASS -> MaterialTheme.colorScheme.secondary
-                            ResultType.NETWORK_TIMEOUT,
-                            ResultType.NETWORK_RATE_LIMITED,
-                            ResultType.NETWORK_SERVER_ERROR,
-                            ResultType.NETWORK_CONNECTION_ERROR,
-                            ResultType.QUERY_SERVICE_UNAVAILABLE -> MaterialTheme.colorScheme.error
                             ResultType.BLACK_LIST -> MaterialTheme.colorScheme.error
                             ResultType.WHITE_LIST -> MaterialTheme.colorScheme.tertiary
                             else -> MaterialTheme.colorScheme.primary

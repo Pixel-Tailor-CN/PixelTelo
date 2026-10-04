@@ -4,12 +4,13 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** 当前备份格式版本。新导出必须显式写入该值，不能依赖 data class 缺省。 */
-const val CURRENT_BACKUP_VERSION = 5
+const val CURRENT_BACKUP_VERSION = 6
 
 /**
  * 备份文件根结构，序列化为 ZIP 内的 backup.json。
  * version 2 起包含黑白名单数据；version 3 起黑名单条目包含 force_block 字段；
  * version 4 起拦截记录包含省份和城市；version 5 起包含本地号码标签。
+ * version 6 起标签规则包含 tag_contains；旧备份缺省为 false，保持精确匹配。
  * 旧版 v1–v4 缺少 local_number_labels 时按空列表处理。
  *
  * [version] 的 Kotlin 缺省值为 1：旧归档若省略 version 按 v1 解码，以保留
@@ -52,6 +53,7 @@ data class UserListEntryDto(
     val remark: String? = null,
     @SerialName("added_at") val addedAt: Long,
     @SerialName("tag_match") val tagMatch: Boolean = false,
+    @SerialName("tag_contains") val tagContains: Boolean = false,
     @SerialName("location_match") val locationMatch: Boolean = false,
     @SerialName("force_block") val forceBlock: Boolean = false,
 )

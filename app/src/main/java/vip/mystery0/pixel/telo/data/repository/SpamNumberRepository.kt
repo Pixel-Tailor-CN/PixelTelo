@@ -3,8 +3,6 @@ package vip.mystery0.pixel.telo.data.repository
 import android.content.SharedPreferences
 import android.os.SystemClock
 import android.util.Log
-import java.io.IOException
-import java.net.SocketTimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -24,9 +22,7 @@ import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.query.BackendQueryResponse
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
-import vip.mystery0.pixel.telo.data.query.QueryBackendRevokedException
 import vip.mystery0.pixel.telo.data.query.QueryBackendSnapshot
-import vip.mystery0.pixel.telo.data.query.SelfHostedCompatibilityException
 import vip.mystery0.pixel.telo.data.remote.PhoneLocationInfo
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 import kotlin.time.Duration.Companion.milliseconds
@@ -48,23 +44,6 @@ data class CheckResult(
     /** 离线身份资料仅提供名称，Directory 展示不依赖是否拦截。 */
     val isIdentityProfile: Boolean = false,
 )
-
-/** 将联网异常转换为稳定结果类型，禁止依赖异常正文判断。 */
-fun classifyNetworkFailure(exception: Throwable): ResultType = when (exception) {
-    is TimeoutCancellationException,
-    is SocketTimeoutException -> ResultType.NETWORK_TIMEOUT
-    is BackendBlockedException,
-    is QueryBackendRevokedException,
-    is SelfHostedCompatibilityException -> ResultType.QUERY_SERVICE_UNAVAILABLE
-    is QueryApiException -> if (exception.code == 429) {
-        ResultType.NETWORK_RATE_LIMITED
-    } else {
-        ResultType.NETWORK_SERVER_ERROR
-    }
-    is BackendQueryException -> ResultType.NETWORK_SERVER_ERROR
-    is IOException -> ResultType.NETWORK_CONNECTION_ERROR
-    else -> ResultType.NETWORK_SERVER_ERROR
-}
 
 class SpamNumberRepository : KoinComponent {
     companion object {
@@ -553,10 +532,12 @@ class SpamNumberRepository : KoinComponent {
         networkCost: Long,
     ): CheckResult {
         val resultType = classifyNetworkFailure(exception)
+        val apiError = exception as? QueryApiException
         Log.w(
             TAG,
             "Network query failed: category=${networkFailureCategory(resultType)}, " +
-                "cost=${networkCost}ms",
+                "http=${apiError?.code}, code=${apiError?.errorCode}, " +
+                "request_id=${apiError?.requestId}, cost=${networkCost}ms",
         )
         return CheckResult(
             shouldBlock = false,
@@ -573,6 +554,12 @@ class SpamNumberRepository : KoinComponent {
         ResultType.NETWORK_TIMEOUT -> "timeout"
         ResultType.NETWORK_RATE_LIMITED -> "rate_limited"
         ResultType.NETWORK_SERVER_ERROR -> "server_response"
+        ResultType.NETWORK_INVALID_REQUEST -> "invalid_request"
+        ResultType.NETWORK_AUTH_ERROR -> "authentication"
+        ResultType.NETWORK_INVALID_RESPONSE -> "invalid_response"
+        ResultType.NETWORK_UPSTREAM_TIMEOUT -> "upstream_timeout"
+        ResultType.NETWORK_UPSTREAM_UNAVAILABLE -> "upstream_unavailable"
+        ResultType.NETWORK_FEEDBACK_ERROR -> "feedback_token"
         ResultType.NETWORK_CONNECTION_ERROR -> "network"
         ResultType.QUERY_SERVICE_UNAVAILABLE -> "backend_blocked"
         else -> "unexpected"

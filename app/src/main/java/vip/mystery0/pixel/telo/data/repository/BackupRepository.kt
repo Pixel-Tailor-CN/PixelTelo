@@ -245,6 +245,7 @@ class BackupRepository(
         addedAt = addedAt,
         tagMatch = tagMatch,
         locationMatch = locationMatch,
+        tagContains = tagMatch && !locationMatch && tagContains,
         forceBlock = forceBlock,
     )
 
@@ -256,6 +257,7 @@ class BackupRepository(
         addedAt = addedAt,
         tagMatch = tagMatch,
         locationMatch = locationMatch,
+        tagContains = tagMatch && !locationMatch && tagContains,
         forceBlock = forceBlock && listType == ListType.BLACK,
     )
 

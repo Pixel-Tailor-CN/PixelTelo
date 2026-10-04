@@ -30,7 +30,7 @@ data class QueryResponse(
     val isSpam: Boolean,
     val tag: String = "",
     val confidence: Int,
-    val source: String,
+    val source: String = "",
     val data: PhoneLocationInfo? = null,
     @SerialName("feedback_token")
     val feedbackToken: String? = null,

@@ -434,4 +434,21 @@
     <string name="notification_feedback_text_not_marked">%1$s 未被识别为骚扰电话（数据源: %2$s）</string>
     <string name="notification_feedback_submitting">正在提交反馈…</string>
     <string name="notification_feedback_failed">反馈提交失败，可稍后在拦截记录详情中重试。</string>
+    <!-- 查询失败分类和逐条标签规则匹配方式 -->
+    <string name="result_query_failure">放行原因：%1$s</string>
+    <string name="query_failure_invalid_request">查询参数无效</string>
+    <string name="query_failure_auth">查询服务认证失败或访问被拒绝</string>
+    <string name="query_failure_invalid_response">查询响应格式不兼容</string>
+    <string name="query_failure_upstream_timeout">上游数据源查询超时</string>
+    <string name="query_failure_upstream_unavailable">查询服务或上游数据源暂不可用</string>
+    <string name="query_failure_feedback">查询服务签发反馈凭据失败</string>
+    <string name="query_advice_invalid_request">查询参数无效，请检查号码格式；若持续出现，请更新应用并反馈问题。</string>
+    <string name="query_advice_auth">查询服务拒绝访问，请检查服务配置和认证信息；使用官方服务时请稍后重试或反馈问题。</string>
+    <string name="query_advice_invalid_response">查询响应格式不兼容，请更新应用；使用自建服务时，请同时检查服务版本和接口配置。</string>
+    <string name="query_advice_upstream_timeout">查询服务等待上游数据源超时，请稍后重试，或在设置中切换可用数据源。</string>
+    <string name="query_advice_upstream_unavailable">查询服务或上游数据源暂时不可用，请稍后重试；也可检查服务配置或切换可用数据源。</string>
+    <string name="query_advice_feedback">查询服务无法签发反馈凭据，本次查询未完成。请稍后重试；若持续出现，请联系服务维护者。</string>
+    <string name="label_tag_exact">标签·精确匹配</string>
+    <string name="label_tag_contains">标签·包含匹配</string>
+    <string name="summary_tag_contains">包含匹配示例：“保险”可匹配“保险推销”。区分大小写，不支持正则或通配符；仅匹配离线库或联网识别标签，不匹配手写的本地标签。</string>
 </resources>

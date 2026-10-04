@@ -131,9 +131,16 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+/** 从 v10 升级到 v11：标签规则增加包含匹配选项，旧规则保持精确匹配。 */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `user_list` ADD COLUMN `tagContains` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class, LocalNumberLabel::class],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

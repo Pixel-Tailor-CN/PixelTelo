@@ -436,4 +436,21 @@
     <string name="notification_feedback_text_not_marked">%1$s was not identified as spam (source: %2$s).</string>
     <string name="notification_feedback_submitting">Submitting feedback…</string>
     <string name="notification_feedback_failed">Feedback failed. You can retry later from the record detail.</string>
+    <!-- 查询失败分类和逐条标签规则匹配方式 -->
+    <string name="result_query_failure">Allowed: %1$s</string>
+    <string name="query_failure_invalid_request">Invalid query parameters</string>
+    <string name="query_failure_auth">Query authentication failed or access denied</string>
+    <string name="query_failure_invalid_response">Incompatible query response</string>
+    <string name="query_failure_upstream_timeout">Upstream data source timed out</string>
+    <string name="query_failure_upstream_unavailable">Query service or upstream data source unavailable</string>
+    <string name="query_failure_feedback">Query service failed to issue feedback credentials</string>
+    <string name="query_advice_invalid_request">Check the phone number format. If this persists, update the app and report the issue.</string>
+    <string name="query_advice_auth">Access was denied. Check the service configuration and credentials. For the official service, retry later or report the issue.</string>
+    <string name="query_advice_invalid_response">The query response is incompatible. Update the app. For a self-hosted service, also check its version and API configuration.</string>
+    <string name="query_advice_upstream_timeout">The query service timed out waiting for an upstream data source. Retry later or select another available data source.</string>
+    <string name="query_advice_upstream_unavailable">The query service or an upstream data source is unavailable. Retry later, check the service configuration, or select another available data source.</string>
+    <string name="query_advice_feedback">The service could not issue feedback credentials, so the query did not complete. Retry later or contact the service maintainer if this persists.</string>
+    <string name="label_tag_exact">Tag · Exact match</string>
+    <string name="label_tag_contains">Tag · Contains</string>
+    <string name="summary_tag_contains">Example: “Insurance” matches “Insurance sales”. Case-sensitive; no regular expressions or wildcards. Matches offline or online identification tags, not handwritten local labels.</string>
 </resources>

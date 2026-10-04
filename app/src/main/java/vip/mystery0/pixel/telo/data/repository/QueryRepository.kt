@@ -17,6 +17,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 import vip.mystery0.pixel.telo.data.query.BackendQueryResponse
@@ -60,8 +61,26 @@ sealed interface FeedbackSubmitResult {
     data class RetryableFailure(val message: String?) : FeedbackSubmitResult
 }
 
-/** v2 接口返回的 HTTP 错误，message 优先携带官方服务响应体中的错误说明。 */
-class QueryApiException(val code: Int, message: String) : Exception(message)
+/** 仅接收已知稳定错误码，不将服务端正文传入查询提示或日志。 */
+enum class QueryErrorCode {
+    INVALID_REQUEST,
+    UPSTREAM_RATE_LIMITED,
+    UPSTREAM_TIMEOUT,
+    UPSTREAM_UNAVAILABLE,
+    FEEDBACK_TOKEN_FAILED,
+    INTERNAL_ERROR,
+}
+
+class QueryApiException(
+    val code: Int,
+    message: String,
+    val errorCode: QueryErrorCode? = null,
+    /** 仅保留官方响应中通过格式校验的请求标识，供脱敏日志关联。 */
+    val requestId: String? = null,
+) : Exception(message)
+
+/** 成功 HTTP 响应不符合查询 JSON 契约。 */
+class QueryResponseFormatException : Exception("Query response format is incompatible")
 
 /** 当前选择的 Backend 没有可用 Snapshot，调用方应直接 Fail Open。 */
 class BackendBlockedException : IOException("Query backend is unavailable")
@@ -240,14 +259,20 @@ class QueryRepository(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: HttpException) {
-                if (snapshot.type == QueryBackendType.SELF_HOSTED) {
-                    throw QueryApiException(exception.code(), "Query backend request failed")
-                }
-                // 官方接口保留既有可读错误说明；自建响应正文绝不进入异常消息。
+                val error = readQueryError(exception)
                 throw QueryApiException(
-                    exception.code(),
-                    serverErrorMessage(exception) ?: exception.message(),
+                    code = exception.code(),
+                    message = "Query backend request failed",
+                    errorCode = error?.code?.let { value ->
+                        QueryErrorCode.entries.firstOrNull { it.name == value }
+                    },
+                    requestId = error?.requestId?.takeIf {
+                        snapshot.type == QueryBackendType.OFFICIAL &&
+                            it.matches(Regex("[A-Za-z0-9_-]{1,64}"))
+                    },
                 )
+            } catch (_: SerializationException) {
+                throw QueryResponseFormatException()
             } catch (exception: IOException) {
                 // 保留断网、DNS、TLS 与连接失败，供上层显示准确的连接错误分类。
                 throw exception
@@ -478,7 +503,17 @@ class QueryRepository(
         )
     }
 
-    /** 从官方 HTTP 错误响应体中解析错误说明，响应体缺失或格式不符时返回 null。 */
+    /** 错误体只用于白名单错误码映射；HTML、超大正文和未知字段均可安全回退 HTTP 分类。 */
+    private fun readQueryError(exception: HttpException): QueryErrorResponse? = runCatching {
+        exception.response()?.errorBody()?.use { body ->
+            val source = body.source()
+            source.request(4097)
+            if (source.buffer.size > 4096) null
+            else json.decodeFromString<QueryErrorResponse>(source.readUtf8())
+        }
+    }.getOrNull()
+
+    /** 官方反馈提交沿用既有错误说明；查询失败不使用此正文。 */
     private fun serverErrorMessage(exception: HttpException): String? {
         return runCatching {
             val body = exception.response()?.errorBody()?.string()

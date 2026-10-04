@@ -60,6 +60,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import me.zhanghai.compose.preference.PreferenceCategory
 import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.util.queryFailureSummaryRes
+import vip.mystery0.pixel.telo.util.queryFailureAdviceRes
 import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
 import vip.mystery0.pixel.telo.data.query.QueryBackendState
 import vip.mystery0.pixel.telo.data.query.SelfHostedConnectionState
@@ -657,7 +659,16 @@ fun SettingsScreen(
                                 R.string.label_none
                             )
                         })
-                        Text(stringResource(R.string.label_result_type) + result.resultType.name)
+                        val failureSummary = result.resultType.queryFailureSummaryRes()
+                        Text(stringResource(R.string.label_result_type) +
+                            (failureSummary?.let { stringResource(it) } ?: result.resultType.name))
+                        if (failureSummary != null) {
+                            Text(
+                                stringResource(result.resultType.queryFailureAdviceRes()),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                         Text(stringResource(R.string.label_local_cost) + "${result.localCost}ms")
                         Text(stringResource(R.string.label_network_cost) + "${result.networkCost}ms")
                         Row(

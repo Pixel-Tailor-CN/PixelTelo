@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SheetValue
@@ -67,6 +70,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -423,7 +427,34 @@ private fun RuleFormContent(viewModel: ListViewModel, ruleType: RuleType) {
             }
         }
 
-        RuleType.TAG -> Unit
+        RuleType.TAG -> {
+            Column(Modifier.selectableGroup()) {
+                listOf(false, true).forEach { contains ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().selectable(
+                            selected = viewModel.inputTagContains == contains,
+                            onClick = { viewModel.inputTagContains = contains },
+                            role = Role.RadioButton,
+                        ).padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        RadioButton(
+                            selected = viewModel.inputTagContains == contains,
+                            onClick = null,
+                        )
+                        Text(stringResource(
+                            if (contains) R.string.label_tag_contains else R.string.label_tag_exact
+                        ))
+                    }
+                }
+                Text(
+                    stringResource(R.string.summary_tag_contains),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
 
         RuleType.LOCATION -> {
             Text(
@@ -605,7 +636,10 @@ private fun UserListEntryItem(entry: UserListEntry, invalid: Boolean, onClick: (
                             shape = MaterialTheme.shapes.small
                         ) {
                             Text(
-                                text = stringResource(R.string.label_tag_match),
+                                text = stringResource(
+                                    if (entry.tagContains) R.string.label_tag_contains
+                                    else R.string.label_tag_exact
+                                ),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)

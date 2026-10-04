@@ -20,6 +20,7 @@ import vip.mystery0.pixel.telo.data.MIGRATION_6_7
 import vip.mystery0.pixel.telo.data.MIGRATION_7_8
 import vip.mystery0.pixel.telo.data.MIGRATION_8_9
 import vip.mystery0.pixel.telo.data.MIGRATION_9_10
+import vip.mystery0.pixel.telo.data.MIGRATION_10_11
 import vip.mystery0.pixel.telo.data.remote.OfficialFeedbackApi
 import vip.mystery0.pixel.telo.data.remote.QueryApi
 import vip.mystery0.pixel.telo.data.remote.SyncApi
@@ -61,7 +62,8 @@ val appModule = module {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
-                MIGRATION_9_10
+                MIGRATION_9_10,
+                MIGRATION_10_11
             )
             .build()
     }

@@ -61,9 +61,13 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   `shouldBlock = false`、`PASS_BUT_NOTIFY` 和 `isIdentityProfile = true`，其他来源仍返回拦截。
   `isIdentityProfile` 仅用于允许 Directory 展示放行资料，不改变数据库结构或 Service 名单策略。
 * `SpamNumberRepository` 继续负责黑白名单、本地离线库和最终拦截决策。联网查询沿用用户配置并夹紧到
-  1 至 10 秒的超时；所有联网失败统一放行，并把超时、HTTP 429、其他服务响应异常、网络连接失败及
-  Backend 不可用映射为独立 `ResultType`。日志只记录稳定分类与耗时，历史记录、重试对话框和 Overlay
-  使用对应本地化文案。
+  1 至 10 秒的超时；所有联网失败统一放行。`NetworkFailureClassifier` 优先按稳定错误码区分参数错误、
+  上游限流/超时/不可用、反馈凭据签发失败、内部异常；未知或缺失错误码按 HTTP 状态兜底，另外区分
+  认证失败、响应格式不兼容、连接失败及 Backend 不可用。错误体最多解析 4 KiB，不匹配异常正文。
+  日志仅记录稳定分类、HTTP 状态、已知错误码、耗时和通过格式校验的官方 `request_id`，不记录自建
+  请求标识、响应正文或敏感信息。历史记录、重试、手动测试和 Overlay 共享本地化文案。
+* 查询成功响应中的 `source` 可省略（Mast 使用 `omitempty`），客户端以空字符串兼容；必要的
+  `phone`、`is_spam`、`confidence` 仍严格校验，格式错误不伪装成查询成功。
 
 ### source 与反馈隔离
 
@@ -93,6 +97,15 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 * 中国号码与已确认和多号场景仍由 `PhoneNumberNormalizer` 负责国内查询域的标准化，随后才进入
   `MastDatabase` 和按设置决定的联网查询。Settings 的 Test Intercept 调用与
   `CallScreeningService` 相同的 `checkSpam()` 入口，并遵循相同的查询设置。
+
+### 标签规则匹配
+
+* 每条黑白名单标签规则有独立的 `tagContains` 选项：默认精确匹配，开启后按区分大小写的字面包含匹配；
+  不解释正则或通配符，空白关键词不命中。仅匹配离线库或联网识别的标签，不读取手写本地标签。
+* 同一名单内精确规则优先，包含规则按关键词长度降序、ID 升序选择，避免多个命中规则的强制拦截状态不确定；
+  黑白名单之间的原有优先级不变。同一关键词仍为一条规则，匹配方式通过编辑修改。
+* AppDatabase schema v11 新增 `tagContains`，v10→v11 为所有旧规则填入 false；备份格式 v6 携带
+  `tag_contains`，旧备份缺省 false，非标签规则恢复时清除此选项。
 
 ### 凭据与配置
 
