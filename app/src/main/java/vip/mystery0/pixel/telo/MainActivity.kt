@@ -14,6 +14,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import vip.mystery0.pixel.telo.viewmodel.CallReportViewModel
+import vip.mystery0.pixel.telo.viewmodel.MyReportsViewModel
+import vip.mystery0.pixel.telo.ui.screen.MyReportsScreen
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -53,6 +59,8 @@ import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelsViewModel
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 class MainActivity : ComponentActivity() {
+    private val callReportViewModel: CallReportViewModel by viewModels()
+    private val myReportsViewModel: MyReportsViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
     private val listViewModel: ListViewModel by viewModels()
     private val settingViewModel: SettingViewModel by viewModels()
@@ -80,12 +88,26 @@ class MainActivity : ComponentActivity() {
                     .collectAsStateWithLifecycle()
                 var showClearRecordsDialog by remember { mutableStateOf(false) }
                 var showLocalNumberLabelsScreen by rememberSaveable { mutableStateOf(false) }
+                var showMyReportsScreen by rememberSaveable { mutableStateOf(false) }
+                var homeMenuOpen by remember { mutableStateOf(false) }
+                fun openMyReports() {
+                    homeMenuOpen = false
+                    showClearRecordsDialog = false
+                    homeViewModel.closeQuickAdd()
+                    callReportViewModel.close()
+                    showLocalNumberLabelsScreen = false
+                    showMyReportsScreen = true
+                }
+                BackHandler(enabled = showMyReportsScreen) { showMyReportsScreen = false }
                 val showPairingScreen = settingViewModel.showSelfHostedSettings &&
                     settingViewModel.selfHostedConfigEditing
 
                 LaunchedEffect(showPairingScreen) {
                     // 从主页告警进入配对后，取消和成功均回到设置页。
-                    if (showPairingScreen) pagerState.requestScrollToPage(AppDestinations.SETTINGS.ordinal)
+                    if (showPairingScreen) {
+                        showMyReportsScreen = false
+                        pagerState.requestScrollToPage(AppDestinations.SETTINGS.ordinal)
+                    }
                 }
                 BackHandler(enabled = showPairingScreen) {
                     settingViewModel.closeSelfHostedConfig()
@@ -109,6 +131,8 @@ class MainActivity : ComponentActivity() {
                                     stringResource(
                                         if (showPairingScreen) {
                                             R.string.title_self_hosted_pairing
+                                        } else if (showMyReportsScreen) {
+                                            R.string.community_my_reports
                                         } else if (showLocalNumberLabelsScreen) {
                                             R.string.title_local_number_labels
                                         } else {
@@ -126,6 +150,11 @@ class MainActivity : ComponentActivity() {
                                         Icon(Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = stringResource(R.string.action_back))
                                     }
+                                } else if (showMyReportsScreen) {
+                                    IconButton(onClick = { showMyReportsScreen = false }) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = stringResource(R.string.action_back))
+                                    }
                                 } else if (showLocalNumberLabelsScreen) {
                                     IconButton(onClick = { closeLocalNumberLabelsScreen() }) {
                                         Icon(
@@ -136,8 +165,18 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             actions = {
+                                if (!showMyReportsScreen && !showLocalNumberLabelsScreen && !showPairingScreen &&
+                                    currentDestination == AppDestinations.HOME) {
+                                    IconButton(onClick = { homeMenuOpen = true }) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.community_home_menu))
+                                    }
+                                    DropdownMenu(expanded = homeMenuOpen, onDismissRequest = { homeMenuOpen = false }) {
+                                        DropdownMenuItem(text = { Text(stringResource(R.string.community_my_reports)) },
+                                            onClick = ::openMyReports)
+                                    }
+                                }
                                 if (
-                                    !showLocalNumberLabelsScreen && !showPairingScreen &&
+                                    !showMyReportsScreen && !showLocalNumberLabelsScreen && !showPairingScreen &&
                                     currentDestination == AppDestinations.HOME &&
                                     hasBlockedCallRecords
                                 ) {
@@ -154,7 +193,7 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     bottomBar = {
-                        if (!showLocalNumberLabelsScreen && !showPairingScreen) {
+                        if (!showMyReportsScreen && !showLocalNumberLabelsScreen && !showPairingScreen) {
                             NavigationBar {
                                 AppDestinations.entries.forEach { destination ->
                                     NavigationBarItem(
@@ -184,6 +223,8 @@ class MainActivity : ComponentActivity() {
                             viewModel = settingViewModel,
                             modifier = Modifier.padding(innerPadding).fillMaxSize(),
                         )
+                    } else if (showMyReportsScreen) {
+                        MyReportsScreen(myReportsViewModel, Modifier.padding(innerPadding).fillMaxSize())
                     } else if (showLocalNumberLabelsScreen) {
                         LocalNumberLabelsScreen(
                             viewModel = localNumberLabelsViewModel,
@@ -205,6 +246,8 @@ class MainActivity : ComponentActivity() {
                                     HomeScreen(
                                         viewModel = homeViewModel,
                                         localLabelEditorViewModel = localNumberLabelEditorViewModel,
+                                        callReportViewModel = callReportViewModel,
+                                        onNavigateToMyReports = ::openMyReports,
                                         onNavigateToSettings = {
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(
@@ -244,6 +287,7 @@ class MainActivity : ComponentActivity() {
                                 AppDestinations.SETTINGS -> {
                                     SettingsScreen(
                                         viewModel = settingViewModel,
+                                        onNavigateToMyReports = ::openMyReports,
                                         onNavigateToLocalNumberLabels = {
                                             showLocalNumberLabelsScreen = true
                                         },

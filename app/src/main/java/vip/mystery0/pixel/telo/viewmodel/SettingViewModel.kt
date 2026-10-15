@@ -131,6 +131,9 @@ class SettingViewModel : ViewModel(), KoinComponent {
     private val selfHostedConfigRepository: SelfHostedConfigRepository by inject()
     private val prefs: SharedPreferences by inject()
     private val localNumberLabelPreferences: LocalNumberLabelPreferences by inject()
+    private val communityPreferences: vip.mystery0.pixel.telo.data.preferences.CommunityReportPreferences by inject()
+    val blockCommunityReports: StateFlow<Boolean> get() = communityPreferences.blockEnabled
+    fun updateBlockCommunityReports(enabled: Boolean) = communityPreferences.setBlockEnabled(enabled)
     private val context: Context by inject()
 
     // Backup / Restore State
@@ -559,7 +562,11 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 city = result.locationInfo?.city,
                 querySource = result.querySource,
                 queryBackendId = result.queryBackendId,
-                feedbackToken = result.feedbackToken
+                feedbackToken = result.feedbackToken,
+                feedbackPhone = result.feedbackPhone,
+                feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
+                communityStatus = result.communityStatus,
+                communityBlockApplied = false,
             )
             hideTestDialog()
             syncStatusMessage = context.getString(R.string.msg_recorded_to_intercept_list)

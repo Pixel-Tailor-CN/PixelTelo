@@ -24,7 +24,7 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
   不得短路、缩短或替代离线/联网查询，也不得回写 `CheckResult`。
 * 显示开关开启时，本地标签与识别查询并行读取；本地标签只参与最终 Cursor 展示。
 * 组合显示名由 `NumberLabelPresentation.directoryDisplayName()` 生成，格式为
-  `本地 · 数据源`。空白标签丢弃；仅有一项时只显示该项。所有 `DISPLAY_NAME` 与自定义
+  `本地 · 数据源 · 社区提示`。社区提示为独立可空字段，不回写来源标签。空白标签丢弃；仅有一项时只显示该项。所有 `DISPLAY_NAME` 与自定义
   `LABEL` 字段使用同一个显示名。
 * 是否返回 Directory 行与组合显示名分离：
     * 现有识别结果应拦截时，即使组合名为空也必须返回身份记录，显示名回退为原
@@ -32,7 +32,8 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
     * 仅有本地标签的安全号码（`shouldBlock == false`）可以返回 Directory 身份记录。
     * 离线 `source == "pixel_text_hub"` 且未命中前置名单规则时，作为身份资料放行，
       `CheckResult.isIdentityProfile` 标记其名称可展示；即使没有本地标签，也返回包含机构名称的记录。
-    * 既不应拦截、又无可展示的身份资料名称或本地标签时返回空 Cursor。
+    * 官方社区仅提示时，即使没有其他标签也返回身份记录；保留原识别名称。
+    * 既不应拦截、又无可展示的身份资料名称、本地标签或有效社区提示时返回空 Cursor。
 * 本地标签查询失败按无标签降级，不得中断识别或影响来电侧 `respondToCall()`。
 
 ### 验证
@@ -57,6 +58,12 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
   拦截结果，也不影响 `respondToCall()`。
 * 悬浮窗控制器由 Koin 以进程级单例提供，使 `CallScreeningService` 与 `CallStateReceiver`
   操作同一个窗口实例；设置页的位置预览仍使用独立实例，避免影响真实来电状态。
+
+### 社区提示时效
+
+* Directory 最终组装和 Overlay 渲染前校验社区代次与 60 秒有效窗口；只清除失效社区部分，保留原来源和本地标签。
+* Overlay 两种样式均有独立社区文本行；已显示窗口随代次变化或期限届满移除该行，不延长窗口寿命、不自动开启 Overlay。
+* 本机提交／撤回后发送 Directory notifyChange；系统拨号器刷新时机依赖设备，需 Google Pixel 真机验证。
 
 ### 通话状态震动
 
@@ -119,12 +126,16 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
       正常响铃并记录为 `PASS`。两种放行策略的记录备注必须明确标注实际处理方式。
     * Settings 中的 Test Intercept 通过同一个 `SpamNumberRepository.checkSpam()` 决策入口执行，
       不再强制联网，因此与 `CallScreeningService` 使用相同的名单优先级、国际号码门禁和查询设置。
+    * **社区拦截**：仅官方 ACTIVE 且独立开关开启时作为新增候选；不设置 forceBlock，仍遵守前置规则、全局仅提示和重复来电策略。
+      使用 `INTERCEPT` 保持既有计数。最终 `respondToCall` 前再次校验社区代次和开关，旧增强不能重新拒接。
 5. **动作**: 调用 `respondToCall`。
     * 如果被拦截，设置 `skipCallLog` 为 `false`（确保拦截记录出现在历史记录中）并设置 `disallowCall` 为
       `true`。
 6. **落库**: 按现有记录策略写入 `BlockedCall` 时，一并保存 v2 响应中的 `querySource` 与
    `feedbackToken`（状态 `PENDING`）；本地命中、黑白名单命中与所有联网失败没有 token，状态保持
-   `UNAVAILABLE`。不为反馈扩大记录范围。本地标签不得写入或覆盖 `BlockedCall.label`。
+   `UNAVAILABLE`。不为反馈或上报扩大记录范围。本地标签不得写入或覆盖 `BlockedCall.label`。
+   官方凭据同时保存原响应号码及到期提示；社区查询结论仅作为历史快照。`communityBlockApplied` 在系统响应发出后
+   才确认真实社区拒接；仅提示、重复放行和手动测试均为 false。撤回不改写已完成的历史处置。
 7. **通话结束反馈提醒**: 放行且记录带 token 的来电，筛查时把记录 id 写入 `SharedPreferences`
    标记；`receiver/CallStateReceiver`（需 `READ_PHONE_STATE`）监听 `PHONE_STATE` 回到 IDLE 后，
    经 `QueryFeedbackNotifier` 弹出通知，内容含号码、标签与数据源，提供“结果准确/结果不准确”

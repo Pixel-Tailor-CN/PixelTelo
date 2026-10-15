@@ -11,6 +11,9 @@ data class IncomingCallOverlayContent(
     val locationText: String,
     val localLabelText: String?,
     val sourceLabelText: String?,
+    val communityLabelText: String? = null,
+    val communityEpoch: Long = -1,
+    val communityReceivedAtElapsedMs: Long = -1,
 )
 
 object IncomingCallOverlayFormatter {
@@ -36,12 +39,15 @@ object IncomingCallOverlayFormatter {
         locationText: String,
         localLabel: String?,
         sourceLabel: String?,
+        communityLabel: String? = null,
     ): IncomingCallOverlayContent {
         return IncomingCallOverlayContent(
             phoneNumber = phoneNumber.trim().ifEmpty { phoneNumber },
             locationText = locationText.trim().ifEmpty { locationText },
             localLabelText = localLabel?.trim()?.takeIf { it.isNotEmpty() },
             sourceLabelText = sourceLabel?.trim()?.takeIf { it.isNotEmpty() },
+            communityLabelText = communityLabel,
+
         )
     }
 }

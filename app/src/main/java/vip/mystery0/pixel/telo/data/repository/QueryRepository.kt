@@ -103,6 +103,7 @@ class QueryRepository(
     private val backendProvider: QueryBackendProvider,
     private val officialFeedbackApi: OfficialFeedbackApi,
     private val preferences: SharedPreferences,
+    private val communityEpoch: vip.mystery0.pixel.telo.data.query.CommunityQueryEpoch,
 ) {
     companion object {
         private const val LEGACY_SOURCE_CONFIG_KEY = "query_source_config"
@@ -254,6 +255,7 @@ class QueryRepository(
                 }
             }
             lease.ensureUsable()
+            val requestEpoch = communityEpoch.current()
             val response = try {
                 snapshot.queryApi.queryNumber(QueryRequest(phone, sources))
             } catch (exception: CancellationException) {
@@ -282,10 +284,12 @@ class QueryRepository(
                 }
                 throw exception
             }
+            val receivedAt = android.os.SystemClock.elapsedRealtime()
             lease.ensureUsable()
             updateInvalidSources(snapshot, response)
             lease.ensureUsable()
-            return BackendQueryResponse.from(snapshot, response)
+            return BackendQueryResponse.from(snapshot, response, requestEpoch, receivedAt)
+                .withCurrentCommunity(communityEpoch)
         } finally {
             lease.close()
         }

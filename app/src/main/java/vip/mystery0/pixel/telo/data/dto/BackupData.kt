@@ -4,13 +4,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** 当前备份格式版本。新导出必须显式写入该值，不能依赖 data class 缺省。 */
-const val CURRENT_BACKUP_VERSION = 6
+const val CURRENT_BACKUP_VERSION = 7
 
 /**
  * 备份文件根结构，序列化为 ZIP 内的 backup.json。
  * version 2 起包含黑白名单数据；version 3 起黑名单条目包含 force_block 字段；
  * version 4 起拦截记录包含省份和城市；version 5 起包含本地号码标签。
  * version 6 起标签规则包含 tag_contains；旧备份缺省为 false，保持精确匹配。
+ * version 7 包含社区历史展示快照，不含安装身份、Token 或上报用途状态。
  * 旧版 v1–v4 缺少 local_number_labels 时按空列表处理。
  *
  * [version] 的 Kotlin 缺省值为 1：旧归档若省略 version 按 v1 解码，以保留
@@ -41,6 +42,8 @@ data class BlockedCallDto(
     val label: String? = null,
     val province: String? = null,
     val city: String? = null,
+    @SerialName("community_status") val communityStatus: String = "unknown",
+    @SerialName("community_block_applied") val communityBlockApplied: Boolean = false,
 )
 
 /**

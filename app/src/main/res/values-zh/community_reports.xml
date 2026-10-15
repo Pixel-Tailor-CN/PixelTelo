@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="community_my_reports">我的上报</string>
+    <string name="community_report_spam">上报骚扰</string>
+    <string name="community_report_confirm">将此号码和当前安装标识发送至官方服务，表示你认为它是骚扰电话。不上传通讯录或录音，也不会自动加入个人黑名单。</string>
+    <string name="community_report_sent">已提交此凭据的上报，可在“我的上报”查看当前状态。</string>
+    <string name="community_report_pending">正在提交…</string>
+    <string name="community_official_history">此页管理当前安装提交给官方的上报，与当前查询服务器选择无关。</string>
+    <string name="community_identity_notice">卸载或清除数据后将失去旧上报的管理权，手动备份也不包含该身份。</string>
+    <string name="community_stale_list">保留上次读取的记录，可能不是最新状态，请刷新核实。</string>
+    <string name="community_empty">当前安装暂无上报记录</string>
+    <string name="community_refresh">刷新并回到最新</string>
+    <string name="community_load_more">加载更多</string>
+    <string name="community_withdraw">撤回上报</string>
+    <string name="community_delete_history">删除历史</string>
+    <string name="community_withdraw_confirm">撤回对 %1$s 的上报？这只移除当前安装的贡献，历史记录仍会保留。</string>
+    <string name="community_delete_confirm">删除 %1$s 的已撤回历史？此操作删除服务端历史，不影响其他设备的上报。</string>
+    <string name="community_active_report">我的上报：有效</string>
+    <string name="community_withdrawn_report">我的上报：已撤回</string>
+    <string name="community_unknown_report">我的上报：未知状态，请刷新</string>
+    <string name="community_reported_at">上报时间：%1$s</string>
+    <string name="community_withdrawn_at">撤回时间：%1$s</string>
+    <string name="community_active">社区标记：已生效</string>
+    <string name="community_inactive">社区标记：未生效</string>
+    <string name="community_unavailable">社区标记：暂不可用</string>
+    <string name="community_unknown">社区标记：未提供</string>
+    <string name="community_label">社区骚扰提示</string>
+    <string name="community_snapshot">历史快照：%1$s</string>
+    <string name="community_query_snapshot">本次查询快照：%1$s</string>
+    <string name="community_block_applied">当时因社区标记拦截</string>
+    <string name="community_block_setting">拦截社区标记号码</string>
+    <string name="community_block_summary">默认仅提示。仅官方在线查询提供社区标记，开启后仍遵循“仅提示不拦截”和名单规则。</string>
+    <string name="community_backup_notice">系统备份及设备迁移不包含通话记录、名单和本地标签，请使用本页手动备份。手动备份包含社区历史展示，不包含上报身份或反馈凭据。</string>
+    <string name="community_reset_identity">建立新上报身份</string>
+    <string name="community_reset_confirm">当前身份无法使用。建立新身份后无法再查询、撤回或删除旧身份的上报，且不能恢复。是否继续？</string>
+    <string name="community_error_token">此记录没有可用于上报的官方凭据，不会自动查询或补领。</string>
+    <string name="community_error_expired">上报凭据已过期，仍可在“我的上报”查询、撤回和删除。</string>
+    <string name="community_error_used">此凭据已用于上报，请到“我的上报”查看；质量反馈不受影响。</string>
+    <string name="community_error_request">请求不可用，请刷新后重试。</string>
+    <string name="community_error_withdraw_first">请先撤回此上报，再删除历史。</string>
+    <string name="community_error_missing">记录已不存在，请刷新。</string>
+    <plurals name="community_error_limited">
+        <item quantity="other">操作过于频繁，请等待约 %1$d 秒后重试。</item>
+    </plurals>
+    <string name="community_error_unavailable">服务暂不可用，可稍后重试。其他管理操作可能仍然可用。</string>
+    <string name="community_error_unsupported">服务暂不支持此功能。</string>
+    <string name="community_error_network">连接失败，请检查网络后重试。</string>
+    <string name="community_error_response">服务返回的数据无法识别，请刷新核实。</string>
+    <string name="community_error_identity">当前安装的上报身份无法读取。旧记录不会被显示为空列表。</string>
+    <string name="community_error_local">本地状态暂不可用，请稍后重试。</string>
+    <string name="community_error_internal">操作未能完成，请稍后重试。</string>
+    <string name="community_result_uncertain">服务端可能已处理该操作，请刷新“我的上报”核实结果。</string>
+    <string name="community_home_menu">首页操作</string>
+</resources>

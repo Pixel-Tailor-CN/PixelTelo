@@ -151,18 +151,22 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
                 } else {
                     null
                 }
-                val result = spamNumberRepository.checkSpam(filter)
+                val checked = spamNumberRepository.checkSpam(filter)
                 val localLabel = awaitLocalLabelOrNull(localLabelDeferred)
+                val result = spamNumberRepository.currentCommunityResult(checked)
+                val communityLabel = if (result.communityStatus == vip.mystery0.pixel.telo.data.model.CommunityStatus.ACTIVE)
+                    context?.getString(R.string.community_label) else null
                 val sourceLabel = result.label.takeIf {
-                    (result.shouldBlock || result.isIdentityProfile) && it.isNotBlank()
+                    (result.shouldBlock || result.isIdentityProfile || communityLabel != null) && it.isNotBlank()
                 }
                 val presentedName = NumberLabelPresentation(
                     localLabel = localLabel,
                     sourceLabel = sourceLabel,
+                    communityLabel = communityLabel,
                 ).directoryDisplayName()
 
                 // 身份资料放行后仍展示名称；拦截结果即使无标签也必须返回行。
-                if (!result.shouldBlock && sourceLabel == null && localLabel == null) {
+                if (!result.shouldBlock && sourceLabel == null && localLabel == null && communityLabel == null) {
                     Log.i(TAG, "Phone number has no directory label")
                     return@coroutineScope emptyCursor
                 }

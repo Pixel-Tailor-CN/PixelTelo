@@ -8,10 +8,12 @@ package vip.mystery0.pixel.telo.data.model
 data class NumberLabelPresentation(
     val localLabel: String?,
     val sourceLabel: String?,
+    val communityLabel: String? = null,
 ) {
     fun directoryDisplayName(): String? = listOfNotNull(
         localLabel.cleanLabel(),
         sourceLabel.cleanLabel(),
+        communityLabel.cleanLabel(),
     ).joinToString(" · ").takeIf { it.isNotEmpty() }
 }
 

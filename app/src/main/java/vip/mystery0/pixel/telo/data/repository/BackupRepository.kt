@@ -224,6 +224,8 @@ class BackupRepository(
         label = label,
         province = province,
         city = city,
+        communityStatus = vip.mystery0.pixel.telo.data.model.parseCommunityStatus(communityStatus).storageValue,
+        communityBlockApplied = communityBlockApplied,
     )
 
     private fun BlockedCallDto.toEntity() = BlockedCall(
@@ -236,6 +238,8 @@ class BackupRepository(
         label = label,
         province = province,
         city = city,
+        communityStatus = vip.mystery0.pixel.telo.data.model.parseCommunityStatus(communityStatus).storageValue,
+        communityBlockApplied = communityBlockApplied && communityStatus == "active",
     )
 
     private fun UserListEntry.toDto() = UserListEntryDto(

@@ -138,9 +138,20 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+/** 从 v11 升级到 v12：社区历史快照与独立上报凭据状态。 */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `feedbackPhone` TEXT")
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `feedbackTokenExpiresAt` INTEGER")
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `reportTokenState` TEXT NOT NULL DEFAULT 'unknown'")
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `communityStatus` TEXT NOT NULL DEFAULT 'unknown'")
+        db.execSQL("ALTER TABLE `blocked_calls` ADD COLUMN `communityBlockApplied` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [BlockedCall::class, UserListEntry::class, LocalNumberLabel::class],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

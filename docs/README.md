@@ -48,11 +48,14 @@
 * 自建服务配对体验：
   [设计](plans/2026-09-27-self-hosted-pairing-design.md) ·
   [实施](plans/2026-09-27-self-hosted-pairing-implementation.md)（Issue #14，独立配对页面、JSON 粘贴与二维码扫描）
+* 社区骚扰上报与本机上报管理：
+  [App 设计](plans/2026-10-15-community-reports-app-design.md) ·
+  [App 实施计划](plans/2026-10-15-community-reports-app-plan.md)（Issue #16，客户端已实现；服务端联调、迁移与 Pixel 真机待验收）
 
 ### 架构与技术 (`architecture/`)
 
 * [MVVM 架构](architecture/mvvm-structure.md): 详细解释 MVVM、Backend Snapshot、网络 Client 隔离、
-  source/反馈归属、本地号码标签边界和 Repository 数据流。
+  source/反馈归属、社区上报及缓存时效、本地号码标签边界和 Repository 数据流。
 * [原生集成](architecture/native-integration.md): `Directory Provider`、本地标签组合展示和
   `CallScreeningService` 的实现细节。
 * [同步策略](architecture/sync-strategy.md): 数据库初始化、官方离线同步固定边界和实时查询 Fail Open 策略。
@@ -60,7 +63,7 @@
 ### 界面与体验 (`ui/`)
 
 * [主页规范](ui/main-screen.md): 主页面的空/已填充状态、数据完整性检查、source 下线提示、
-  自建安全告警和本地号码标签展示。
+  自建安全告警、本地号码标签展示和“我的上报”管理。
 * [通知规范](ui/notifications.md)：自动检查更新、通知权限及待验证的通知展示方案。
 
 ### 工作流 (`workflow/`)

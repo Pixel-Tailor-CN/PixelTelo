@@ -71,10 +71,17 @@ Pixel Telo 支持连接由用户自行部署的实时号码查询服务。自建
 部署完成后，在 Pixel Telo 中进入“设置 → 在线查询 → 实时查询服务器”，填写服务提供的 HTTPS 地址、Token
 及必要的 SPKI Pin，然后执行“测试并启用”。App 内的自建实例配置项旁也提供部署文档入口。
 
+#### 社区骚扰上报
+
+- 从已有来电记录确认“上报骚扰”，需要该记录的有效官方查询凭据；不自动补查或加入黑名单。
+- 首页菜单与设置共用“我的上报”：查看当前安装的官方历史、撤回有效上报、删除已撤回历史；与查询质量反馈独立。
+- 社区状态仅来自官方在线查询，默认只提示，可独立开启拦截，仍遵守名单和全局仅提示策略。
+- 安装身份不备份或迁移；卸载、清数据后无法管理旧身份上报。功能依赖 CR-1 服务端，当前仍待受控联调与 Pixel 真机验收。
+
 #### 数据管理
 
 - **离线数据库**: 支持云端版本检查及数据库下载/替换；增量更新能力取决于后端协议
-- **备份恢复**: 支持拦截记录、黑名单、白名单及本地号码标签的备份与恢复（当前格式 v5）
+- **备份恢复**: 手动备份支持拦截记录、黑名单、白名单及本地号码标签（当前格式 v7，兼容旧归档），含社区历史展示快照但不含身份或 Token；系统备份及设备迁移排除运行时数据库，请使用手动备份迁移上述数据
 - **黑白名单**: 自定义拦截规则，支持精确/前缀/标签匹配
 
 #### 系统集成
@@ -208,7 +215,7 @@ documentation link is also placed next to the self-hosted instance configuration
 #### Data Management
 
 - **Offline Database**: Check cloud versions and download/replace the database; incremental updates depend on the backend protocol
-- **Backup & Restore**: Backup and restore intercept records, blacklist, whitelist, and local number labels (current format v5)
+- **Backup & Restore**: Manual backup includes intercept records, blacklist, whitelist, local number labels, and historical community display (format v7, compatible with older archives), but no reporting identity or Tokens. System backup and device transfer exclude the runtime database; migrate these records through manual backup.
 - **Block/Allow Lists**: Custom blocking rules with exact/prefix/tag matching
 
 #### System Integration

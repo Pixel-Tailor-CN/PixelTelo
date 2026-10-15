@@ -20,6 +20,11 @@ import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.model.CommunityStatus
+import vip.mystery0.pixel.telo.data.preferences.CommunityReportPreferences
+import vip.mystery0.pixel.telo.data.query.CommunityQueryEpoch
+import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
+import vip.mystery0.pixel.telo.data.query.decodeCommunityQueryMetadata
 import vip.mystery0.pixel.telo.data.query.BackendQueryResponse
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
 import vip.mystery0.pixel.telo.data.query.QueryBackendSnapshot
@@ -43,6 +48,12 @@ data class CheckResult(
     val feedbackToken: String? = null,
     /** 离线身份资料仅提供名称，Directory 展示不依赖是否拦截。 */
     val isIdentityProfile: Boolean = false,
+    val communityStatus: CommunityStatus = CommunityStatus.UNKNOWN,
+    val communityBlockCandidate: Boolean = false,
+    val feedbackPhone: String? = null,
+    val feedbackTokenExpiresAt: Long? = null,
+    val communityEpoch: Long = -1,
+    val communityReceivedAtElapsedMs: Long = -1,
 )
 
 class SpamNumberRepository : KoinComponent {
@@ -57,6 +68,8 @@ class SpamNumberRepository : KoinComponent {
     private val queryRepository: QueryRepository by inject()
     private val queryBackendProvider: QueryBackendProvider by inject()
     private val prefs: SharedPreferences by inject()
+    private val communityPreferences: CommunityReportPreferences by inject()
+    private val communityEpoch: CommunityQueryEpoch by inject()
     private val userListRepository: UserListRepository by inject()
     private val contactRepository: ContactRepository by inject()
     private val queryReuseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -379,6 +392,7 @@ class SpamNumberRepository : KoinComponent {
             backendId = snapshot?.backendId,
             activationId = snapshot?.activationId,
             timeoutMs = timeoutMs,
+            communityEpoch = if (snapshot?.backendId == OFFICIAL_BACKEND_ID) communityEpoch.current() else 0,
         )
     }
 
@@ -399,7 +413,56 @@ class SpamNumberRepository : KoinComponent {
         }
     }
 
+    /** 失效时不取消共享请求，保留其 Provider 结论，仅阻止旧社区增强回灌。 */
+    suspend fun invalidateOfficialQueryReuse() {
+        queryReuseMutex.withLock {
+            completedNetworkQueries.keys.removeAll { it.backendId == OFFICIAL_BACKEND_ID }
+            inFlightNetworkQueries.keys.removeAll { it.backendId == OFFICIAL_BACKEND_ID }
+        }
+    }
+
+    /** 系统最终展示／处置前再次核对代次，撤回或关闭开关不能留下旧拦截决定。 */
+    fun currentCommunityResult(result: CheckResult): CheckResult {
+        val fresh = communityEpoch.isCurrent(result.communityEpoch, result.communityReceivedAtElapsedMs)
+        val cancelCommunityBlock = result.communityBlockCandidate &&
+            (!fresh || !communityPreferences.blockEnabled.value)
+        return result.copy(
+            communityStatus = if (fresh) result.communityStatus else CommunityStatus.UNKNOWN,
+            shouldBlock = if (cancelCommunityBlock) false else result.shouldBlock,
+            resultType = if (cancelCommunityBlock) ResultType.PASS_BUT_NOTIFY else result.resultType,
+            communityBlockCandidate = result.communityBlockCandidate && !cancelCommunityBlock,
+        )
+    }
+
     private suspend fun buildNetworkResult(
+        backendResponse: BackendQueryResponse,
+        localCost: Long,
+        networkCost: Long,
+    ): CheckResult {
+        val base = buildProviderNetworkResult(backendResponse, localCost, networkCost)
+        val metadata = decodeCommunityQueryMetadata(
+            backendResponse.response, backendResponse.backendId == OFFICIAL_BACKEND_ID,
+        )
+        val status = if (communityEpoch.isCurrent(
+                backendResponse.communityEpoch, backendResponse.receivedAtElapsedMs,
+            )) metadata.status else CommunityStatus.UNKNOWN
+        val block = status == CommunityStatus.ACTIVE && communityPreferences.blockEnabled.value &&
+            !base.shouldBlock && base.resultType == ResultType.PASS_BUT_NOTIFY
+        return currentCommunityResult(base.copy(
+            communityStatus = status,
+            communityBlockCandidate = block,
+            shouldBlock = base.shouldBlock || block,
+            resultType = if (block) ResultType.INTERCEPT else base.resultType,
+            label = if (status == CommunityStatus.ACTIVE && base.label.isBlank())
+                backendResponse.response.tag else base.label,
+            feedbackPhone = metadata.feedbackPhone,
+            feedbackTokenExpiresAt = metadata.feedbackTokenExpiresAt,
+            communityEpoch = backendResponse.communityEpoch,
+            communityReceivedAtElapsedMs = backendResponse.receivedAtElapsedMs,
+        ))
+    }
+
+    private suspend fun buildProviderNetworkResult(
         backendResponse: BackendQueryResponse,
         localCost: Long,
         networkCost: Long,
@@ -570,6 +633,7 @@ class SpamNumberRepository : KoinComponent {
         val backendId: String?,
         val activationId: Long?,
         val timeoutMs: Long,
+        val communityEpoch: Long,
     )
 
     private data class NetworkAttempt(

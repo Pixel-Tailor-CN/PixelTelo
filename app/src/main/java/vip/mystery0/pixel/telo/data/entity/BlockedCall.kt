@@ -30,6 +30,16 @@ data class BlockedCall(
     val feedbackToken: String? = null,
     /** 本地反馈状态 */
     val feedbackStatus: FeedbackStatus = FeedbackStatus.UNAVAILABLE,
+    /** 与反馈凭据同次查询取得的原号码，不参与备份。 */
+    val feedbackPhone: String? = null,
+    val feedbackTokenExpiresAt: Long? = null,
+    @androidx.room.ColumnInfo(defaultValue = "'unknown'")
+    val reportTokenState: String = "unknown",
+    /** 仅用于展示来电发生时的社区结论，不能用于新来电决策。 */
+    @androidx.room.ColumnInfo(defaultValue = "'unknown'")
+    val communityStatus: String = "unknown",
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val communityBlockApplied: Boolean = false,
 )
 
 /**

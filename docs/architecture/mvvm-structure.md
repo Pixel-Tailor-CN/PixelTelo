@@ -29,12 +29,14 @@ Pixel Telo 遵循 **MVVM (Model-View-ViewModel)** 架构模式，严格遵守 **
 
 ### 网络 Client 隔离
 
-网络层按用途划分为三个隔离边界：
+网络层按用途划分为以下隔离边界：
 
 * **官方离线同步 Client**：固定 Base URL，只创建 `SyncApi`，只供 `SyncRepository` 下载和检查
   `mast.db`；不接收 Backend、Token、Pin 或自建 URL。
 * **官方实时查询 Client**：固定 Base URL，创建 `QueryApi` 与 `OfficialFeedbackApi`。反馈 API 与官方
   查询共用该官方网络栈，但不进入自建 Client。
+* **官方社区管理 Client**：由官方查询 Client 派生，`officialCommunity` API 使用固定官方地址；关闭重定向、
+  连接重试并用一次性请求体阻止隐式重发，call timeout 为 15 秒，不依赖当前活动 Backend。
 * **自建实时查询 Client**：由 `SelfHostedQueryClientFactory` 根据已验证配置动态创建，不注册为固定
   Koin Retrofit 单例，也不复用官方 Client 的 Dispatcher、ConnectionPool、Cookie、Authenticator 或
   TLS 状态。示例 Base URL 只使用 `https://mast.example.com/`。
@@ -82,6 +84,24 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 * `BlockedCall`（AppDatabase schema v9）持久化 `queryBackendId`。Repository、首页 UI 与
   `FeedbackActionReceiver` 三层都只允许 `queryBackendId == "official"` 的有效 Token 进入官方反馈 API；
   自建记录固定为 `UNAVAILABLE`。
+
+### 社区上报与查询增强
+
+* `CommunityReportRepository` 统一提交、分页、撤回、删除和身份重建；CR-1 见[设计契约](../plans/2026-10-15-community-reports-app-design.md)。
+  只从记录读取已有官方 Token，核对绑定的 `feedbackPhone` 原字符串；云端列表是管理事实来源，不按号码归一化合并记录。
+* `ReportDeviceIdentityStore` 在 `noBackupFilesDir` 用 AtomicFile 保存 32 字节随机身份，请求编码为无 padding base64url。
+  管理请求与重建互斥，损坏返回显式错误，重建需要确认。ID 不进入 UI、备份、日志或 SavedState。
+* AppDatabase v12 增加独立 `reportTokenState`、凭据号码／到期信息与历史 `communityStatus`、`communityBlockApplied`。
+  上报用途与 `FeedbackStatus` 分离；Token 条件更新不会覆盖新凭据、备注或历史快照。手动重查只局部回写查询元数据。
+* 查询可选扩展以 JsonElement 独立容错；自建的 community、expiry 和 Token 在 Backend 边界全部清除。
+  社区状态不参与标签规则；`CommunityReportPreferences` 是默认关闭的社区拦截开关唯一来源。
+* `CommunityQueryEpoch` 和接收时单调时间保护共享、Direct、force、手动查询及最终展示，增强有效期最多 60 秒。
+  原始查询复用不缓存最终拦截决定。提交／撤回已发送时即使取消或响应丢失，也保守推进代次并移除官方复用，
+  不取消原 Provider 查询、不影响自建复用；随后只请求 Directory 刷新，不承诺系统立即刷新。
+* `CallReportViewModel` 隔离详情目标和提交代次；`MyReportsViewModel` 按 report_id 管理列表及写操作，
+  每页 20 条、最多保留 100 行，刷新或离页撤销旧分页发布；云端列表不落 Room。
+* 系统备份与设备迁移排除 `app-database` 及 WAL/SHM/journal，保留其他原有配置备份行为。
+  手动备份 v7 只导出社区历史展示，不导出身份、Token、feedbackPhone、到期信息或用途状态，恢复不填充实时缓存。
 
 ### 国际号码规则匹配与查询边界
 
@@ -174,7 +194,7 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
   删除；不提供任意号码新增。设置页以现有 HorizontalPager 的非底部二级页面进入，不增加
   `AppDestinations` 项，也不引入 Navigation Compose。
 * 备份格式 v5 把本地标签作为第四个独立选择范围。`BackupData.localNumberLabels` 缺省空列表
-  以兼容 v1–v4；新导出显式写入 `version = 5`。显示开关不进入备份。未选择该范围时恢复
+  以兼容 v1–v4；当前新导出显式写入 `CURRENT_BACKUP_VERSION`（v7）。显示开关不进入备份。未选择该范围时恢复
   不读取、不修改标签表。
 
 ## 依赖注入

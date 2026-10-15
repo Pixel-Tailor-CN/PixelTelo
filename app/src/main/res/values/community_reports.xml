@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="community_my_reports">My reports</string>
+    <string name="community_report_spam">Report spam</string>
+    <string name="community_report_confirm">Send this number and the current installation identifier to the official service to report it as spam. Contacts and recordings are not uploaded. This does not add the number to your blocklist.</string>
+    <string name="community_report_sent">This credential has been submitted. View My reports for the current status.</string>
+    <string name="community_report_pending">Submitting…</string>
+    <string name="community_official_history">Manage reports sent to the official service by this installation, regardless of the selected query server.</string>
+    <string name="community_identity_notice">Uninstalling or clearing app data loses access to previous reports. Manual backups do not include this identity.</string>
+    <string name="community_stale_list">Previously loaded records are shown and may be outdated. Refresh to verify.</string>
+    <string name="community_empty">No reports for this installation</string>
+    <string name="community_refresh">Refresh latest reports</string>
+    <string name="community_load_more">Load more</string>
+    <string name="community_withdraw">Withdraw report</string>
+    <string name="community_delete_history">Delete history</string>
+    <string name="community_withdraw_confirm">Withdraw your report for %1$s? Only this installation’s contribution is removed. The history remains.</string>
+    <string name="community_delete_confirm">Delete the withdrawn history for %1$s from the server? Other devices’ reports are not affected.</string>
+    <string name="community_active_report">My report: active</string>
+    <string name="community_withdrawn_report">My report: withdrawn</string>
+    <string name="community_unknown_report">My report: unknown status, please refresh</string>
+    <string name="community_reported_at">Reported: %1$s</string>
+    <string name="community_withdrawn_at">Withdrawn: %1$s</string>
+    <string name="community_active">Community label: active</string>
+    <string name="community_inactive">Community label: inactive</string>
+    <string name="community_unavailable">Community label: unavailable</string>
+    <string name="community_unknown">Community label: not provided</string>
+    <string name="community_label">Community spam warning</string>
+    <string name="community_snapshot">Historical snapshot: %1$s</string>
+    <string name="community_query_snapshot">Query snapshot: %1$s</string>
+    <string name="community_block_applied">Blocked due to the community status at that time</string>
+    <string name="community_block_setting">Block community-marked numbers</string>
+    <string name="community_block_summary">Warnings only by default. Community labels are available from official online queries. Notify-only mode and list rules still apply.</string>
+    <string name="community_backup_notice">System backup and device transfer exclude call records, lists and local labels. Use manual backup here. It includes historical community display, but not reporting identity or feedback credentials.</string>
+    <string name="community_reset_identity">Create a new reporting identity</string>
+    <string name="community_reset_confirm">The current identity cannot be used. Creating a new one permanently loses access to view, withdraw or delete reports under the old identity. Continue?</string>
+    <string name="community_error_token">This record has no usable official reporting credential. No automatic query or renewal will be performed.</string>
+    <string name="community_error_expired">The reporting credential has expired. You can still view, withdraw and delete reports in My reports.</string>
+    <string name="community_error_used">This credential has been used for reporting. Check My reports. Query quality feedback is independent.</string>
+    <string name="community_error_request">The request is unavailable. Refresh and try again.</string>
+    <string name="community_error_withdraw_first">Withdraw this report before deleting its history.</string>
+    <string name="community_error_missing">The record no longer exists. Please refresh.</string>
+    <plurals name="community_error_limited">
+        <item quantity="one">Too many requests. Wait about %1$d second before trying again.</item>
+        <item quantity="other">Too many requests. Wait about %1$d seconds before trying again.</item>
+    </plurals>
+    <string name="community_error_unavailable">The service is temporarily unavailable. Other management actions may still be available.</string>
+    <string name="community_error_unsupported">The service does not support this feature yet.</string>
+    <string name="community_error_network">Connection failed. Check your network and try again.</string>
+    <string name="community_error_response">The response could not be understood. Refresh to verify the result.</string>
+    <string name="community_error_identity">The reporting identity for this installation cannot be read. Previous records have not been replaced with an empty list.</string>
+    <string name="community_error_local">Local state is unavailable. Try again later.</string>
+    <string name="community_error_internal">The operation could not be completed. Try again later.</string>
+    <string name="community_result_uncertain">The server may have processed this operation. Refresh My reports to verify the result.</string>
+    <string name="community_home_menu">Home actions</string>
+</resources>

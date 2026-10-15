@@ -54,6 +54,8 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         val callTime = callDetails.creationTimeMillis.takeIf { it > 0 }
             ?: System.currentTimeMillis()
         var callRejected = false
+        var communityDecision: CheckResult? = null
+        var communityRecordId: Long? = null
 
         runBlocking(Dispatchers.IO) {
             try {
@@ -72,7 +74,11 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                     } else {
                         null
                     }
-                    val result = spamNumberRepository.checkSpam(phoneNumber)
+                    val result = spamNumberRepository.currentCommunityResult(spamNumberRepository.checkSpam(phoneNumber))
+                    val displayLabel = result.label.ifBlank {
+                        if (result.communityStatus == vip.mystery0.pixel.telo.data.model.CommunityStatus.ACTIVE)
+                            getString(R.string.community_label) else ""
+                    }
                     Log.i(
                         TAG,
                         "Screen result: shouldBlock=${result.shouldBlock}, " +
@@ -90,7 +96,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
 
                         blockedCallRepository.insert(
                             phoneNumber,
-                            remark = result.label,
+                            remark = displayLabel,
                             ResultType.BLACK_LIST,
                             result.localCost,
                             result.networkCost,
@@ -99,10 +105,14 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             city = result.locationInfo?.city,
                             querySource = result.querySource,
                             queryBackendId = result.queryBackendId,
-                            feedbackToken = result.feedbackToken
+                            feedbackToken = result.feedbackToken,
+                            feedbackPhone = result.feedbackPhone,
+                            feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
+                            communityStatus = result.communityStatus,
+                            communityBlockApplied = false,
                         )
                     } else if (repeatStrategy != null) {
-                        val repeatLabel = result.label.ifBlank {
+                        val repeatLabel = displayLabel.ifBlank {
                             getString(R.string.call_label_spam_default)
                         }
                         response.setDisallowCall(false)
@@ -135,7 +145,11 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             city = result.locationInfo?.city,
                             querySource = result.querySource,
                             queryBackendId = result.queryBackendId,
-                            feedbackToken = result.feedbackToken
+                            feedbackToken = result.feedbackToken,
+                            feedbackPhone = result.feedbackPhone,
+                            feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
+                            communityStatus = result.communityStatus,
+                            communityBlockApplied = false,
                         )
                         markFeedbackPromptIfEligible(recordId, result)
                     } else if (result.shouldBlock) {
@@ -148,7 +162,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                                 phoneNumber,
                                 remark = getString(
                                     R.string.call_remark_notify_only,
-                                    result.label,
+                                    displayLabel,
                                 ),
                                 ResultType.PASS_BUT_NOTIFY,
                                 result.localCost,
@@ -158,7 +172,11 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                                 city = result.locationInfo?.city,
                                 querySource = result.querySource,
                                 queryBackendId = result.queryBackendId,
-                                feedbackToken = result.feedbackToken
+                                feedbackToken = result.feedbackToken,
+                                feedbackPhone = result.feedbackPhone,
+                                feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
+                                communityStatus = result.communityStatus,
+                                communityBlockApplied = false,
                             )
                             markFeedbackPromptIfEligible(recordId, result)
                         } else {
@@ -167,10 +185,11 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                             response.setRejectCall(true)
                             response.setSkipCallLog(false)
 
-                            // 记录类型沿用检查结果，号码黑名单拒接时忠实记为 BLACK_LIST
-                            blockedCallRepository.insert(
+                            // 最终系统响应前还会再次检查社区代次，历史原因随后确认。
+                            if (result.communityBlockCandidate) communityDecision = result
+                            val recordId = blockedCallRepository.insert(
                                 phoneNumber,
-                                remark = result.label,
+                                remark = displayLabel,
                                 result.resultType,
                                 result.localCost,
                                 result.networkCost,
@@ -179,8 +198,13 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                                 city = result.locationInfo?.city,
                                 querySource = result.querySource,
                                 queryBackendId = result.queryBackendId,
-                                feedbackToken = result.feedbackToken
+                                feedbackToken = result.feedbackToken,
+                                feedbackPhone = result.feedbackPhone,
+                                feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
+                                communityStatus = result.communityStatus,
+                                communityBlockApplied = false,
                             )
+                            if (result.communityBlockCandidate) communityRecordId = recordId
                         }
                     } else {
                         response.setDisallowCall(false)
@@ -200,7 +224,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
                             val recordId = blockedCallRepository.insert(
                                 phoneNumber,
-                                remark = result.label.takeIf { it.isNotBlank() }
+                                remark = displayLabel.takeIf { it.isNotBlank() }
                                     ?: getString(R.string.call_remark_normal),
                                 ResultType.PASS,
                                 result.localCost,
@@ -210,7 +234,11 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                                 city = result.locationInfo?.city,
                                 querySource = result.querySource,
                                 queryBackendId = result.queryBackendId,
-                                feedbackToken = result.feedbackToken
+                                feedbackToken = result.feedbackToken,
+                                feedbackPhone = result.feedbackPhone,
+                                feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
+                                communityStatus = result.communityStatus,
+                                communityBlockApplied = false,
                             )
                             markFeedbackPromptIfEligible(recordId, result)
                         }
@@ -222,13 +250,25 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                         callRejected = callRejected,
                     )
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error checking spam, allowing call", e)
+            } catch (_: Exception) {
+                Log.e(TAG, "Error checking spam, allowing call")
+                callRejected = false
                 response.setDisallowCall(false)
                 response.setRejectCall(false)
                 response.setSkipCallLog(false)
             } finally {
+                if (communityDecision?.let { !spamNumberRepository.currentCommunityResult(it).shouldBlock } == true) {
+                    callRejected = false
+                    response.setDisallowCall(false).setRejectCall(false).setSkipCallLog(false)
+                }
                 respondToCall(callDetails, response.build())
+                communityRecordId?.let { id ->
+                    try {
+                        blockedCallRepository.finalizeCommunityDecision(id, callRejected)
+                    } catch (_: Exception) {
+                        Log.w(TAG, "Community decision history update failed")
+                    }
+                }
             }
         }
     }

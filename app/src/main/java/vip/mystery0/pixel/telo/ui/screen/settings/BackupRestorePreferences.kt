@@ -19,7 +19,8 @@ fun BackupRestorePreferences(
 ) {
     Preference(
         title = { Text(stringResource(R.string.setting_backup_records)) },
-        summary = { Text(stringResource(R.string.setting_backup_records_summary)) },
+        summary = { Text(stringResource(R.string.setting_backup_records_summary) + "\n" +
+            stringResource(R.string.community_backup_notice)) },
         icon = { Icon(Icons.Default.Backup, contentDescription = null) },
         onClick = viewModel::openBackupOptionsSheet
     )

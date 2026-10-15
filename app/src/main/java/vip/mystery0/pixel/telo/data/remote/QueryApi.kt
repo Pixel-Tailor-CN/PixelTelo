@@ -34,6 +34,9 @@ data class QueryResponse(
     val data: PhoneLocationInfo? = null,
     @SerialName("feedback_token")
     val feedbackToken: String? = null,
+    val community: kotlinx.serialization.json.JsonElement? = null,
+    @SerialName("feedback_token_expires_at")
+    val feedbackTokenExpiresAt: kotlinx.serialization.json.JsonElement? = null,
     @SerialName("query_mode")
     val queryMode: String = "v1",
     @SerialName("requested_sources")

@@ -88,6 +88,12 @@ import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.viewmodel.BlockedCallListItem
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import vip.mystery0.pixel.telo.util.textRes
+import vip.mystery0.pixel.telo.data.model.parseCommunityStatus
+import vip.mystery0.pixel.telo.data.model.CommunityStatus
+import vip.mystery0.pixel.telo.data.query.decodeCommunityQueryMetadata
 import vip.mystery0.pixel.telo.viewmodel.CurrentListState
 import vip.mystery0.pixel.telo.viewmodel.FeedbackSubmissionState
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
@@ -99,6 +105,8 @@ import vip.mystery0.pixel.telo.viewmodel.SelfHostedWarning
 fun HomeScreen(
     viewModel: HomeViewModel,
     localLabelEditorViewModel: LocalNumberLabelEditorViewModel,
+    callReportViewModel: vip.mystery0.pixel.telo.viewmodel.CallReportViewModel,
+    onNavigateToMyReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToSourceSettings: () -> Unit,
     onNavigateToSelfHostedSettings: () -> Unit,
@@ -260,6 +268,10 @@ fun HomeScreen(
                             Text(stringResource(if (resp.isSpam) R.string.label_is_spam_yes else R.string.label_is_spam_no))
                             if (resp.isSpam) Text("${stringResource(R.string.label_tag)}${resp.tag}")
                             Text("${stringResource(R.string.label_source)}${resp.source}")
+                            val community = decodeCommunityQueryMetadata(resp, state.call.queryBackendId == "official").status
+                            if (community != CommunityStatus.UNKNOWN) {
+                                Text(stringResource(R.string.community_query_snapshot, stringResource(community.textRes())))
+                            }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -338,6 +350,11 @@ fun HomeScreen(
 
     // 快捷添加黑白名单 BottomSheet
     viewModel.quickAddCall?.let { call ->
+        val reportState by callReportViewModel.state.collectAsState()
+        DisposableEffect(call.id) {
+            callReportViewModel.open(call.id)
+            onDispose { callReportViewModel.close() }
+        }
         val phone = call.phoneNumber
         val label = call.label?.takeIf { it.isNotBlank() }
         val contactName = contactNames[phone]
@@ -363,6 +380,7 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -406,6 +424,12 @@ fun HomeScreen(
                     call = call,
                     submissionState = viewModel.feedbackSubmissionState,
                     onSubmit = { positive -> viewModel.submitFeedback(call, positive) }
+                )
+                CommunityHistorySummary(call)
+                vip.mystery0.pixel.telo.ui.components.CommunityReportSection(
+                    state = reportState,
+                    onSubmit = callReportViewModel::submit,
+                    onOpenReports = onNavigateToMyReports,
                 )
                 LocalNumberLabelManagementSection(
                     state = localLabelEditorState,
@@ -847,6 +871,17 @@ private fun LazyListScope.blockedCallsList(
     }
 }
 
+@Composable
+private fun CommunityHistorySummary(call: BlockedCall) {
+    val community = parseCommunityStatus(call.communityStatus)
+    if (community != CommunityStatus.UNKNOWN || call.communityBlockApplied) {
+        Text(stringResource(R.string.community_snapshot, stringResource(community.textRes())),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (call.communityBlockApplied) Text(stringResource(R.string.community_block_applied),
+            style = MaterialTheme.typography.bodySmall)
+    }
+}
+
 private fun BlockedCall.locationText(): String? = listOfNotNull(
     province?.trim()?.takeIf { it.isNotEmpty() },
     city?.trim()?.takeIf { it.isNotEmpty() },
@@ -977,6 +1012,7 @@ fun BlockedCallItem(
                             )
                         }
 
+                        CommunityHistorySummary(call)
                         val sourceLabel = call.label?.takeIf { it.isNotBlank() }
                         if (sourceLabel != null) {
                             Text(

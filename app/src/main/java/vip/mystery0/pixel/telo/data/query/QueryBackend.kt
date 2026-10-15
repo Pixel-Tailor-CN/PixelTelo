@@ -111,6 +111,8 @@ class QueryBackendRevokedException : IOException("Query backend lease was revoke
 data class BackendQueryResponse private constructor(
     private val backendSnapshot: QueryBackendSnapshot,
     val response: QueryResponse,
+    val communityEpoch: Long,
+    val receivedAtElapsedMs: Long,
 ) {
     /** 响应所属 Backend 的稳定标识，由 [backendSnapshot] 派生。 */
     val backendId: String
@@ -126,6 +128,11 @@ data class BackendQueryResponse private constructor(
         }
     }
 
+    /** 手动查询同样不能发布撤回前在途响应中的社区增强，原 Provider 结果与 Token 保留。 */
+    fun withCurrentCommunity(epoch: CommunityQueryEpoch): BackendQueryResponse =
+        if (epoch.isCurrent(communityEpoch, receivedAtElapsedMs)) this
+        else copy(response = response.copy(community = null))
+
     companion object {
         /**
          * 从单次请求开始时读取的 Backend 快照创建响应。
@@ -135,13 +142,15 @@ data class BackendQueryResponse private constructor(
         fun from(
             backendSnapshot: QueryBackendSnapshot,
             response: QueryResponse,
+            communityEpoch: Long,
+            receivedAtElapsedMs: Long,
         ): BackendQueryResponse {
             val safeResponse = if (backendSnapshot.feedbackSupported) {
                 response
             } else {
-                response.copy(feedbackToken = null)
+                response.copy(feedbackToken = null, feedbackTokenExpiresAt = null, community = null)
             }
-            return BackendQueryResponse(backendSnapshot, safeResponse)
+            return BackendQueryResponse(backendSnapshot, safeResponse, communityEpoch, receivedAtElapsedMs)
         }
     }
 }

@@ -12,6 +12,10 @@ import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.model.CommunityStatus
+import vip.mystery0.pixel.telo.data.model.ReportTokenState
+import vip.mystery0.pixel.telo.data.model.toStorageValue
+import vip.mystery0.pixel.telo.data.query.decodeCommunityQueryMetadata
 import vip.mystery0.pixel.telo.data.query.BackendQueryResponse
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.smartspacer.SmartspacerIntegration
@@ -46,6 +50,10 @@ class BlockedCallRepository : KoinComponent {
         querySource: String? = null,
         queryBackendId: String? = null,
         feedbackToken: String? = null,
+        feedbackPhone: String? = null,
+        feedbackTokenExpiresAt: Long? = null,
+        communityStatus: CommunityStatus = CommunityStatus.UNKNOWN,
+        communityBlockApplied: Boolean = false,
     ): Long {
         val backendId = queryBackendId?.takeIf { it.isNotBlank() }
         val token = feedbackToken?.takeIf {
@@ -65,6 +73,11 @@ class BlockedCallRepository : KoinComponent {
             queryBackendId = backendId,
             feedbackToken = token,
             feedbackStatus = if (token != null) FeedbackStatus.PENDING else FeedbackStatus.UNAVAILABLE,
+            feedbackPhone = feedbackPhone.takeIf { token != null },
+            feedbackTokenExpiresAt = feedbackTokenExpiresAt.takeIf { token != null },
+            communityStatus = communityStatus.takeIf { backendId == OFFICIAL_BACKEND_ID }
+                ?.toStorageValue() ?: "unknown",
+            communityBlockApplied = backendId == OFFICIAL_BACKEND_ID && communityBlockApplied,
         )
         val id = blockedCallDao.insert(blockedCall)
         // 静默拦截（直接挂断且无任何提醒）需要刷新 Smartspacer 计数；
@@ -91,16 +104,17 @@ class BlockedCallRepository : KoinComponent {
         val response = result.response
         val feedbackAllowed = result.backendId == OFFICIAL_BACKEND_ID && result.feedbackSupported
         val token = response.feedbackToken?.takeIf { feedbackAllowed && it.isNotBlank() }
-        val updated = call.copy(
-            province = response.data?.province.cleanLocationPart() ?: call.province,
-            city = response.data?.city.cleanLocationPart() ?: call.city,
-            querySource = response.source.takeIf { it.isNotBlank() },
-            queryBackendId = result.backendId,
-            feedbackToken = token,
-            feedbackStatus = if (token != null) FeedbackStatus.PENDING else FeedbackStatus.UNAVAILABLE,
-        ).enforceFeedbackOwnership()
-        blockedCallDao.update(updated)
-        return updated
+        val metadata = decodeCommunityQueryMetadata(response, feedbackAllowed)
+        blockedCallDao.attachQueryMetadata(
+            id = call.id, expectedBackendId = call.queryBackendId, expectedToken = call.feedbackToken,
+            backendId = result.backendId, source = response.source.takeIf { it.isNotBlank() },
+            token = token,
+            feedbackStatus = if (token != null) FeedbackStatus.PENDING.name else FeedbackStatus.UNAVAILABLE.name,
+            phone = metadata.feedbackPhone, expiresAt = metadata.feedbackTokenExpiresAt,
+            province = response.data?.province.cleanLocationPart(),
+            city = response.data?.city.cleanLocationPart(),
+        )
+        return blockedCallDao.findById(call.id) ?: call
     }
 
     /**
@@ -138,8 +152,27 @@ class BlockedCallRepository : KoinComponent {
             .associateBy { it.source }
     }
 
+    fun observeById(id: Long): Flow<BlockedCall?> = blockedCallDao.observeById(id)
+
+    suspend fun updateReportTokenState(expected: BlockedCall, state: ReportTokenState): BlockedCall? {
+        if (expected.queryBackendId == OFFICIAL_BACKEND_ID && !expected.feedbackToken.isNullOrBlank()) {
+            blockedCallDao.updateReportTokenState(expected.feedbackToken, state.toStorageValue())
+        }
+        return blockedCallDao.findById(expected.id)
+    }
+
+    suspend fun clearReportTokenStates() = blockedCallDao.clearReportTokenStates()
+
+    suspend fun updateRemark(id: Long, remark: String, label: String) =
+        blockedCallDao.updateRemark(id, remark, label)
+
     suspend fun update(blockedCall: BlockedCall) {
         blockedCallDao.update(blockedCall.enforceFeedbackOwnership())
+    }
+
+    suspend fun finalizeCommunityDecision(id: Long, blocked: Boolean) {
+        blockedCallDao.finalizeCommunityDecision(id, blocked)
+        SmartspacerIntegration.notifyChanged(context)
     }
 
     suspend fun delete(blockedCall: BlockedCall) {
@@ -157,10 +190,13 @@ private fun String?.cleanLocationPart(): String? = this?.trim()?.takeIf { it.isN
 
 /** 所有通用更新路径都必须维持“仅官方记录可反馈”的持久化不变量。 */
 private fun BlockedCall.enforceFeedbackOwnership(): BlockedCall {
-    if (queryBackendId != OFFICIAL_BACKEND_ID) {
+    if (queryBackendId != OFFICIAL_BACKEND_ID || feedbackToken.isNullOrBlank()) {
         return copy(
             feedbackToken = null,
             feedbackStatus = FeedbackStatus.UNAVAILABLE,
+            feedbackPhone = null,
+            feedbackTokenExpiresAt = null,
+            reportTokenState = "unknown",
         )
     }
     if (feedbackStatus == FeedbackStatus.PENDING && feedbackToken.isNullOrBlank()) {

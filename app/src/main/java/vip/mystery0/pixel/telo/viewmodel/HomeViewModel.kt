@@ -100,6 +100,7 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     private val repository: BlockedCallRepository by inject()
     private val syncRepository: SyncRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
+    private val communityEpoch: vip.mystery0.pixel.telo.data.query.CommunityQueryEpoch by inject()
     private val userListRepository: UserListRepository by inject()
     private val queryRepository: QueryRepository by inject()
     private val queryBackendProvider: QueryBackendProvider by inject()
@@ -298,9 +299,9 @@ class HomeViewModel() : ViewModel(), KoinComponent {
             }
 
             try {
-                val response = backendResponse.response
                 // 立即写回可信 Backend 归属、source 与反馈 token，避免用户关闭对话框后丢失凭证
                 val updated = repository.attachQueryResult(call, backendResponse)
+                val response = backendResponse.withCurrentCommunity(communityEpoch).response
                 _retryQueryState.value = RetryQueryState.Success(updated, response)
             } catch (exception: CancellationException) {
                 throw exception
@@ -314,7 +315,7 @@ class HomeViewModel() : ViewModel(), KoinComponent {
     /** 将重查结果写入备注并关闭对话框 */
     fun writeQueryResultToRemark(call: BlockedCall, remark: String, label: String) {
         viewModelScope.launch {
-            repository.update(call.copy(remark = remark, label = label))
+            repository.updateRemark(call.id, remark, label)
             _retryQueryState.value = RetryQueryState.Idle
         }
     }

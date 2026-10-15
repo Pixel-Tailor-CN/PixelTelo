@@ -66,6 +66,14 @@ fun OnlineQueryPreferences(
     val sourceMatchesBackend = backendState is QueryBackendState.Ready &&
         querySourceState.backendId == backendState.backendId
     val onlineQueryEnabled = !viewModel.noNetworkQuery
+    val blockCommunity by viewModel.blockCommunityReports.collectAsState()
+    SwitchPreference(
+        value = blockCommunity,
+        onValueChange = viewModel::updateBlockCommunityReports,
+        title = { Text(stringResource(R.string.community_block_setting)) },
+        summary = { Text(stringResource(R.string.community_block_summary)) },
+        enabled = onlineQueryEnabled && !selfHostedSelected,
+    )
 
     SwitchPreference(
         value = viewModel.noNetworkQuery,

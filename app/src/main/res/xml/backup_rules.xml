@@ -1,10 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
--->
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 及更早版本的系统备份：运行时记录通过 App 手动备份迁移。 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="self_hosted_credentials.xml" />
+    <exclude domain="database" path="app-database" />
+    <exclude domain="database" path="app-database-wal" />
+    <exclude domain="database" path="app-database-shm" />
+    <exclude domain="database" path="app-database-journal" />
 </full-backup-content>

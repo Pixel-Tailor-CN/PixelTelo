@@ -96,6 +96,46 @@ interface BlockedCallDao {
         newFeedbackStatus: String,
     ): Int
 
+    @Query("SELECT * FROM blocked_calls WHERE id = :id LIMIT 1")
+    fun observeById(id: Long): Flow<BlockedCall?>
+
+    /** 同一复用 Token 的用途状态一起更新，但不覆盖新 Token 或原质量反馈。 */
+    @Query("UPDATE blocked_calls SET reportTokenState = :state WHERE queryBackendId = 'official' AND feedbackToken = :token")
+    suspend fun updateReportTokenState(token: String, state: String): Int
+
+    @Query("UPDATE blocked_calls SET reportTokenState = 'unknown'")
+    suspend fun clearReportTokenStates()
+
+    @Query("UPDATE blocked_calls SET remark = :remark, label = :label WHERE id = :id")
+    suspend fun updateRemark(id: Long, remark: String, label: String)
+
+    /** 只回写查询元数据，保留当时的社区处置、用户备注及同 Token 的消费状态。 */
+    @Query("""
+        UPDATE blocked_calls SET
+            province = COALESCE(:province, province), city = COALESCE(:city, city),
+            querySource = :source,
+            feedbackStatus = CASE WHEN feedbackToken IS :token AND queryBackendId IS :backendId
+                THEN feedbackStatus ELSE :feedbackStatus END,
+            reportTokenState = CASE WHEN feedbackToken IS :token AND queryBackendId IS :backendId
+                THEN reportTokenState ELSE 'unknown' END,
+            queryBackendId = :backendId, feedbackToken = :token,
+            feedbackPhone = :phone, feedbackTokenExpiresAt = :expiresAt
+        WHERE id = :id AND queryBackendId IS :expectedBackendId AND feedbackToken IS :expectedToken
+    """)
+    suspend fun attachQueryMetadata(
+        id: Long, expectedBackendId: String?, expectedToken: String?,
+        backendId: String, source: String?, token: String?, feedbackStatus: String,
+        phone: String?, expiresAt: Long?, province: String?, city: String?,
+    ): Int
+
+    /** 系统响应已发出后确认社区处置，不覆盖查询凭据或历史查询快照。 */
+    @Query("""
+        UPDATE blocked_calls SET communityBlockApplied = :blocked,
+            resultType = CASE WHEN :blocked THEN 'INTERCEPT' ELSE 'PASS' END
+        WHERE id = :id AND communityStatus = 'active'
+    """)
+    suspend fun finalizeCommunityDecision(id: Long, blocked: Boolean)
+
     @Delete
     suspend fun delete(blockedCall: BlockedCall)
 

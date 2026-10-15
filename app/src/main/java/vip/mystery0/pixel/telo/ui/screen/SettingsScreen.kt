@@ -80,6 +80,8 @@ import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
+import vip.mystery0.pixel.telo.util.textRes
+import vip.mystery0.pixel.telo.data.model.CommunityStatus
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 import java.time.LocalDateTime
 
@@ -87,6 +89,7 @@ import java.time.LocalDateTime
 fun SettingsScreen(
     viewModel: SettingViewModel,
     onNavigateToLocalNumberLabels: () -> Unit,
+    onNavigateToMyReports: () -> Unit,
 ) {
     val context = LocalContext.current
     val queryBackendState by viewModel.queryBackendState.collectAsState()
@@ -659,6 +662,10 @@ fun SettingsScreen(
                                 R.string.label_none
                             )
                         })
+                        if (result.communityStatus != CommunityStatus.UNKNOWN) {
+                            Text(stringResource(R.string.community_query_snapshot,
+                                stringResource(result.communityStatus.textRes())))
+                        }
                         val failureSummary = result.resultType.queryFailureSummaryRes()
                         Text(stringResource(R.string.label_result_type) +
                             (failureSummary?.let { stringResource(it) } ?: result.resultType.name))
@@ -821,6 +828,12 @@ fun SettingsScreen(
                         )
                     },
                     onNavigateToLocalNumberLabels = onNavigateToLocalNumberLabels,
+                )
+
+                me.zhanghai.compose.preference.Preference(
+                    title = { Text(stringResource(R.string.community_my_reports)) },
+                    summary = { Text(stringResource(R.string.community_official_history)) },
+                    onClick = onNavigateToMyReports,
                 )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })

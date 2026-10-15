@@ -31,7 +31,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
+import org.koin.core.component.inject
+import vip.mystery0.pixel.telo.data.query.CommunityQueryEpoch
+import vip.mystery0.pixel.telo.data.model.CommunityStatus
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -64,7 +68,8 @@ import kotlin.math.roundToInt
 class IncomingCallOverlay(
     private val context: Context,
     private val prefs: SharedPreferences
-) {
+) : org.koin.core.component.KoinComponent {
+    private val communityEpoch: CommunityQueryEpoch by inject()
     companion object {
         private const val TAG = "IncomingCallOverlay"
         private const val UNTIL_CALL_END_SAFETY_TIMEOUT_MS = 12L * 60 * 60 * 1_000
@@ -94,8 +99,11 @@ class IncomingCallOverlay(
             localLabel = localLabel,
             sourceLabel = result.label.takeUnless {
                 result.resultType.isNetworkFailure()
-            }
-        )
+            },
+            communityLabel = if (result.communityStatus == CommunityStatus.ACTIVE)
+                appContext.getString(R.string.community_label) else null,
+        ).copy(communityEpoch = result.communityEpoch,
+            communityReceivedAtElapsedMs = result.communityReceivedAtElapsedMs)
         val offsetDp = prefs.getInt(
             SettingViewModel.KEY_LOCATION_OVERLAY_OFFSET_DP,
             SettingViewModel.DEFAULT_LOCATION_OVERLAY_OFFSET_DP
@@ -225,6 +233,16 @@ class IncomingCallOverlay(
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
                 PixelTeloTheme {
+                    val epoch by communityEpoch.changes.collectAsState()
+                    var communityExpired by remember(content) { mutableStateOf(false) }
+                    LaunchedEffect(content) {
+                        val remaining = content.communityReceivedAtElapsedMs + CommunityQueryEpoch.MAX_AGE_MS - android.os.SystemClock.elapsedRealtime()
+                        if (remaining > 0) delay(remaining)
+                        communityExpired = true
+                    }
+                    val displayed = if (!communityExpired && epoch == content.communityEpoch &&
+                        communityEpoch.isCurrent(content.communityEpoch, content.communityReceivedAtElapsedMs)) content
+                        else content.copy(communityLabelText = null)
                     val dragModifier = if (draggable) {
                         Modifier.pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
@@ -243,8 +261,8 @@ class IncomingCallOverlay(
                         contentAlignment = Alignment.TopCenter
                     ) {
                         when (style) {
-                            LocationOverlayStyle.CARD -> CardContent(content)
-                            LocationOverlayStyle.MINIMAL -> MinimalContent(content)
+                            LocationOverlayStyle.CARD -> CardContent(displayed)
+                            LocationOverlayStyle.MINIMAL -> MinimalContent(displayed)
                         }
                     }
                 }
@@ -327,6 +345,10 @@ class IncomingCallOverlay(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                    content.communityLabelText?.let { label ->
+                        Text(label, color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelMedium)
+                    }
                     content.sourceLabelText?.let { label ->
                         Surface(
                             shape = RoundedCornerShape(50.dp),
@@ -385,6 +407,9 @@ class IncomingCallOverlay(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+            content.communityLabelText?.let { label ->
+                Text(label, color = Color.White, style = MaterialTheme.typography.bodyMedium.copy(shadow = textShadow))
             }
             content.sourceLabelText?.let { label ->
                 Text(

@@ -44,6 +44,7 @@ import vip.mystery0.pixel.telo.smartspacer.SmartspacerInterceptRepository
 private const val OFFICIAL_SYNC = "officialSync"
 private const val OFFICIAL_QUERY = "officialQuery"
 private const val OFFICIAL_FEEDBACK = "officialFeedback"
+private const val OFFICIAL_COMMUNITY = "officialCommunity"
 private const val OFFICIAL_BASE_URL = "https://pixeltelo.api.mystery0.vip/"
 
 val appModule = module {
@@ -63,7 +64,8 @@ val appModule = module {
                 MIGRATION_7_8,
                 MIGRATION_8_9,
                 MIGRATION_9_10,
-                MIGRATION_10_11
+                MIGRATION_10_11,
+                vip.mystery0.pixel.telo.data.MIGRATION_11_12,
             )
             .build()
     }
@@ -123,6 +125,40 @@ val appModule = module {
         get<Retrofit>(named(OFFICIAL_QUERY)).create(OfficialFeedbackApi::class.java)
     }
 
+    single { vip.mystery0.pixel.telo.data.query.CommunityQueryEpoch() }
+    single { vip.mystery0.pixel.telo.data.preferences.CommunityReportPreferences(get()) }
+    single { vip.mystery0.pixel.telo.data.repository.CommunityResultInvalidator(androidContext(), get(), get()) }
+    single { vip.mystery0.pixel.telo.data.ReportDeviceIdentityStore(androidContext()) }
+    single {
+        vip.mystery0.pixel.telo.data.repository.CommunityReportRepository(
+            get(named(OFFICIAL_COMMUNITY)), get(), get(), get(),
+        )
+    }
+    single<vip.mystery0.pixel.telo.data.remote.OfficialCommunityReportApi>(named(OFFICIAL_COMMUNITY)) {
+        val client = get<OkHttpClient>(named(OFFICIAL_QUERY)).newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .retryOnConnectionFailure(false)
+            // OkHttp 对 503 + Retry-After: 0 的跟进独立于连接重试开关；一次性 body 禁止隐式重发。
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val body = request.body
+                val oneShot = body?.let {
+                    object : okhttp3.RequestBody() {
+                        override fun contentType() = body.contentType()
+                        override fun contentLength() = body.contentLength()
+                        override fun isOneShot() = true
+                        override fun writeTo(sink: okio.BufferedSink) = body.writeTo(sink)
+                    }
+                }
+                chain.proceed(request.newBuilder().method(request.method, oneShot).build())
+            }
+            .callTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+        get<Retrofit>(named(OFFICIAL_QUERY)).newBuilder().client(client).build()
+            .create(vip.mystery0.pixel.telo.data.remote.OfficialCommunityReportApi::class.java)
+    }
+
     single { SelfHostedCredentialStore(androidContext()) }
     single { SelfHostedConfigRepository(androidContext(), get(), get()) }
     single { SelfHostedQueryClientFactory(get()) }
@@ -139,6 +175,7 @@ val appModule = module {
             backendProvider = get(),
             officialFeedbackApi = get(named(OFFICIAL_FEEDBACK)),
             preferences = get(),
+            communityEpoch = get(),
         )
     }
 
