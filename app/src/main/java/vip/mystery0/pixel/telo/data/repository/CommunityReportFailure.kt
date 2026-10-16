@@ -30,6 +30,8 @@ internal fun classifyReportHttpFailure(exception: HttpException, mutation: Boole
             "INVALID_FEEDBACK_TOKEN" -> ReportFailureKind.INVALID_TOKEN
             else -> ReportFailureKind.INVALID_REQUEST
         }
+        403 -> if (code == "REPORT_DEVICE_BLOCKED") ReportFailureKind.DEVICE_BLOCKED
+            else ReportFailureKind.INTERNAL
         410 -> if (code == "FEEDBACK_TOKEN_EXPIRED") ReportFailureKind.EXPIRED_TOKEN
             else ReportFailureKind.INVALID_RESPONSE
         409 -> when (code) {

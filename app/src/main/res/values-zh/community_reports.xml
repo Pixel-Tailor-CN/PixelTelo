@@ -14,12 +14,15 @@
     <string name="community_withdraw">撤回上报</string>
     <string name="community_delete_history">删除历史</string>
     <string name="community_withdraw_confirm">撤回对 %1$s 的上报？这只移除当前安装的贡献，历史记录仍会保留。</string>
-    <string name="community_delete_confirm">删除 %1$s 的已撤回历史？此操作删除服务端历史，不影响其他设备的上报。</string>
+    <string name="community_delete_confirm">删除 %1$s 的已撤回历史？此操作删除服务端历史，不影响其他设备的上报，也不会解除当前设备对此号码的上报限制。</string>
     <string name="community_active_report">我的上报：有效</string>
     <string name="community_withdrawn_report">我的上报：已撤回</string>
+    <string name="community_invalidated_report">我的上报：已被管理员作废</string>
+    <string name="community_invalidated_notice">作废不同于主动撤回：此上报不再计票，当前设备不能再次上报此号码，但仍可上报其他号码。只有此前已撤回的历史才能删除，删除不会解除限制。</string>
     <string name="community_unknown_report">我的上报：未知状态，请刷新</string>
     <string name="community_reported_at">上报时间：%1$s</string>
     <string name="community_withdrawn_at">撤回时间：%1$s</string>
+    <string name="community_invalidated_at">作废时间：%1$s</string>
     <string name="community_active">社区标记：已生效</string>
     <string name="community_inactive">社区标记：未生效</string>
     <string name="community_unavailable">社区标记：暂不可用</string>
@@ -37,7 +40,8 @@
     <string name="community_error_expired">上报凭据已过期，仍可在“我的上报”查询、撤回和删除。</string>
     <string name="community_error_used">此凭据已用于上报，请到“我的上报”查看；质量反馈不受影响。</string>
     <string name="community_error_request">请求不可用，请刷新后重试。</string>
-    <string name="community_error_withdraw_first">请先撤回此上报，再删除历史。</string>
+    <string name="community_error_device_blocked">当前设备已被禁止再次上报此号码，更换上报凭据或删除历史也不能解除限制。此限制不影响上报其他号码，重试不能解除。</string>
+    <string name="community_error_withdraw_first">只有已撤回的上报才能删除历史，作废本身不授予删除权限，请刷新核实。</string>
     <string name="community_error_missing">记录已不存在，请刷新。</string>
     <plurals name="community_error_limited">
         <item quantity="other">操作过于频繁，请等待约 %1$d 秒后重试。</item>

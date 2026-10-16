@@ -97,15 +97,15 @@ class MyReportsViewModel : ViewModel(), KoinComponent {
         val current = _state.value
         if (current.operationId != null) return
         val report = current.items.firstOrNull { it.reportId == reportId } ?: return
-        if (delete && report.status != CommunityReportStatus.WITHDRAWN) return
-        if (!delete && report.status != CommunityReportStatus.ACTIVE) return
+        if (delete && !report.canDelete) return
+        if (!delete && !report.canWithdraw) return
         generation++
         val target = generation
         loadingJob?.cancel()
         _state.value = current.copy(operationId = reportId, loading = false, loadingMore = false, failure = null)
         actionJob = viewModelScope.launch {
             val result: ReportResult<CommunityReport?> = if (delete) {
-                when (val deletion = repository.delete(reportId)) {
+                when (val deletion = repository.delete(report)) {
                     is ReportResult.Success -> ReportResult.Success(null)
                     is ReportResult.Failure -> deletion
                 }

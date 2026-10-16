@@ -30,6 +30,7 @@ data class CommunityReportDto(
     val status: String,
     @SerialName("reported_at") val reportedAt: String,
     @SerialName("withdrawn_at") val withdrawnAt: String? = null,
+    @SerialName("invalidated_at") val invalidatedAt: String? = null,
     @SerialName("community_status") val communityStatus: String,
 )
 

@@ -19,7 +19,7 @@ fun ReportTokenState.toStorageValue(): String = storageValue
 fun parseReportTokenState(value: String?): ReportTokenState =
     ReportTokenState.entries.firstOrNull { it.storageValue == value } ?: ReportTokenState.UNKNOWN
 
-enum class CommunityReportStatus { ACTIVE, WITHDRAWN, UNKNOWN }
+enum class CommunityReportStatus { ACTIVE, WITHDRAWN, INVALIDATED, UNKNOWN }
 
 data class CommunityReport(
     val reportId: String,
@@ -28,7 +28,16 @@ data class CommunityReport(
     val reportedAt: Instant,
     val withdrawnAt: Instant?,
     val communityStatus: CommunityStatus,
-)
+    val invalidatedAt: Instant? = null,
+) {
+    val canWithdraw: Boolean
+        get() = status == CommunityReportStatus.ACTIVE && withdrawnAt == null && invalidatedAt == null
+
+    // 作废不授予删除权限；未知状态不推断动作，已撤回后作废的历史仍可删除。
+    val canDelete: Boolean
+        get() = withdrawnAt != null &&
+            (status == CommunityReportStatus.WITHDRAWN || status == CommunityReportStatus.INVALIDATED)
+}
 
 data class CommunityReportPage(val items: List<CommunityReport>, val nextCursor: String?)
 data class CommunitySubmission(val report: CommunityReport, val created: Boolean)
@@ -45,7 +54,7 @@ data class ReportFailure(
 )
 
 enum class ReportFailureKind {
-    INVALID_REQUEST, INVALID_TOKEN, EXPIRED_TOKEN, USED_TOKEN, NOT_WITHDRAWN, NOT_FOUND,
+    INVALID_REQUEST, INVALID_TOKEN, EXPIRED_TOKEN, USED_TOKEN, DEVICE_BLOCKED, NOT_WITHDRAWN, NOT_FOUND,
     RATE_LIMITED, UNAVAILABLE, UNSUPPORTED, NETWORK, INVALID_RESPONSE, IDENTITY_UNAVAILABLE,
     LOCAL_STATE, INTERNAL,
 }

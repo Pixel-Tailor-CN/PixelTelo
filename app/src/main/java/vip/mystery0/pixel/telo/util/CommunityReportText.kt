@@ -15,6 +15,7 @@ fun ReportFailure.displayText(context: Context): String {
         ReportFailureKind.INVALID_TOKEN -> R.string.community_error_token
         ReportFailureKind.EXPIRED_TOKEN -> R.string.community_error_expired
         ReportFailureKind.USED_TOKEN -> R.string.community_error_used
+        ReportFailureKind.DEVICE_BLOCKED -> R.string.community_error_device_blocked
         ReportFailureKind.INVALID_REQUEST -> R.string.community_error_request
         ReportFailureKind.NOT_WITHDRAWN -> R.string.community_error_withdraw_first
         ReportFailureKind.NOT_FOUND -> R.string.community_error_missing

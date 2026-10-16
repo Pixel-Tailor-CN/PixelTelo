@@ -80,10 +80,12 @@ class CommunityReportRepository(
 
     suspend fun withdraw(report: CommunityReport): ReportResult<CommunityReport> =
         operation("withdraw", true) { id ->
+            if (!report.canWithdraw) fail(ReportFailureKind.INVALID_REQUEST)
             try {
                 val updated = api.withdraw(ReportActionRequest(id, report.reportId)).report.toModel(mutation = true)
                 if (updated.reportId != report.reportId || updated.phone != report.phone ||
-                    updated.status != CommunityReportStatus.WITHDRAWN) {
+                    (updated.status != CommunityReportStatus.WITHDRAWN &&
+                        updated.status != CommunityReportStatus.INVALIDATED)) {
                     fail(ReportFailureKind.INVALID_RESPONSE, true)
                 }
                 updated
@@ -92,8 +94,9 @@ class CommunityReportRepository(
             }
         }
 
-    suspend fun delete(reportId: String): ReportResult<Unit> = operation("delete", true) { id ->
-        if (api.delete(ReportActionRequest(id, reportId)).status != "deleted") {
+    suspend fun delete(report: CommunityReport): ReportResult<Unit> = operation("delete", true) { id ->
+        if (!report.canDelete) fail(ReportFailureKind.NOT_WITHDRAWN)
+        if (api.delete(ReportActionRequest(id, report.reportId)).status != "deleted") {
             fail(ReportFailureKind.INVALID_RESPONSE, true)
         }
     }
@@ -199,6 +202,7 @@ private fun CommunityReportDto.toModel(mutation: Boolean = false): CommunityRepo
     val reportStatus = when (status) {
         "active" -> CommunityReportStatus.ACTIVE
         "withdrawn" -> CommunityReportStatus.WITHDRAWN
+        "invalidated" -> CommunityReportStatus.INVALIDATED
         else -> CommunityReportStatus.UNKNOWN
     }
     fun parseTime(value: String): Instant = runCatching {
@@ -208,11 +212,20 @@ private fun CommunityReportDto.toModel(mutation: Boolean = false): CommunityRepo
     }.getOrNull() ?: fail(ReportFailureKind.INVALID_RESPONSE, mutation)
     val created = parseTime(reportedAt)
     val withdrawn = withdrawnAt?.let(::parseTime)
-    if (reportStatus == CommunityReportStatus.WITHDRAWN && withdrawn == null) {
+    val invalidated = invalidatedAt?.let(::parseTime)
+    if ((reportStatus == CommunityReportStatus.WITHDRAWN && withdrawn == null) ||
+        (reportStatus == CommunityReportStatus.INVALIDATED && invalidated == null)) {
         fail(ReportFailureKind.INVALID_RESPONSE, mutation)
+    }
+    // 已知状态按作废优先展示；未来未知状态即使携带时间字段也不推断操作权限。
+    val displayStatus = when {
+        reportStatus == CommunityReportStatus.UNKNOWN -> CommunityReportStatus.UNKNOWN
+        invalidated != null -> CommunityReportStatus.INVALIDATED
+        withdrawn != null -> CommunityReportStatus.WITHDRAWN
+        else -> reportStatus
     }
     val community = parseCommunityStatus(communityStatus).let {
         if (it == CommunityStatus.UNKNOWN) CommunityStatus.UNAVAILABLE else it
     }
-    return CommunityReport(reportId, phone, reportStatus, created, withdrawn, community)
+    return CommunityReport(reportId, phone, displayStatus, created, withdrawn, community, invalidated)
 }

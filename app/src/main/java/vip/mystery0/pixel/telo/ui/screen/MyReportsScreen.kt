@@ -64,6 +64,7 @@ fun MyReportsScreen(viewModel: MyReportsViewModel, modifier: Modifier = Modifier
                     Text(stringResource(when (report.status) {
                         CommunityReportStatus.ACTIVE -> R.string.community_active_report
                         CommunityReportStatus.WITHDRAWN -> R.string.community_withdrawn_report
+                        CommunityReportStatus.INVALIDATED -> R.string.community_invalidated_report
                         CommunityReportStatus.UNKNOWN -> R.string.community_unknown_report
                     }))
                     Text(stringResource(report.communityStatus.textRes()))
@@ -73,10 +74,18 @@ fun MyReportsScreen(viewModel: MyReportsViewModel, modifier: Modifier = Modifier
                         Text(stringResource(R.string.community_withdrawn_at, dateFormatter.format(it)),
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    if (report.status != CommunityReportStatus.UNKNOWN) {
+                    report.invalidatedAt?.let {
+                        Text(stringResource(R.string.community_invalidated_at, dateFormatter.format(it)),
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (report.status == CommunityReportStatus.INVALIDATED) {
+                        Text(stringResource(R.string.community_invalidated_notice),
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (report.canWithdraw || report.canDelete) {
                         TextButton(onClick = { targetId = report.reportId }, enabled = !busy) {
-                            Text(stringResource(if (report.status == CommunityReportStatus.ACTIVE)
-                                R.string.community_withdraw else R.string.community_delete_history))
+                            Text(stringResource(if (report.canDelete)
+                                R.string.community_delete_history else R.string.community_withdraw))
                         }
                     }
                     if (state.operationId == report.reportId) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -92,8 +101,8 @@ fun MyReportsScreen(viewModel: MyReportsViewModel, modifier: Modifier = Modifier
         }
         if (state.loadingMore) item(key = "loading") { LinearProgressIndicator(Modifier.fillMaxWidth()) }
     }
-    if (target != null) {
-        val delete = target.status == CommunityReportStatus.WITHDRAWN
+    if (target != null && (target.canWithdraw || target.canDelete)) {
+        val delete = target.canDelete
         AlertDialog(
             onDismissRequest = { targetId = null },
             title = { Text(stringResource(if (delete) R.string.community_delete_history else R.string.community_withdraw)) },

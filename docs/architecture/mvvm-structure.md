@@ -89,6 +89,11 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 
 * `CommunityReportRepository` 统一提交、分页、撤回、删除和身份重建；CR-1 见[设计契约](../plans/2026-10-15-community-reports-app-design.md)。
   只从记录读取已有官方 Token，核对绑定的 `feedbackPhone` 原字符串；云端列表是管理事实来源，不按号码归一化合并记录。
+  report 的可空 `invalidated_at` 和 `invalidated` 状态表示管理员作废，展示优先于撤回；未知状态保守保留且禁用动作。
+  Model 的 `canWithdraw`／`canDelete` 统一 UI、ViewModel 与 Repository 动作门禁：作废不能撤回，仅已知状态且
+  `withdrawn_at` 非空可删除（包括先撤回后作废）；删除不解除设备号码禁投。撤回并发遇到作废的 200 响应按当前状态接收，
+  不误报为已撤回。403 `REPORT_DEVICE_BLOCKED` 映射为独立业务失败，只影响当前设备再次上报该号码，
+  不污染 Token 消费状态、不触发自动重试、不阻止其他管理操作；来电决策链路不因作废管理契约而改变。
 * `ReportDeviceIdentityStore` 在 `noBackupFilesDir` 用 AtomicFile 保存 32 字节随机身份，请求编码为无 padding base64url。
   管理请求与重建互斥，损坏返回显式错误，重建需要确认。ID 不进入 UI、备份、日志或 SavedState。
 * AppDatabase v12 增加独立 `reportTokenState`、凭据号码／到期信息与历史 `communityStatus`、`communityBlockApplied`。
