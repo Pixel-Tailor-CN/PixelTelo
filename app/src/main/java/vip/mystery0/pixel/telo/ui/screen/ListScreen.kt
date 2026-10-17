@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,19 +19,22 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -40,11 +44,12 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,9 +62,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -69,8 +77,8 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.ui.components.EmptyState
+import vip.mystery0.pixel.telo.ui.components.ListEntryItem
 import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
-import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.ui.util.rememberPagerBoundaryHandoffConnection
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
 import vip.mystery0.pixel.telo.viewmodel.RuleType
@@ -78,7 +86,8 @@ import vip.mystery0.pixel.telo.viewmodel.RuleType
 /**
  * 黑白名单管理页面。
  * 包含两个 Tab（黑名单 / 白名单），通过 HorizontalPager 切换内容。
- * FAB 打开单页 BottomSheet，支持号码、识别标签与归属地规则。
+ * 标题栏下方提供共享搜索框（仅在名单全部为空时隐藏），FAB 打开单页 BottomSheet，
+ * 支持号码、识别标签与归属地规则。
  */
 @Composable
 fun ListScreen(
@@ -231,7 +240,11 @@ fun ListScreen(
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.openAddSheet() }) {
+            // 搜索框弹出键盘时把悬浮按钮抬到键盘上方，避免添加入口被输入法遮挡。
+            FloatingActionButton(
+                onClick = { viewModel.openAddSheet() },
+                modifier = Modifier.imePadding(),
+            ) {
                 Icon(
                     Icons.Default.Add,
                     contentDescription = stringResource(R.string.action_add_entry)
@@ -239,7 +252,19 @@ fun ListScreen(
             }
         }
     ) { _ ->
-        Column {
+        // 搜索框只在两个名单都为空时隐藏，避免切换 Tab 时 TabRow 上下跳动。
+        val showSearchField = blackList.isNotEmpty() || whiteList.isNotEmpty()
+        val hasSearchQuery = viewModel.searchQuery.isNotBlank()
+        Column(
+            modifier = Modifier.imePadding(),
+        ) {
+            if (showSearchField) {
+                UserListSearchField(
+                    query = viewModel.searchQuery,
+                    onQueryChange = viewModel::updateSearchQuery,
+                    onClear = viewModel::clearSearchQuery,
+                )
+            }
             // Tab 行：点击时通过动画滚动 Pager
             SecondaryTabRow(
                 selectedTabIndex = pagerState.currentPage,
@@ -281,10 +306,22 @@ fun ListScreen(
                 pageNestedScrollConnection = EmptyPagerNestedScrollConnection
             ) { page ->
                 val list = if (page == 0) blackList else whiteList
+                val query = viewModel.searchQuery
+                val visibleEntries = remember(list, query) {
+                    if (query.isBlank()) list else list.filter {
+                        viewModel.matchesSearch(
+                            it,
+                            query
+                        )
+                    }
+                }
                 UserListContent(
-                    entries = list,
-                    viewModel = viewModel,
-                    noNetworkQuery = viewModel.noNetworkQuery
+                    entries = visibleEntries,
+                    isBlack = page == 0,
+                    hasSearchQuery = hasSearchQuery,
+                    noNetworkQuery = viewModel.noNetworkQuery,
+                    onEntryClick = { viewModel.openEditSheet(it) },
+                    onClearSearch = viewModel::clearSearchQuery,
                 )
             }
         }
@@ -582,13 +619,16 @@ private fun RuleType.labelResource(): Int = when (this) {
 }
 
 /**
- * 列表内容区域：无条目时显示占位文字，有条目时渲染可滑动删除的卡片列表。
+ * 列表内容区域：无条目时区分“名单为空”和“搜索无结果”，有条目时渲染名单卡片。
  */
 @Composable
 private fun UserListContent(
     entries: List<UserListEntry>,
-    viewModel: ListViewModel,
+    isBlack: Boolean,
+    hasSearchQuery: Boolean,
     noNetworkQuery: Boolean,
+    onEntryClick: (UserListEntry) -> Unit,
+    onClearSearch: () -> Unit,
 ) {
     if (entries.isEmpty()) {
         Box(
@@ -597,21 +637,39 @@ private fun UserListContent(
                 .height(360.dp),
             contentAlignment = Alignment.Center
         ) {
-            EmptyState(
-                icon = if (viewModel.currentTab == ListType.BLACK)
-                    Icons.Default.Block else Icons.Default.CheckCircle,
-                title = stringResource(R.string.list_no_entries),
-                description = stringResource(if (viewModel.currentTab == ListType.BLACK)
-                    R.string.list_black_empty_hint else R.string.list_white_empty_hint),
-            )
+            if (hasSearchQuery) {
+                EmptyState(
+                    icon = Icons.Default.SearchOff,
+                    title = stringResource(R.string.msg_no_matching_user_list),
+                    description = stringResource(R.string.msg_no_matching_user_list_hint),
+                    action = {
+                        TextButton(onClick = onClearSearch) {
+                            Text(stringResource(R.string.action_clear_search))
+                        }
+                    },
+                )
+            } else {
+                EmptyState(
+                    icon = if (isBlack) Icons.Default.Block else Icons.Default.CheckCircle,
+                    title = stringResource(R.string.list_no_entries),
+                    description = stringResource(
+                        if (isBlack)
+                            R.string.list_black_empty_hint else R.string.list_white_empty_hint
+                    ),
+                )
+            }
         }
     } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            // 底部留出悬浮按钮的高度，滚动到末尾时最后一条不会被「添加条目」遮挡。
+            contentPadding = PaddingValues(bottom = 88.dp),
+        ) {
             items(entries, key = { it.id }) { entry ->
-                UserListEntryItem(
+                ListEntryItem(
                     entry = entry,
                     invalid = entry.locationMatch && noNetworkQuery,
-                    onClick = { viewModel.openEditSheet(entry) }
+                    onClick = { onEntryClick(entry) }
                 )
             }
         }
@@ -619,127 +677,47 @@ private fun UserListContent(
 }
 
 /**
- * 单条名单条目卡片：显示号码（前缀加 * 后缀）、添加时间、备注及前缀/标签标签。
+ * 名单搜索框：位于标题栏与 Tab 之间，查询词在两个名单之间共享。
+ * 前缀规则在列表里带 * 后缀，这里允许输入星号后再清空，保持与列表显示一致。
  */
 @Composable
-private fun UserListEntryItem(entry: UserListEntry, invalid: Boolean, onClick: () -> Unit) {
-    Card(
+private fun UserListSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    val focusManager = LocalFocusManager.current
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
         modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .fillMaxWidth(),
-        onClick = onClick
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // 标签匹配显示标签名，前缀匹配号码显示为 "400*"，精确匹配显示原始号码
-            val displayNumber = when {
-                entry.locationMatch -> entry.phoneNumber
-                entry.tagMatch -> entry.phoneNumber
-                entry.isPrefix -> "${entry.phoneNumber}*"
-                else -> entry.phoneNumber
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(displayNumber, style = MaterialTheme.typography.titleMedium)
-                    if (entry.locationMatch) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                                Text(
-                                    text = stringResource(R.string.label_location_match),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
-                    } else if (entry.tagMatch) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                text = stringResource(
-                                    if (entry.tagContains) R.string.label_tag_contains
-                                    else R.string.label_tag_exact
-                                ),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    } else if (entry.isPrefix) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                text = stringResource(R.string.label_prefix_match),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    if (entry.forceBlock) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                text = stringResource(R.string.label_force_block_chip),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    if (invalid) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            shape = MaterialTheme.shapes.small
-                        ) {
-                            Text(
-                                text = stringResource(R.string.label_rule_invalid),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        singleLine = true,
+        shape = MaterialTheme.shapes.extraLarge,
+        placeholder = { Text(stringResource(R.string.hint_search_user_list)) },
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = null)
+        },
+        trailingIcon = if (query.isNotEmpty()) {
+            {
+                IconButton(onClick = onClear) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.action_clear_search),
+                    )
                 }
-                Text(
-                    formatMills(entry.addedAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-            // 备注不为空时显示备注文字
-            if (!entry.remark.isNullOrBlank()) {
-                Text(
-                    text = "${stringResource(R.string.label_remark)}${entry.remark}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-        }
-    }
+        } else null,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+        ),
+    )
 }

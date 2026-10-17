@@ -12,16 +12,16 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,11 +38,11 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
+import vip.mystery0.pixel.telo.util.queryFailureSummaryRes
+import vip.mystery0.pixel.telo.viewmodel.CurrentListState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import vip.mystery0.pixel.telo.util.queryFailureSummaryRes
-import vip.mystery0.pixel.telo.viewmodel.CurrentListState
 
 private data class RecordStatus(
     val icon: ImageVector,
@@ -106,7 +106,9 @@ fun BlockedCallItem(
         onClick = { onClick?.invoke() },
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SelectionContainer {
@@ -164,7 +166,8 @@ fun BlockedCallItem(
                     modifier = if (largeText && failed) Modifier.fillMaxWidth() else Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    RecordBadge(icon = status.icon, text = stringResource(status.label),
+                    StatusBadge(
+                        icon = status.icon, text = stringResource(status.label),
                         description = stringResource(status.description), tint = status.tint)
                     fullFailure?.let {
                         Text(stringResource(it), style = MaterialTheme.typography.bodySmall,
@@ -246,7 +249,7 @@ fun CallResultSummary(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        RecordBadge(
+        StatusBadge(
             icon = status.icon,
             text = stringResource(status.label),
             description = stringResource(status.description),
@@ -262,8 +265,9 @@ fun CallResultSummary(
     }
 }
 
+/** 记录卡与名单条目的共用状态徽章：低强调表面 + 单色图标 + labelMedium 文案。 */
 @Composable
-private fun RecordBadge(
+internal fun StatusBadge(
     icon: ImageVector,
     text: String,
     description: String,

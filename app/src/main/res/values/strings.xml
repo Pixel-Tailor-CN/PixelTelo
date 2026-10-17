@@ -113,7 +113,6 @@
     <string name="current_list_black">Current: In blacklist</string>
     <string name="current_list_white">Current: In whitelist</string>
     <string name="current_list_both">Current: In blacklist and whitelist</string>
-    <string name="label_remark">"Remark: "</string>
     <string name="label_call_feedback">Was this identification accurate?</string>
     <string name="label_record_time">Call time: %1$s</string>
     <string name="label_remark_value">Original remark: %1$s</string>
@@ -130,6 +129,12 @@
     <string name="cd_source_label">Identification label returned by the query source</string>
     <string name="cd_local_label_value">Your local label: %1$s</string>
     <string name="cd_source_label_value">Source identification label: %1$s</string>
+    <string name="cd_rule_prefix_value">Number prefix %1$s</string>
+    <string name="cd_rule_tag_value">Identification label %1$s</string>
+    <string name="cd_rule_location_value">Location keyword %1$s</string>
+    <string name="cd_rule_force_block">Force block is on</string>
+    <string name="cd_rule_inactive">Rule is currently inactive</string>
+    <string name="cd_edit_user_rule">Edit rule</string>
     <string name="record_result_blocked">Blocked</string>
     <string name="record_result_allowed">Allowed</string>
     <string name="record_result_query_failed_open">Query failed · Allowed</string>
@@ -311,6 +316,9 @@
     <string name="list_no_entries">No entries yet</string>
     <string name="list_black_empty_hint">Add a number or matching rule to block unwanted calls.</string>
     <string name="list_white_empty_hint">Add trusted numbers or rules that should always pass.</string>
+    <string name="hint_search_user_list">Search numbers, tags, locations, or notes</string>
+    <string name="msg_no_matching_user_list">No matching entries</string>
+    <string name="msg_no_matching_user_list_hint">Try a different keyword.</string>
     <string name="label_community_report_section">Community spam report</string>
     <string name="label_number_rules">Number rules and local labels</string>
     <string name="category_data_management">Data &amp; reports</string>
@@ -333,7 +341,8 @@
     <string name="msg_location_match_disabled">No Network Query is enabled, so this rule currently cannot receive attribution data.</string>
     <string name="label_location_name">Location keyword</string>
     <string name="hint_location_example">e.g. Zhejiang, Ningbo</string>
-    <string name="label_rule_invalid">Invalid</string>
+    <string name="label_rule_inactive">Currently inactive</string>
+    <string name="msg_location_rule_needs_network">Location rules need an online number query.</string>
     <string name="label_tag_name">Tag name</string>
     <string name="hint_tag_example">e.g. Delivery</string>
     <string name="hint_prefix_example">e.g. 400</string>

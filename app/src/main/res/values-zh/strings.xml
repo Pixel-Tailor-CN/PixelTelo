@@ -12,7 +12,8 @@
     <string name="msg_location_match_disabled">当前已开启“不联网查询”，不会返回归属地信息，该规则暂时无法匹配。</string>
     <string name="label_location_name">归属地关键词</string>
     <string name="hint_location_example">例如：浙江、宁波</string>
-    <string name="label_rule_invalid">无效</string>
+    <string name="label_rule_inactive">暂不生效</string>
+    <string name="msg_location_rule_needs_network">归属地规则需要联网查询。</string>
     <string name="setting_show_location_overlay">悬浮窗显示归属地信息</string>
     <string name="setting_show_location_overlay_summary">来电时通过联网查询获取归属地，并显示到悬浮窗中。</string>
     <string name="setting_show_location_overlay_disabled_summary">需要先关闭“不联网查询”，才能使用联网归属地展示。</string>
@@ -119,7 +120,6 @@
     <string name="current_list_black">当前状态: 已在黑名单中</string>
     <string name="current_list_white">当前状态: 已在白名单中</string>
     <string name="current_list_both">当前状态: 同时在黑名单和白名单中</string>
-    <string name="label_remark">"备注: "</string>
     <string name="label_call_feedback">这次识别准确吗？</string>
     <string name="label_record_time">来电时间：%1$s</string>
     <string name="label_remark_value">原始备注：%1$s</string>
@@ -136,6 +136,12 @@
     <string name="cd_source_label">查询来源返回的识别标签</string>
     <string name="cd_local_label_value">你的本地标签：%1$s</string>
     <string name="cd_source_label_value">查询来源识别标签：%1$s</string>
+    <string name="cd_rule_prefix_value">号码前缀：%1$s</string>
+    <string name="cd_rule_tag_value">识别标签：%1$s</string>
+    <string name="cd_rule_location_value">归属地关键词：%1$s</string>
+    <string name="cd_rule_force_block">已启用强制拦截</string>
+    <string name="cd_rule_inactive">规则暂不生效</string>
+    <string name="cd_edit_user_rule">编辑规则</string>
     <string name="record_result_blocked">已拦截</string>
     <string name="record_result_allowed">已放行</string>
     <string name="record_result_query_failed_open">查询失败 · 已放行</string>
@@ -315,6 +321,9 @@
     <string name="list_no_entries">暂无条目</string>
     <string name="list_black_empty_hint">添加号码或匹配规则以拦截不需要的来电。</string>
     <string name="list_white_empty_hint">添加始终允许接通的号码或规则。</string>
+    <string name="hint_search_user_list">搜索号码、标签、归属地或备注</string>
+    <string name="msg_no_matching_user_list">未找到匹配条目</string>
+    <string name="msg_no_matching_user_list_hint">尝试使用其他关键词搜索。</string>
     <string name="label_community_report_section">社区骚扰上报</string>
     <string name="label_number_rules">号码规则与本地标签</string>
     <string name="category_data_management">数据与上报</string>

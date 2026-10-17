@@ -75,6 +75,10 @@ class ListViewModel : ViewModel(), KoinComponent {
     var currentTab by mutableStateOf(ListType.BLACK)
         private set
 
+    /** 自定义页搜索词。搜索框位于两个 Tab 之上，查询在黑白名单之间共享，不写回数据库。 */
+    var searchQuery by mutableStateOf("")
+        private set
+
     /** 是否展示"添加条目" BottomSheet */
     var showAddSheet by mutableStateOf(false)
         private set
@@ -147,6 +151,30 @@ class ListViewModel : ViewModel(), KoinComponent {
 
     fun selectTab(type: ListType) {
         currentTab = type
+    }
+
+    fun updateSearchQuery(value: String) {
+        searchQuery = value
+    }
+
+    fun clearSearchQuery() {
+        searchQuery = ""
+    }
+
+    /**
+     * 名单搜索匹配：号码按去分隔符后的包含匹配，标签名、归属地关键词与备注按字面包含匹配，
+     * 英文忽略大小写。前缀规则在界面上显示为 "400*"，输入星号时按去掉星号的关键词匹配。
+     * 搜索只作用于已加载的本地名单，不触发联网查询，也不改变匹配与拦截结果。
+     */
+    fun matchesSearch(entry: UserListEntry, query: String): Boolean {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return true
+        val keyword = trimmed.removeSuffix("*").trim()
+        if (keyword.isEmpty()) return true
+        if (entry.phoneNumber.contains(keyword, ignoreCase = true)) return true
+        if (entry.remark?.contains(keyword, ignoreCase = true) == true) return true
+        val digits = keyword.filter(Char::isDigit)
+        return digits.isNotEmpty() && entry.phoneNumber.filter(Char::isDigit).contains(digits)
     }
 
     /** 打开新增流程时清空各类型草稿，并默认选择号码规则。 */

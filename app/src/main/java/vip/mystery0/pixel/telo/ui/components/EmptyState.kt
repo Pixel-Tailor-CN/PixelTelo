@@ -23,6 +23,7 @@ fun EmptyState(
     title: String,
     description: String? = null,
     modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -47,6 +48,10 @@ fun EmptyState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
+        }
+        action?.let {
+            Spacer(Modifier.height(8.dp))
+            it()
         }
     }
 }
