@@ -38,7 +38,49 @@
     <string name="overlay_query_service_unavailable">Query service unavailable</string>
 
     <!-- Navigation -->
-    <string name="nav_home">Intercepts</string>
+    <string name="nav_home">Call history</string>
+    <string name="action_more">More</string>
+    <string name="record_date_today">Today</string>
+    <string name="record_date_yesterday">Yesterday</string>
+    <string name="tag_whitelist_scope">This rule also matches other numbers with the same tag</string>
+    <string name="record_history_section">History</string>
+    <string name="history_community_label">Community label</string>
+    <string name="history_remark_label">Original remark</string>
+    <string name="history_duration_label">Duration</string>
+    <string name="history_community_active">Active at the time</string>
+    <string name="history_community_inactive">Inactive at the time</string>
+    <string name="history_community_unavailable">Unavailable at the time</string>
+    <string name="history_community_unknown">Not provided at the time</string>
+    <string name="history_duration_network">Local %1$dms · Network %2$dms</string>
+    <string name="history_duration_local">Local %1$dms</string>
+    <string name="detail_report_submitted">Report submitted</string>
+    <string name="detail_view_reports">View reports</string>
+    <string name="confirm_blacklist_title">Add to blacklist?</string>
+    <string name="confirm_whitelist_title">Add to whitelist?</string>
+    <string name="confirm_tag_whitelist_title">Add to tag whitelist?</string>
+    <string name="confirm_blacklist_action">Add to blacklist</string>
+    <string name="confirm_whitelist_action">Add to whitelist</string>
+    <string name="confirm_tag_whitelist_action">Add to tag whitelist</string>
+    <string name="confirm_blacklist_message">Incoming calls from this number will follow blacklist rules.</string>
+    <string name="confirm_whitelist_message">Incoming calls from this number will be allowed under whitelist rules.</string>
+    <string name="confirm_tag_whitelist_message">Incoming calls from numbers with this tag will be allowed under tag whitelist rules.</string>
+    <string name="rule_add_failed">Could not add the rule. Try again.</string>
+    <string name="detail_report_unavailable">Cannot report</string>
+    <string name="detail_report_reason_token">Missing reporting credential</string>
+    <string name="detail_report_reason_expired">Reporting credential expired</string>
+    <string name="detail_report_reason_used">Reporting credential already used</string>
+    <string name="detail_report_reason_device">This device cannot report this number again</string>
+    <string name="detail_report_reason_request">Invalid reporting information</string>
+    <string name="detail_report_reason_withdraw">Withdraw the existing report first</string>
+    <string name="detail_report_reason_missing">Record not found</string>
+    <string name="detail_report_reason_limited">Too many requests</string>
+    <string name="detail_report_reason_unavailable">Reporting service unavailable</string>
+    <string name="detail_report_reason_unsupported">Reporting is not supported</string>
+    <string name="detail_report_reason_network">Network connection failed</string>
+    <string name="detail_report_reason_response">Invalid service response</string>
+    <string name="detail_report_reason_identity">Reporting identity unavailable</string>
+    <string name="detail_report_reason_local">Reporting state unavailable</string>
+    <string name="detail_report_reason_internal">Reporting temporarily unavailable</string>
     <string name="nav_settings">Settings</string>
 
     <!-- Warnings -->
@@ -48,12 +90,12 @@
     <string name="warning_missing_permissions_title">Missing Permissions</string>
     <string name="warning_missing_permissions_message">Please grant the required permissions to intercept spam calls normally.</string>
     <string name="action_grant_permissions">Grant permissions</string>
-    <string name="warning_missing_db_title">Offline Database Missing</string>
-    <string name="warning_missing_db_message">For the best intercept performance, please download the offline database.</string>
+    <string name="warning_missing_db_title">Offline number database not downloaded</string>
+    <string name="warning_missing_db_message">Download to enable offline identification</string>
     <string name="action_download_db">Download</string>
 
     <!-- Home Screen -->
-    <string name="home_no_records">No intercept records</string>
+    <string name="home_no_records">No call records</string>
     <string name="home_no_records_hint">Incoming call identification and blocking records will appear here.</string>
     <string name="home_records_load_failed">Failed to load intercept records</string>
     <string name="action_retry_query">Retry Query (Domestic Numbers)</string>
@@ -72,14 +114,15 @@
     <string name="current_list_white">Current: In whitelist</string>
     <string name="current_list_both">Current: In blacklist and whitelist</string>
     <string name="label_remark">"Remark: "</string>
-    <string name="label_call_feedback">Call result feedback</string>
+    <string name="label_call_feedback">Was this identification accurate?</string>
     <string name="label_record_time">Call time: %1$s</string>
-    <string name="label_remark_value">Remark: %1$s</string>
+    <string name="label_remark_value">Original remark: %1$s</string>
+    <string name="record_location_and_time">%1$s · %2$s</string>
     <string name="label_compact_separator"> · </string>
-    <string name="action_add_blacklist_short">Block</string>
-    <string name="action_add_whitelist_short">Allow</string>
-    <string name="action_set_local_label_short">Label</string>
-    <string name="action_edit_local_label_short">Edit label</string>
+    <string name="action_add_blacklist_short">Add to blacklist</string>
+    <string name="action_add_whitelist_short">Add to whitelist</string>
+    <string name="action_set_local_label_short">Local label</string>
+    <string name="action_edit_local_label_short">Local label</string>
     <string name="cd_add_number_to_blacklist">Add this number to the blacklist</string>
     <string name="cd_add_number_to_whitelist">Add this number to the whitelist</string>
     <string name="cd_set_local_label">Set a local label for this number</string>
@@ -324,7 +367,7 @@
     <string name="msg_already_in_blacklist">Already in blacklist</string>
     <string name="msg_added_to_whitelist">Added to whitelist</string>
     <string name="msg_already_in_whitelist">Already in whitelist</string>
-    <string name="action_add_tag_to_whitelist">Add tag to Whitelist (%1$s)</string>
+    <string name="action_add_tag_to_whitelist">Add “%1$s” to the tag whitelist</string>
     <string name="msg_added_tag_to_whitelist">Added tag to whitelist</string>
     <string name="msg_tag_already_in_whitelist">Tag already in whitelist</string>
     <string name="call_label_spam_default">Spam call</string>
@@ -449,9 +492,9 @@
     <string name="action_open_query_backend_settings">Open query server settings</string>
 
     <!-- Query Feedback -->
-    <string name="label_query_source">"Query source: %1$s"</string>
-    <string name="action_feedback_positive">Result accurate</string>
-    <string name="action_feedback_negative">Result inaccurate</string>
+    <string name="label_query_source">"Identification source: %1$s"</string>
+    <string name="action_feedback_positive">Accurate</string>
+    <string name="action_feedback_negative">Inaccurate</string>
     <string name="msg_feedback_failed">Feedback failed: %1$s</string>
     <string name="msg_feedback_failed_retry">Network error, please retry later.</string>
     <string name="feedback_status_positive">Feedback submitted: result accurate</string>

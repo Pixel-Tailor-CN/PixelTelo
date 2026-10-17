@@ -3,14 +3,12 @@ package vip.mystery0.pixel.telo.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,15 +68,12 @@ private fun QuickAction(
     onClick: () -> Unit,
 ) {
     val accessibleDescription = stringResource(description)
-    FilledTonalButton(
+    // AssistChip 保持约 32dp 的可见高度，Material3 提供至少 48dp 的触摸区域。
+    AssistChip(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .semantics { contentDescription = accessibleDescription },
-    ) {
-        Icon(icon, contentDescription = null)
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(label))
-    }
+        modifier = Modifier.semantics { contentDescription = accessibleDescription },
+        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
+        label = { Text(stringResource(label)) },
+    )
 }

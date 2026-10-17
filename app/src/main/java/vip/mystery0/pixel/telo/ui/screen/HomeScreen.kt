@@ -14,6 +14,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -32,6 +34,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ThumbDown
@@ -42,9 +48,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -56,15 +64,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -74,7 +82,7 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.util.queryFailureAdviceRes
 import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
@@ -83,19 +91,26 @@ import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.ui.components.BlockedCallItem
+import vip.mystery0.pixel.telo.ui.components.CallHistorySection
 import vip.mystery0.pixel.telo.ui.components.CallResultSummary
 import vip.mystery0.pixel.telo.ui.components.CommunityReportSection
 import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelEditorDialogs
+import vip.mystery0.pixel.telo.ui.components.NumberRuleAction
+import vip.mystery0.pixel.telo.ui.components.NumberRuleConfirmation
 import vip.mystery0.pixel.telo.ui.components.NumberQuickActions
 import vip.mystery0.pixel.telo.ui.components.EmptyState
 import vip.mystery0.pixel.telo.ui.components.WarningCard
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.viewmodel.BlockedCallListItem
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import vip.mystery0.pixel.telo.util.textRes
-import vip.mystery0.pixel.telo.data.model.parseCommunityStatus
 import vip.mystery0.pixel.telo.data.model.CommunityStatus
 import vip.mystery0.pixel.telo.data.query.decodeCommunityQueryMetadata
 import vip.mystery0.pixel.telo.viewmodel.FeedbackSubmissionState
@@ -110,12 +125,12 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     localLabelEditorViewModel: LocalNumberLabelEditorViewModel,
     callReportViewModel: vip.mystery0.pixel.telo.viewmodel.CallReportViewModel,
+    onNavigateToMyReports: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToSourceSettings: () -> Unit,
     onNavigateToSelfHostedSettings: () -> Unit,
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     val blockedCallItems = viewModel.blockedCallItems.collectAsLazyPagingItems()
     val contactNames by viewModel.contactNames.collectAsState()
     val localLabels by viewModel.localLabels.collectAsState()
@@ -378,177 +393,204 @@ fun HomeScreen(
         LaunchedEffect(call.phoneNumber) {
             localLabelEditorViewModel.observe(call.phoneNumber)
         }
-        ModalBottomSheet(onDismissRequest = { viewModel.closeQuickAdd() }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+        val detailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        NumberRuleConfirmation(
+            callId = call.id,
+            phone = phone,
+            label = label,
+            onAdd = { action ->
+                val current = viewModel.quickAddCall
+                if (current?.id != call.id || current.phoneNumber != phone ||
+                    current.label?.takeIf(String::isNotBlank) != label
+                ) throw CancellationException("Call target changed")
+                when (action) {
+                    NumberRuleAction.BLACKLIST -> viewModel.quickAddToBlackList(phone)
+                    NumberRuleAction.WHITELIST -> viewModel.quickAddToWhiteList(phone)
+                    NumberRuleAction.TAG_WHITELIST -> viewModel.quickAddTagToWhiteList(requireNotNull(label))
+                }
+            },
+            onComplete = { action, added ->
+                val message = when (action) {
+                    NumberRuleAction.BLACKLIST -> if (added) addedToBlacklistMessage else alreadyInBlacklistMessage
+                    NumberRuleAction.WHITELIST -> if (added) addedToWhitelistMessage else alreadyInWhitelistMessage
+                    NumberRuleAction.TAG_WHITELIST -> if (added) addedTagToWhitelistMessage else tagAlreadyInWhitelistMessage
+                }
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                viewModel.closeQuickAdd()
+            },
+        ) { requestRule ->
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.closeQuickAdd() },
+                sheetState = detailSheetState,
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (!contactName.isNullOrBlank()) {
-                        Text(contactName, style = MaterialTheme.typography.titleMedium)
-                    }
-                    Text(phone, style = MaterialTheme.typography.headlineSmall)
-                    location?.let {
-                        Text(it, style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Text(
-                        stringResource(R.string.label_record_time, formatMills(call.blockTime)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        stringResource(R.string.label_record_result),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                    CallResultSummary(resultType = call.resultType)
-                }
-
-                NumberQuickActions(
-                    hasLocalLabel = identityLocalLabel != null,
-                    labelEnabled = labelEnabled,
-                    onAddToBlacklist = {
-                        coroutineScope.launch {
-                            val success = viewModel.quickAddToBlackList(phone)
-                            Toast.makeText(
-                                context,
-                                if (success) addedToBlacklistMessage else alreadyInBlacklistMessage,
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            viewModel.closeQuickAdd()
-                        }
-                    },
-                    onAddToWhitelist = {
-                        coroutineScope.launch {
-                            val success = viewModel.quickAddToWhiteList(phone)
-                            Toast.makeText(
-                                context,
-                                if (success) addedToWhitelistMessage else alreadyInWhitelistMessage,
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                            viewModel.closeQuickAdd()
-                        }
-                    },
-                    onEditLocalLabel = localLabelEditorViewModel::openEditor,
-                )
-                if (label != null) {
-                    TextButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                val success = viewModel.quickAddTagToWhiteList(label)
-                                Toast.makeText(
-                                    context,
-                                    if (success) addedTagToWhitelistMessage else tagAlreadyInWhitelistMessage,
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                                viewModel.closeQuickAdd()
-                            }
-                        },
-                        modifier = Modifier.heightIn(min = 48.dp),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .padding(top = 16.dp, bottom = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        Text(stringResource(R.string.action_add_tag_to_whitelist, label))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (!contactName.isNullOrBlank()) {
+                                Text(contactName, style = MaterialTheme.typography.titleMedium)
+                            }
+                            Text(phone, style = MaterialTheme.typography.headlineSmall)
+                            Text(
+                                if (location != null) {
+                                    stringResource(R.string.record_location_and_time, location, formatMills(call.blockTime))
+                                } else {
+                                    formatMills(call.blockTime)
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                itemVerticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                label?.let {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Cloud, contentDescription = stringResource(R.string.cd_source_label),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(it, style = MaterialTheme.typography.titleMedium)
+                                    }
+                                }
+                                call.querySource?.trim()?.takeIf(String::isNotBlank)?.let {
+                                    RecordSourceChip(it)
+                                }
+                                CallResultSummary(resultType = call.resultType)
+                            }
+                            if (showLocalNumberLabels && identityLocalLabel != null) {
+                                RecordDetailValue(
+                                    icon = Icons.Default.Edit,
+                                    description = stringResource(R.string.cd_local_label_source),
+                                    value = identityLocalLabel,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+
+                        NumberQuickActions(
+                            hasLocalLabel = identityLocalLabel != null,
+                            labelEnabled = labelEnabled,
+                            onAddToBlacklist = { requestRule(NumberRuleAction.BLACKLIST) },
+                            onAddToWhitelist = { requestRule(NumberRuleAction.WHITELIST) },
+                            onEditLocalLabel = localLabelEditorViewModel::openEditor,
+                        )
                     }
-                }
-
-                if (showLocalNumberLabels && identityLocalLabel != null) {
-                    RecordDetailValue(
-                        icon = Icons.Default.Edit,
-                        description = stringResource(R.string.cd_local_label_source),
-                        value = identityLocalLabel,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                label?.let {
-                    RecordDetailValue(
-                        icon = Icons.Default.Cloud,
-                        description = stringResource(R.string.cd_source_label),
-                        value = it,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                call.querySource?.let {
-                    Text(
-                        stringResource(R.string.label_query_source, it),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                CommunityHistorySummary(call)
-                if (!call.remark.isNullOrBlank()) {
-                    Text(
-                        stringResource(R.string.label_remark_value, call.remark),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                val durationText = if (call.networkDuration > 0) {
-                    stringResource(
-                        R.string.label_duration_with_network,
-                        call.localDuration,
-                        call.networkDuration,
-                    )
-                } else {
-                    stringResource(R.string.label_duration_local, call.localDuration)
-                }
-                Text(
-                    durationText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                if (call.queryBackendId == OFFICIAL_BACKEND_ID &&
-                    call.feedbackStatus != FeedbackStatus.UNAVAILABLE
-                ) {
-                    Text(stringResource(R.string.label_call_feedback),
-                        style = MaterialTheme.typography.titleSmall)
-                    FeedbackSection(
-                        call = call,
-                        submissionState = viewModel.feedbackSubmissionState,
-                        onSubmit = { positive -> viewModel.submitFeedback(call, positive) },
-                    )
-                }
-
-                Text(stringResource(R.string.label_community_report_section),
-                    style = MaterialTheme.typography.titleSmall)
-                CommunityReportSection(
-                    state = reportState,
-                    onSubmit = callReportViewModel::submit,
-                )
-
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
-                                type = ContactsContract.Contacts.CONTENT_ITEM_TYPE
-                                putExtra(ContactsContract.Intents.Insert.PHONE, phone)
-                                if (label != null) putExtra(ContactsContract.Intents.Insert.NAME, label)
+                    HorizontalDivider()
+                    if (label != null) {
+                        TextButton(
+                            onClick = { requestRule(NumberRuleAction.TAG_WHITELIST) },
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp).heightIn(min = 48.dp),
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null)
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(stringResource(R.string.action_add_tag_to_whitelist, label),
+                                    style = MaterialTheme.typography.titleSmall)
+                                Text(stringResource(R.string.tag_whitelist_scope),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            try {
-                                context.startActivity(intent)
+                            Spacer(Modifier.width(8.dp))
+                            Icon(Icons.Default.ChevronRight, contentDescription = null)
+                        }
+                    }
+
+                    if (label != null) HorizontalDivider()
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+                        CallHistorySection(call)
+                    }
+                    HorizontalDivider()
+                    val showingSubmittedReport = reportState.accepted && !reportState.loading && !reportState.submitting
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                                .padding(top = 12.dp, bottom = if (showingSubmittedReport) 4.dp else 12.dp),
+                            // 已提交行自带48dp触摸高度，中心20dp文字上下各有14dp布局留白。
+                            verticalArrangement = Arrangement.spacedBy(if (showingSubmittedReport) 0.dp else 4.dp),
+                        ) {
+                            if (call.queryBackendId == OFFICIAL_BACKEND_ID &&
+                                call.feedbackStatus != FeedbackStatus.UNAVAILABLE
+                            ) {
+                                // 按钮可见40dp、触摸48dp，上下各4dp；14dp外距合成约18dp视觉间隔。
+                                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                    Text(stringResource(R.string.label_call_feedback),
+                                        style = MaterialTheme.typography.titleSmall)
+                                    FeedbackSection(
+                                        call = call,
+                                        submissionState = viewModel.feedbackSubmissionState,
+                                        onSubmit = { positive -> viewModel.submitFeedback(call, positive) },
+                                    )
+                                }
+                            }
+                            CommunityReportSection(
+                                state = reportState,
+                                onSubmit = callReportViewModel::submit,
+                                onViewReports = {
+                                    viewModel.closeQuickAdd()
+                                    onNavigateToMyReports()
+                                },
+                            )
+                        }
+                    }
+                    HorizontalDivider()
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                        maxItemsInEachRow = if (LocalDensity.current.fontScale > 1.3f) 1 else 2,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        TextButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
+                                    type = ContactsContract.Contacts.CONTENT_ITEM_TYPE
+                                    putExtra(ContactsContract.Intents.Insert.PHONE, phone)
+                                    if (label != null) putExtra(ContactsContract.Intents.Insert.NAME, label)
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                    viewModel.closeQuickAdd()
+                                } catch (_: ActivityNotFoundException) {
+                                    Toast.makeText(context, noContactsAppMessage, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        ) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.action_save_to_contacts))
+                        }
+                        TextButton(
+                            onClick = {
+                                itemToDelete = call
+                                showDeleteDialog = true
                                 viewModel.closeQuickAdd()
-                            } catch (_: ActivityNotFoundException) {
-                                Toast.makeText(context, noContactsAppMessage, Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    ) { Text(stringResource(R.string.action_save_to_contacts)) }
-                    TextButton(
-                        onClick = {
-                            itemToDelete = call
-                            showDeleteDialog = true
-                            viewModel.closeQuickAdd()
-                        },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                    ) { Text(stringResource(R.string.action_delete_record)) }
+                            },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        ) {
+                            Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.action_delete_record))
+                        }
+                    }
                 }
             }
         }
@@ -675,7 +717,7 @@ private fun SelfHostedWarning.messageResId(): Int = when (this) {
 
 /**
  * 记录详情中的反馈区域。
- * PENDING 时提供“结果准确/结果不准确”操作，提交中禁用；
+ * PENDING 时提供“准确/不准确”操作，提交中禁用；
  * 终态只展示状态文字；UNAVAILABLE 不展示任何内容。
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -702,24 +744,28 @@ private fun FeedbackSection(
             val submitting = submissionState is FeedbackSubmissionState.Submitting &&
                 submissionState.callId == call.id
             FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                maxItemsInEachRow = if (LocalDensity.current.fontScale > 1.3f) 1 else 2,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 OutlinedButton(
                     onClick = { onSubmit(true) },
                     enabled = !submitting,
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 ) {
-                    Icon(Icons.Default.ThumbUp, contentDescription = null)
+                    Icon(Icons.Default.ThumbUp, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.action_feedback_positive))
                 }
                 OutlinedButton(
                     onClick = { onSubmit(false) },
                     enabled = !submitting,
-                    modifier = Modifier.heightIn(min = 48.dp),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 ) {
-                    Icon(Icons.Default.ThumbDown, contentDescription = null)
+                    Icon(Icons.Default.ThumbDown, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.action_feedback_negative))
                 }
@@ -858,6 +904,20 @@ private fun LazyListScope.blockedCallsList(
             ) { index ->
                 callItems[index]?.let { item ->
                     val call = item.call
+                    val date = call.recordDate()
+                    // 对比整个已加载窗口的前一条记录，避免跨页同日重复分组，也不额外触发加载。
+                    val previousDate = if (index > 0) callItems.peek(index - 1)?.call?.recordDate() else null
+                    if (date != previousDate) {
+                        val today = LocalDate.now()
+                        val dateText = when (date) {
+                            today -> stringResource(R.string.record_date_today)
+                            today.minusDays(1) -> stringResource(R.string.record_date_yesterday)
+                            else -> date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
+                        }
+                        Text(dateText, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     BlockedCallItem(
                         call = call,
                         contactName = contactNames[call.phoneNumber],
@@ -908,20 +968,20 @@ private fun LazyListScope.blockedCallsList(
 }
 
 @Composable
-private fun CommunityHistorySummary(call: BlockedCall) {
-    val community = parseCommunityStatus(call.communityStatus)
-    if (community != CommunityStatus.UNKNOWN || call.communityBlockApplied) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            SnapshotBadge(
-                text = stringResource(R.string.community_snapshot, stringResource(community.textRes())),
-            )
-            if (call.communityBlockApplied) {
-                SnapshotBadge(
-                    text = stringResource(R.string.community_block_applied),
-                    warning = true,
-                )
-            }
-        }
+private fun RecordSourceChip(source: String) {
+    val description = stringResource(R.string.label_query_source, source)
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.clearAndSetSemantics { contentDescription = description },
+    ) {
+        Text(
+            text = source,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -946,18 +1006,5 @@ private fun BlockedCall.locationText(): String? = listOfNotNull(
     city?.trim()?.takeIf { it.isNotEmpty() },
 ).distinct().joinToString(" ").takeIf { it.isNotEmpty() }
 
-@Composable
-private fun SnapshotBadge(text: String, warning: Boolean = false) {
-    Surface(
-        shape = MaterialTheme.shapes.small,
-        color = if (warning) MaterialTheme.colorScheme.surfaceContainerHigh
-        else MaterialTheme.colorScheme.surfaceContainerLow,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    ) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-        )
-    }
-}
+private fun BlockedCall.recordDate(): LocalDate =
+    Instant.ofEpochMilli(blockTime).atZone(ZoneId.systemDefault()).toLocalDate()

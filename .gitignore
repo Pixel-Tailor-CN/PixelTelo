@@ -18,3 +18,4 @@ local.properties
 /.superpowers/
 /app/release/
 /.kotlin/
+/docs/reports/

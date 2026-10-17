@@ -14,7 +14,10 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Rule
-import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import vip.mystery0.pixel.telo.viewmodel.CallReportViewModel
 import vip.mystery0.pixel.telo.viewmodel.MyReportsViewModel
@@ -96,6 +99,7 @@ class MainActivity : ComponentActivity() {
                 val hasBlockedCallRecords by homeViewModel.hasBlockedCallRecords
                     .collectAsStateWithLifecycle()
                 var showClearRecordsDialog by remember { mutableStateOf(false) }
+                var showRecordsMenu by remember { mutableStateOf(false) }
                 var showLocalNumberLabelsScreen by rememberSaveable { mutableStateOf(false) }
                 var showMyReportsScreen by rememberSaveable { mutableStateOf(false) }
                 fun openMyReports() {
@@ -198,13 +202,23 @@ class MainActivity : ComponentActivity() {
                                     currentDestination == AppDestinations.HOME &&
                                     hasBlockedCallRecords
                                 ) {
-                                    IconButton(onClick = { showClearRecordsDialog = true }) {
-                                        Icon(
-                                            Icons.Default.DeleteSweep,
-                                            contentDescription = stringResource(
-                                                R.string.action_clear_all_records
-                                            ),
-                                        )
+                                    Box {
+                                        IconButton(onClick = { showRecordsMenu = true }) {
+                                            Icon(Icons.Default.MoreVert,
+                                                contentDescription = stringResource(R.string.action_more))
+                                        }
+                                        DropdownMenu(
+                                            expanded = showRecordsMenu,
+                                            onDismissRequest = { showRecordsMenu = false },
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text(stringResource(R.string.action_clear_all_records)) },
+                                                onClick = {
+                                                    showRecordsMenu = false
+                                                    showClearRecordsDialog = true
+                                                },
+                                            )
+                                        }
                                     }
                                 }
                             },
@@ -274,6 +288,7 @@ class MainActivity : ComponentActivity() {
                                         viewModel = homeViewModel,
                                         localLabelEditorViewModel = localNumberLabelEditorViewModel,
                                         callReportViewModel = callReportViewModel,
+                                        onNavigateToMyReports = ::openMyReports,
                                         onNavigateToSettings = {
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(

@@ -15,11 +15,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,7 +38,9 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
-import vip.mystery0.pixel.telo.ui.util.formatMills
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import vip.mystery0.pixel.telo.util.queryFailureSummaryRes
 import vip.mystery0.pixel.telo.viewmodel.CurrentListState
 
@@ -86,134 +89,123 @@ fun BlockedCallItem(
             R.string.cd_record_blocked,
         )
     }
-    val time = formatMills(call.blockTime)
+    val time = Instant.ofEpochMilli(call.blockTime).atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("HH:mm"))
     val largeText = LocalDensity.current.fontScale > 1.3f
     val location = call.recordLocation()
-    val phoneAndLocation = listOfNotNull(call.phoneNumber, location)
-        .joinToString(stringResource(R.string.label_compact_separator))
+    val sourceLabel = call.label?.takeIf(String::isNotBlank)
+    val visibleLocalLabel = localLabel?.takeIf(String::isNotBlank)
     val fullFailure = call.resultType.queryFailureSummaryRes()
 
     Card(
         modifier = Modifier
             .padding(vertical = 4.dp)
             .fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         enabled = onClick != null,
         onClick = { onClick?.invoke() },
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                imageVector = status.icon,
-                contentDescription = stringResource(status.description),
-                tint = status.tint,
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .size(24.dp),
-            )
-            SelectionContainer(modifier = Modifier.weight(1f)) {
+            SelectionContainer {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (!contactName.isNullOrBlank()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Text(
-                                text = contactName,
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(time, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                    if (contactName.isNullOrBlank() && largeText) {
-                        Text(
-                            text = phoneAndLocation,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        Text(time, style = MaterialTheme.typography.bodySmall)
+                    if (largeText) {
+                        Text(contactName?.takeIf(String::isNotBlank) ?: call.phoneNumber,
+                            style = MaterialTheme.typography.titleMedium)
+                        Text(time, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
+                        Row(modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Text(
-                                text = phoneAndLocation,
-                                modifier = Modifier.weight(1f),
-                                style = if (contactName.isNullOrBlank()) {
-                                    MaterialTheme.typography.titleSmall
-                                } else {
-                                    MaterialTheme.typography.bodyMedium
-                                },
-                            )
-                            if (contactName.isNullOrBlank()) {
-                                Text(time, style = MaterialTheme.typography.bodySmall)
-                            }
+                            verticalAlignment = Alignment.Top) {
+                            Text(contactName?.takeIf(String::isNotBlank) ?: call.phoneNumber,
+                                modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                            Text(time, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        RecordBadge(
-                            icon = status.icon,
-                            text = stringResource(status.label),
-                            description = stringResource(status.description),
-                            tint = status.tint,
-                        )
-                        call.label?.takeIf(String::isNotBlank)?.let { sourceLabel ->
-                            RecordBadge(
-                                icon = Icons.Default.Cloud,
-                                text = sourceLabel,
-                                description = stringResource(R.string.cd_source_label_value, sourceLabel),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        localLabel?.takeIf(String::isNotBlank)?.let { value ->
-                            RecordBadge(
-                                icon = Icons.Default.Edit,
-                                text = value,
-                                description = stringResource(R.string.cd_local_label_value, value),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                    if (fullFailure != null) {
-                        Text(
-                            text = stringResource(fullFailure),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    currentListState.takeIf { it != CurrentListState.NONE }?.let { state ->
-                        Text(
-                            text = stringResource(when (state) {
-                                CurrentListState.BLACK -> R.string.current_list_black
-                                CurrentListState.WHITE -> R.string.current_list_white
-                                CurrentListState.BOTH -> R.string.current_list_both
-                                CurrentListState.NONE -> R.string.current_list_both
-                            }),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    if (!contactName.isNullOrBlank()) {
+                        Text(call.phoneNumber, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
-            if (onRetry != null) {
-                IconButton(onClick = onRetry, modifier = Modifier.size(48.dp)) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.action_retry_query),
-                    )
+            if (location != null || sourceLabel != null || visibleLocalLabel != null) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
+                    location?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    sourceLabel?.let { value ->
+                        RecordLabel(icon = Icons.Default.Cloud, text = value,
+                            description = stringResource(R.string.cd_source_label_value, value),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    visibleLocalLabel?.let { value ->
+                        RecordLabel(icon = Icons.Default.Edit, text = value,
+                            description = stringResource(R.string.cd_local_label_value, value),
+                            tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
+            }
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                // 大字体下结果和原因先占满整行，避免尾部操作挤压历史放行结论。
+                Column(
+                    modifier = if (largeText && failed) Modifier.fillMaxWidth() else Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    RecordBadge(icon = status.icon, text = stringResource(status.label),
+                        description = stringResource(status.description), tint = status.tint)
+                    fullFailure?.let {
+                        Text(stringResource(it), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (failed && onRetry != null) {
+                    OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
+                } else if (!failed) {
+                    Icon(Icons.Default.ChevronRight, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                }
+            }
+            currentListState.takeIf { it != CurrentListState.NONE }?.let { state ->
+                Text(stringResource(when (state) {
+                    CurrentListState.BLACK -> R.string.current_list_black
+                    CurrentListState.WHITE -> R.string.current_list_white
+                    CurrentListState.BOTH -> R.string.current_list_both
+                    CurrentListState.NONE -> R.string.current_list_both
+                }), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+/** 来源和本地标签使用无底色的次要行，保持独立语义与强调色。 */
+@Composable
+private fun RecordLabel(
+    icon: ImageVector,
+    text: String,
+    description: String,
+    tint: Color,
+) {
+    Row(
+        modifier = Modifier.semantics { contentDescription = description },
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = tint)
     }
 }
 
@@ -278,7 +270,7 @@ private fun RecordBadge(
     tint: Color,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier.semantics { contentDescription = description },
     ) {

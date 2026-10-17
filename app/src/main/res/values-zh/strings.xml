@@ -45,7 +45,49 @@
     <string name="setting_show_local_number_labels_summary">在来电识别和记录中显示你设置的本地标签</string>
 
     <!-- Navigation -->
-    <string name="nav_home">拦截记录</string>
+    <string name="nav_home">来电记录</string>
+    <string name="action_more">更多</string>
+    <string name="record_date_today">今天</string>
+    <string name="record_date_yesterday">昨天</string>
+    <string name="tag_whitelist_scope">此规则会匹配其他同标签号码</string>
+    <string name="record_history_section">历史记录</string>
+    <string name="history_community_label">社区标记</string>
+    <string name="history_remark_label">原始备注</string>
+    <string name="history_duration_label">处理耗时</string>
+    <string name="history_community_active">当时已生效</string>
+    <string name="history_community_inactive">当时未生效</string>
+    <string name="history_community_unavailable">当时暂不可用</string>
+    <string name="history_community_unknown">当时未提供</string>
+    <string name="history_duration_network">本地 %1$dms · 网络 %2$dms</string>
+    <string name="history_duration_local">本地 %1$dms</string>
+    <string name="detail_report_submitted">已提交上报</string>
+    <string name="detail_view_reports">查看上报</string>
+    <string name="confirm_blacklist_title">加入黑名单？</string>
+    <string name="confirm_whitelist_title">加入白名单？</string>
+    <string name="confirm_tag_whitelist_title">加入标签白名单？</string>
+    <string name="confirm_blacklist_action">加入黑名单</string>
+    <string name="confirm_whitelist_action">加入白名单</string>
+    <string name="confirm_tag_whitelist_action">加入标签白名单</string>
+    <string name="confirm_blacklist_message">加入后将按黑名单规则处理此号码的来电。</string>
+    <string name="confirm_whitelist_message">加入后将按白名单规则放行此号码的来电。</string>
+    <string name="confirm_tag_whitelist_message">加入后将按标签白名单规则放行同标签号码的来电。</string>
+    <string name="rule_add_failed">添加失败，请重试</string>
+    <string name="detail_report_unavailable">不能上报</string>
+    <string name="detail_report_reason_token">缺少上报凭据</string>
+    <string name="detail_report_reason_expired">上报凭据已过期</string>
+    <string name="detail_report_reason_used">上报凭据已使用</string>
+    <string name="detail_report_reason_device">当前设备不能再上报此号码</string>
+    <string name="detail_report_reason_request">上报信息无效</string>
+    <string name="detail_report_reason_withdraw">需先撤回原上报</string>
+    <string name="detail_report_reason_missing">记录不存在</string>
+    <string name="detail_report_reason_limited">请求过于频繁</string>
+    <string name="detail_report_reason_unavailable">上报服务暂不可用</string>
+    <string name="detail_report_reason_unsupported">暂不支持上报</string>
+    <string name="detail_report_reason_network">网络连接失败</string>
+    <string name="detail_report_reason_response">服务响应异常</string>
+    <string name="detail_report_reason_identity">上报身份不可用</string>
+    <string name="detail_report_reason_local">上报状态暂不可用</string>
+    <string name="detail_report_reason_internal">上报暂不可用</string>
     <string name="nav_settings">设置</string>
 
     <!-- Warnings -->
@@ -55,12 +97,12 @@
     <string name="warning_missing_permissions_title">缺少必要权限</string>
     <string name="warning_missing_permissions_message">为了正常拦截骚扰电话，请授予相关权限。</string>
     <string name="action_grant_permissions">去授权</string>
-    <string name="warning_missing_db_title">离线数据库缺失</string>
-    <string name="warning_missing_db_message">为了实现最佳拦截效果，请下载离线数据库。</string>
-    <string name="action_download_db">去下载</string>
+    <string name="warning_missing_db_title">离线号码库未下载</string>
+    <string name="warning_missing_db_message">下载后可使用离线识别</string>
+    <string name="action_download_db">下载</string>
 
     <!-- Home Screen -->
-    <string name="home_no_records">暂无拦截记录</string>
+    <string name="home_no_records">暂无来电记录</string>
     <string name="home_no_records_hint">来电识别与拦截记录会显示在这里。</string>
     <string name="home_records_load_failed">拦截记录加载失败</string>
     <string name="action_retry_query">重新联网查询（仅国内号码）</string>
@@ -79,14 +121,15 @@
     <string name="current_list_white">当前状态: 已在白名单中</string>
     <string name="current_list_both">当前状态: 同时在黑名单和白名单中</string>
     <string name="label_remark">"备注: "</string>
-    <string name="label_call_feedback">来电结果反馈</string>
+    <string name="label_call_feedback">这次识别准确吗？</string>
     <string name="label_record_time">来电时间：%1$s</string>
-    <string name="label_remark_value">备注：%1$s</string>
+    <string name="label_remark_value">原始备注：%1$s</string>
+    <string name="record_location_and_time">%1$s · %2$s</string>
     <string name="label_compact_separator"> · </string>
-    <string name="action_add_blacklist_short">加黑</string>
-    <string name="action_add_whitelist_short">加白</string>
-    <string name="action_set_local_label_short">标签</string>
-    <string name="action_edit_local_label_short">编辑标签</string>
+    <string name="action_add_blacklist_short">加黑名单</string>
+    <string name="action_add_whitelist_short">加白名单</string>
+    <string name="action_set_local_label_short">本地标签</string>
+    <string name="action_edit_local_label_short">本地标签</string>
     <string name="cd_add_number_to_blacklist">将此号码加入黑名单</string>
     <string name="cd_add_number_to_whitelist">将此号码加入白名单</string>
     <string name="cd_set_local_label">为此号码设置本地标签</string>
@@ -322,7 +365,7 @@
     <string name="msg_already_in_blacklist">该号码已在黑名单中</string>
     <string name="msg_added_to_whitelist">已加入白名单</string>
     <string name="msg_already_in_whitelist">该号码已在白名单中</string>
-    <string name="action_add_tag_to_whitelist">加入标签白名单（%1$s）</string>
+    <string name="action_add_tag_to_whitelist">将「%1$s」加入标签白名单</string>
     <string name="msg_added_tag_to_whitelist">已加入标签白名单</string>
     <string name="msg_tag_already_in_whitelist">该标签已在白名单中</string>
     <string name="call_label_spam_default">骚扰电话</string>
@@ -447,9 +490,9 @@
     <string name="action_open_query_backend_settings">打开查询服务设置</string>
 
     <!-- Query Feedback -->
-    <string name="label_query_source">"查询来源: %1$s"</string>
-    <string name="action_feedback_positive">结果准确</string>
-    <string name="action_feedback_negative">结果不准确</string>
+    <string name="label_query_source">"识别来源: %1$s"</string>
+    <string name="action_feedback_positive">准确</string>
+    <string name="action_feedback_negative">不准确</string>
     <string name="msg_feedback_failed">反馈提交失败: %1$s</string>
     <string name="msg_feedback_failed_retry">网络异常，请稍后重试。</string>
     <string name="feedback_status_positive">已反馈：结果准确</string>

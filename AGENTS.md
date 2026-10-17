@@ -56,4 +56,4 @@ Windows PowerShell 使用 `.\gradlew.bat`，其他环境使用 `./gradlew`。没
 | 开发、审查、技能维护 | [docs/workflow/development.md](docs/workflow/development.md) |
 | 其他文档与历史计划 | [docs/README.md](docs/README.md) |
 
-项目文档统一位于 `docs/`，入口为 `docs/README.md`。仅在产品行为、共享组件或架构边界变化时更新对应长期文档；新增文档补充索引。功能设计与实现计划放在 `docs/plans/`，一次性审计与评估放在 `docs/reports/`，不要复制本文件的通用规则。
+项目文档统一位于 `docs/`，入口为 `docs/README.md`。仅在产品行为、共享组件或架构边界变化时更新对应长期文档；新增长期文档补充索引。功能设计与实现计划放在 `docs/plans/`。一次性审计、评估和验收报告仅保存在仓库外的临时目录，不加入 Git 或文档索引；`docs/reports/` 已忽略，不再使用。不要复制本文件的通用规则。
