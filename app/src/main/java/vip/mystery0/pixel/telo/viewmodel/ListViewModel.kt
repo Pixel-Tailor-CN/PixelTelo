@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -33,6 +34,32 @@ enum class RuleType {
 
     /** 归属地匹配 */
     LOCATION,
+}
+
+private data class RuleDraft(
+    val value: String = "",
+    val isPrefix: Boolean = false,
+    val tagContains: Boolean = false,
+    val remark: String = "",
+)
+
+data class RuleSaveRequest(
+    val ruleType: RuleType,
+    val listType: ListType,
+    val value: String,
+    val isPrefix: Boolean,
+    val tagContains: Boolean,
+    val forceBlock: Boolean,
+    val remark: String,
+    val existingEntry: UserListEntry?,
+) {
+    /** 仅用于说明确认范围；保存仍将原始输入交给 Repository 归一化一次。 */
+    val scopeDisplayValue: String
+        get() = if (ruleType == RuleType.NUMBER && isPrefix) {
+            PhoneNumberRuleMatcher.normalizeRuleForStorage(value)
+        } else {
+            value
+        }
 }
 
 class ListViewModel : ViewModel(), KoinComponent {
@@ -64,28 +91,45 @@ class ListViewModel : ViewModel(), KoinComponent {
     var pendingDeleteEntry by mutableStateOf<UserListEntry?>(null)
         private set
 
-    /** 添加表单：规则类型；null 表示尚未选择，BottomSheet 停留在类型选择步骤 */
-    var inputRuleType by mutableStateOf<RuleType?>(null)
+    /** 当前编辑器规则类型；新增时默认选择号码，编辑时固定为已有条目类型。 */
+    var inputRuleType by mutableStateOf(RuleType.NUMBER)
         private set
 
-    /** 添加表单：号码 / 标签名 / 归属地关键词输入 */
-    var inputPhone by mutableStateOf("")
+    private var numberDraft by mutableStateOf(RuleDraft())
+    private var tagDraft by mutableStateOf(RuleDraft())
+    private var locationDraft by mutableStateOf(RuleDraft())
 
-    /** 添加表单：是否前缀匹配（仅号码类型有效） */
-    var inputIsPrefix by mutableStateOf(false)
+    /** 各匹配类型独立保留输入、匹配方式和备注。 */
+    var inputPhone: String
+        get() = currentDraft().value
+        set(value) = updateCurrentDraft { it.copy(value = value) }
 
-    /** 标签规则匹配方式，新建和旧规则默认精确。 */
-    var inputTagContains by mutableStateOf(false)
+    var inputIsPrefix: Boolean
+        get() = currentDraft().isPrefix
+        set(value) = updateCurrentDraft { it.copy(isPrefix = value) }
 
-    /** 添加表单：是否忽略“仅提示不拦截”强制挂断（仅黑名单有效，新建默认开启） */
+    var inputTagContains: Boolean
+        get() = currentDraft().tagContains
+        set(value) = updateCurrentDraft { it.copy(tagContains = value) }
+
+    /** 强制拦截是当前规则共用设置，新建默认开启。 */
     var inputForceBlock by mutableStateOf(true)
+
+    var inputRemark: String
+        get() = currentDraft().remark
+        set(value) = updateCurrentDraft { it.copy(remark = value) }
+
+    /** 保存进行中时锁定表单并忽略重复提交。 */
+    var isSaving by mutableStateOf(false)
+        private set
+
+    /** 多号码范围规则待用户确认的保存快照。 */
+    var pendingSaveConfirmation by mutableStateOf<RuleSaveRequest?>(null)
+        private set
 
     /** 当前是否启用了不联网查询，用于提示归属地规则是否失效 */
     var noNetworkQuery by mutableStateOf(prefs.getBoolean("no_network_query", false))
         private set
-
-    /** 添加表单：备注 */
-    var inputRemark by mutableStateOf("")
 
     /** 添加错误提示（null 表示无错误） */
     var addErrorMessage by mutableStateOf<String?>(null)
@@ -105,50 +149,73 @@ class ListViewModel : ViewModel(), KoinComponent {
         currentTab = type
     }
 
-    /** 打开新增流程：从类型选择步骤开始 */
+    /** 打开新增流程时清空各类型草稿，并默认选择号码规则。 */
     fun openAddSheet() {
+        if (isSaving) return
         editingEntry = null
-        inputRuleType = null
-        inputPhone = ""
-        inputIsPrefix = false
-        inputTagContains = false
+        inputRuleType = RuleType.NUMBER
+        numberDraft = RuleDraft()
+        tagDraft = RuleDraft()
+        locationDraft = RuleDraft()
         inputForceBlock = true
-        inputRemark = ""
         addErrorMessage = null
+        pendingSaveConfirmation = null
+        refreshNoNetworkQuery()
         showAddSheet = true
     }
 
-    /** 打开编辑流程：类型由条目推导，直接进入对应表单，不允许更换类型 */
+    /** 打开编辑流程时恢复已有值，规则类型固定。 */
     fun openEditSheet(entry: UserListEntry) {
+        if (isSaving) return
         editingEntry = entry
         inputRuleType = when {
             entry.tagMatch -> RuleType.TAG
             entry.locationMatch -> RuleType.LOCATION
             else -> RuleType.NUMBER
         }
-        inputPhone = entry.phoneNumber
-        inputIsPrefix = entry.isPrefix
-        inputTagContains = entry.tagContains
+        numberDraft = RuleDraft()
+        tagDraft = RuleDraft()
+        locationDraft = RuleDraft()
+        updateCurrentDraft {
+            RuleDraft(
+                value = entry.phoneNumber,
+                isPrefix = entry.isPrefix,
+                tagContains = entry.tagContains,
+                remark = entry.remark.orEmpty(),
+            )
+        }
         inputForceBlock = entry.forceBlock
-        inputRemark = entry.remark ?: ""
         addErrorMessage = null
+        pendingSaveConfirmation = null
+        refreshNoNetworkQuery()
         showAddSheet = true
     }
 
-    /** 类型选择步骤中选定规则类型，进入对应表单 */
+    /** 新增时切换规则类型；编辑中的类型保持固定。 */
     fun selectRuleType(type: RuleType) {
+        if (isSaving || editingEntry != null) return
         inputRuleType = type
         addErrorMessage = null
     }
 
-    /** 从表单返回类型选择步骤（仅新增流程可用） */
-    fun backToRuleTypePicker() {
-        if (editingEntry != null) return
-        inputRuleType = null
+    private fun currentDraft(): RuleDraft = when (inputRuleType) {
+        RuleType.NUMBER -> numberDraft
+        RuleType.TAG -> tagDraft
+        RuleType.LOCATION -> locationDraft
+    }
+
+    private fun updateCurrentDraft(update: (RuleDraft) -> RuleDraft) {
+        when (inputRuleType) {
+            RuleType.NUMBER -> numberDraft = update(numberDraft)
+            RuleType.TAG -> tagDraft = update(tagDraft)
+            RuleType.LOCATION -> locationDraft = update(locationDraft)
+        }
         addErrorMessage = null
     }
 
     fun closeAddSheet() {
+        if (isSaving) return
+        pendingSaveConfirmation = null
         showAddSheet = false
     }
 
@@ -160,8 +227,10 @@ class ListViewModel : ViewModel(), KoinComponent {
         noNetworkQuery = prefs.getBoolean("no_network_query", false)
     }
 
-    fun confirmAdd() {
-        val type = inputRuleType ?: return
+    /** 校验当前草稿；多号码范围规则先展示影响确认，再执行写入。 */
+    fun requestSave() {
+        if (isSaving || pendingSaveConfirmation != null) return
+        val type = inputRuleType
         val phone = inputPhone.trim()
         if (phone.isBlank()) {
             addErrorMessage = context.getString(
@@ -177,39 +246,81 @@ class ListViewModel : ViewModel(), KoinComponent {
             addErrorMessage = context.getString(R.string.error_phone_invalid)
             return
         }
+        val request = RuleSaveRequest(
+            ruleType = type,
+            listType = editingEntry?.listType ?: currentTab,
+            value = phone,
+            isPrefix = type == RuleType.NUMBER && inputIsPrefix,
+            tagContains = type == RuleType.TAG && inputTagContains,
+            forceBlock = (editingEntry?.listType
+                ?: currentTab) == ListType.BLACK && inputForceBlock,
+            remark = inputRemark,
+            existingEntry = editingEntry,
+        )
+        if (request.ruleType != RuleType.NUMBER || request.isPrefix) {
+            pendingSaveConfirmation = request
+        } else {
+            save(request)
+        }
+    }
+
+    fun cancelPendingSave() {
+        pendingSaveConfirmation = null
+    }
+
+    fun confirmPendingSave() {
+        val request = pendingSaveConfirmation ?: return
+        if (isSaving) return
+        pendingSaveConfirmation = null
+        save(request)
+    }
+
+    private fun save(request: RuleSaveRequest) {
+        if (isSaving) return
+        isSaving = true
         viewModelScope.launch {
-            val oldEntry = editingEntry
-            val success = if (oldEntry == null) {
-                userListRepository.add(
-                    phone,
-                    type == RuleType.NUMBER && inputIsPrefix,
-                    currentTab,
-                    inputRemark,
-                    type == RuleType.TAG,
-                    type == RuleType.LOCATION,
-                    forceBlock = currentTab == ListType.BLACK && inputForceBlock,
-                    tagContains = type == RuleType.TAG && inputTagContains,
+            try {
+                val success = request.existingEntry?.let { existing ->
+                    userListRepository.update(
+                        existing = existing,
+                        phoneNumber = request.value,
+                        isPrefix = request.isPrefix,
+                        remark = request.remark,
+                        tagMatch = request.ruleType == RuleType.TAG,
+                        locationMatch = request.ruleType == RuleType.LOCATION,
+                        forceBlock = request.forceBlock,
+                        tagContains = request.tagContains,
+                    )
+                } ?: userListRepository.add(
+                    phoneNumber = request.value,
+                    isPrefix = request.isPrefix,
+                    listType = request.listType,
+                    remark = request.remark,
+                    tagMatch = request.ruleType == RuleType.TAG,
+                    locationMatch = request.ruleType == RuleType.LOCATION,
+                    forceBlock = request.forceBlock,
+                    tagContains = request.tagContains,
                 )
-            } else {
-                userListRepository.update(
-                    existing = oldEntry,
-                    phoneNumber = phone,
-                    isPrefix = type == RuleType.NUMBER && inputIsPrefix,
-                    remark = inputRemark,
-                    tagMatch = type == RuleType.TAG,
-                    locationMatch = type == RuleType.LOCATION,
-                    forceBlock = oldEntry.listType == ListType.BLACK && inputForceBlock,
-                    tagContains = type == RuleType.TAG && inputTagContains,
-                )
-            }
-            if (success) {
-                showAddSheet = false
-                editingEntry = null
-                toastMessage = context.getString(
-                    if (oldEntry == null) R.string.msg_added_to_list else R.string.msg_updated_in_list
-                )
-            } else {
-                addErrorMessage = context.getString(R.string.error_phone_already_exists)
+                if (success) {
+                    showAddSheet = false
+                    editingEntry = null
+                    toastMessage = context.getString(
+                        if (request.existingEntry == null) {
+                            R.string.msg_added_to_list
+                        } else {
+                            R.string.msg_updated_in_list
+                        }
+                    )
+                } else {
+                    addErrorMessage = context.getString(R.string.error_phone_already_exists)
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Log.e(TAG, "Save failed (${error.javaClass.simpleName})")
+                addErrorMessage = context.getString(R.string.error_list_save_failed)
+            } finally {
+                isSaving = false
             }
         }
     }

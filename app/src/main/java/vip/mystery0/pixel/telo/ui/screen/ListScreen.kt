@@ -2,27 +2,14 @@ package vip.mystery0.pixel.telo.ui.screen
 
 import android.annotation.SuppressLint
 import android.widget.Toast
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,29 +17,29 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -66,15 +53,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -82,8 +68,8 @@ import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
-import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.ui.components.EmptyState
+import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.ui.util.rememberPagerBoundaryHandoffConnection
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
@@ -92,7 +78,7 @@ import vip.mystery0.pixel.telo.viewmodel.RuleType
 /**
  * 黑白名单管理页面。
  * 包含两个 Tab（黑名单 / 白名单），通过 HorizontalPager 切换内容。
- * FAB 弹出 BottomSheet 添加条目，支持精确匹配与前缀匹配。
+ * FAB 打开单页 BottomSheet，支持号码、识别标签与归属地规则。
  */
 @Composable
 fun ListScreen(
@@ -103,9 +89,18 @@ fun ListScreen(
     val blackList by viewModel.blackList.collectAsState()
     val whiteList by viewModel.whiteList.collectAsState()
     val scope = rememberCoroutineScope()
+    val canHideSheet = rememberUpdatedState(
+        !viewModel.isSaving || !viewModel.showAddSheet,
+    )
+    val confirmSheetValueChange = remember {
+        { targetValue: SheetValue ->
+            targetValue != SheetValue.Hidden || canHideSheet.value
+        }
+    }
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded)
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        confirmValueChange = confirmSheetValueChange,
     )
     var showSheet by remember { mutableStateOf(false) }
 
@@ -148,6 +143,74 @@ fun ListScreen(
                     Text(stringResource(R.string.action_cancel))
                 }
             }
+        )
+    }
+
+    viewModel.pendingSaveConfirmation?.let { confirmation ->
+        val scopeDescription = when (confirmation.ruleType) {
+            RuleType.NUMBER -> stringResource(
+                R.string.msg_confirm_prefix_scope,
+                confirmation.scopeDisplayValue,
+            )
+
+            RuleType.TAG -> stringResource(
+                if (confirmation.tagContains) {
+                    R.string.msg_confirm_tag_contains_scope
+                } else {
+                    R.string.msg_confirm_tag_exact_scope
+                },
+                confirmation.value,
+            )
+
+            RuleType.LOCATION -> stringResource(
+                R.string.msg_confirm_location_scope,
+                confirmation.value,
+            )
+        }
+        val effectDescription = when {
+            confirmation.listType == ListType.WHITE ->
+                stringResource(R.string.msg_confirm_whitelist_effect)
+
+            confirmation.forceBlock ->
+                stringResource(R.string.msg_confirm_force_block_effect)
+
+            else -> stringResource(R.string.msg_confirm_global_block_effect)
+        }
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelPendingSave() },
+            title = { Text(stringResource(R.string.title_confirm_rule_scope)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(scopeDescription)
+                    Text(effectDescription)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.confirmPendingSave() },
+                    enabled = !viewModel.isSaving,
+                ) {
+                    Text(
+                        stringResource(
+                            when {
+                                confirmation.existingEntry != null -> R.string.action_save
+                                confirmation.listType == ListType.BLACK ->
+                                    R.string.action_add_to_blacklist
+
+                                else -> R.string.action_add_to_whitelist
+                            }
+                        )
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.cancelPendingSave() },
+                    enabled = !viewModel.isSaving,
+                ) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
         )
     }
 
@@ -227,343 +290,295 @@ fun ListScreen(
         }
     }
 
-    // 添加/编辑规则 BottomSheet：两步式，先选类型再填写对应表单
+    // Material3 BottomSheet 已处理导航栏安全区；表单统一避让 IME，正文独立滚动。
     if (showSheet) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.closeAddSheet() },
-            sheetState = sheetState
+            sheetState = sheetState,
+            sheetGesturesEnabled = !viewModel.isSaving,
         ) {
-            AnimatedContent(
-                targetState = viewModel.inputRuleType,
-                transitionSpec = {
-                    val direction = if (targetState == null) -1 else 1
-                    (slideInHorizontally(
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    ) { direction * it / 5 } + fadeIn()) togetherWith
-                        (slideOutHorizontally(
-                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        ) { -direction * it / 5 } + fadeOut())
-                },
-                label = "AddRuleContent"
-            ) { ruleType ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .imePadding(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (ruleType == null) {
-                        RuleTypePickerContent(viewModel)
-                    } else {
-                        RuleFormContent(viewModel, ruleType)
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.navigationBarsPadding())
+            RuleFormContent(viewModel)
         }
     }
 }
 
-/**
- * 第一步：规则类型选择。
- * 每种类型带图标与按黑/白名单区分的说明，点击后进入对应表单。
- */
+/** 单页创建或编辑名单规则；草稿与匹配模式由 ViewModel 按类型分别保存。 */
 @Composable
-private fun RuleTypePickerContent(viewModel: ListViewModel) {
-    val isBlack = viewModel.currentTab == ListType.BLACK
-    Text(
-        stringResource(
-            if (isBlack) R.string.title_add_to_blacklist else R.string.title_add_to_whitelist
-        ),
-        style = MaterialTheme.typography.titleLarge
-    )
-    RuleTypeItem(
-        icon = Icons.Default.Phone,
-        title = stringResource(R.string.label_rule_type_number),
-        description = stringResource(R.string.summary_rule_type_number),
-        onClick = { viewModel.selectRuleType(RuleType.NUMBER) }
-    )
-    RuleTypeItem(
-        icon = Icons.AutoMirrored.Filled.Label,
-        title = stringResource(R.string.label_rule_type_tag),
-        description = stringResource(
-            if (isBlack) R.string.summary_black_tag_match else R.string.summary_tag_match
-        ),
-        onClick = { viewModel.selectRuleType(RuleType.TAG) }
-    )
-    RuleTypeItem(
-        icon = Icons.Default.LocationOn,
-        title = stringResource(R.string.label_rule_type_location),
-        description = stringResource(
-            if (isBlack) R.string.summary_black_location_match else R.string.summary_location_match
-        ),
-        onClick = { viewModel.selectRuleType(RuleType.LOCATION) }
-    )
-}
-
-/** 类型选择列表中的单个条目 */
-@Composable
-private fun RuleTypeItem(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Column {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-/**
- * 第二步：按规则类型渲染的专用表单。
- * 新增流程标题左侧提供返回按钮可重选类型；编辑流程类型固定，不可返回。
- */
-@Composable
-private fun RuleFormContent(viewModel: ListViewModel, ruleType: RuleType) {
+private fun RuleFormContent(viewModel: ListViewModel) {
+    val ruleType = viewModel.inputRuleType
     val isBlack = viewModel.currentTab == ListType.BLACK
     val isEditing = viewModel.editingEntry != null
 
-    // 标题行：返回按钮（仅新增）+ 类型名标题
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .imePadding(),
     ) {
-        if (!isEditing) {
-            IconButton(onClick = { viewModel.backToRuleTypePicker() }) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.action_back)
-                )
-            }
-        }
-        Text(
-            if (isEditing) {
-                stringResource(R.string.title_edit_rule)
-            } else {
-                stringResource(
-                    if (isBlack) R.string.title_add_to_blacklist else R.string.title_add_to_whitelist
-                )
-            },
-            style = MaterialTheme.typography.titleLarge
-        )
-    }
-    Surface(
-        shape = MaterialTheme.shapes.small,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-    ) {
-        Text(
-            stringResource(when (ruleType) {
-                RuleType.NUMBER -> R.string.label_rule_type_number
-                RuleType.TAG -> R.string.label_rule_type_tag
-                RuleType.LOCATION -> R.string.label_rule_type_location
-            }),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelLarge,
-        )
-    }
-
-    // 主输入框：label 与示例按类型展示
-    OutlinedTextField(
-        value = viewModel.inputPhone,
-        onValueChange = { viewModel.inputPhone = it },
-        label = {
-            Text(
-                stringResource(
-                    when (ruleType) {
-                        RuleType.NUMBER -> R.string.label_phone_number
-                        RuleType.TAG -> R.string.label_tag_name
-                        RuleType.LOCATION -> R.string.label_location_name
-                    }
-                )
-            )
-        },
-        placeholder = {
-            Text(
-                stringResource(
-                    when {
-                        ruleType == RuleType.TAG -> R.string.hint_tag_example
-                        ruleType == RuleType.LOCATION -> R.string.hint_location_example
-                        viewModel.inputIsPrefix -> R.string.hint_prefix_example
-                        else -> R.string.hint_exact_example
-                    }
-                )
-            )
-        },
-        isError = viewModel.addErrorMessage != null,
-        supportingText = viewModel.addErrorMessage?.let { { Text(it) } },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    when (ruleType) {
-        RuleType.NUMBER -> {
-            // 前缀匹配开关：仅号码类型
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 16.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.label_prefix_match),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        stringResource(R.string.summary_prefix_match),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = viewModel.inputIsPrefix,
-                    onCheckedChange = { viewModel.inputIsPrefix = it }
-                )
-            }
-        }
-
-        RuleType.TAG -> {
-            Column(Modifier.selectableGroup()) {
-                listOf(false, true).forEach { contains ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().selectable(
-                            selected = viewModel.inputTagContains == contains,
-                            onClick = { viewModel.inputTagContains = contains },
-                            role = Role.RadioButton,
-                        ).padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        RadioButton(
-                            selected = viewModel.inputTagContains == contains,
-                            onClick = null,
-                        )
-                        Text(stringResource(
-                            if (contains) R.string.label_tag_contains else R.string.label_tag_exact
-                        ))
-                    }
-                }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .padding(start = 24.dp, top = 12.dp, end = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    stringResource(R.string.summary_tag_contains),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (isEditing) {
+                        stringResource(
+                            R.string.title_edit_rule_type,
+                            stringResource(ruleType.labelResource()),
+                        )
+                    } else {
+                        stringResource(
+                            if (isBlack) R.string.title_add_to_blacklist
+                            else R.string.title_add_to_whitelist
+                        )
+                    },
+                    style = MaterialTheme.typography.titleLarge,
                 )
+                if (!isEditing) RuleTypeSelector(viewModel)
             }
-        }
 
-        RuleType.LOCATION -> {
-            Text(
-                stringResource(R.string.msg_location_match_requires_network),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedTextField(
+                    value = viewModel.inputPhone,
+                    onValueChange = { viewModel.inputPhone = it },
+                    label = {
+                        Text(
+                            stringResource(
+                                when (ruleType) {
+                                    RuleType.NUMBER -> R.string.label_phone_number
+                                    RuleType.TAG -> R.string.label_tag_name
+                                    RuleType.LOCATION -> R.string.label_location_name
+                                }
+                            )
+                        )
+                    },
+                    placeholder = {
+                        Text(
+                            stringResource(
+                                when {
+                                    ruleType == RuleType.TAG -> R.string.hint_tag_example
+                                    ruleType == RuleType.LOCATION -> R.string.hint_location_example
+                                    viewModel.inputIsPrefix -> R.string.hint_prefix_example
+                                    else -> R.string.hint_exact_example
+                                }
+                            )
+                        )
+                    },
+                    isError = viewModel.addErrorMessage != null,
+                    supportingText = viewModel.addErrorMessage?.let { message ->
+                        { Text(message) }
+                    },
+                    singleLine = true,
+                    enabled = !viewModel.isSaving,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (ruleType == RuleType.NUMBER) {
+                            KeyboardType.Phone
+                        } else {
+                            KeyboardType.Text
+                        }
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                when (ruleType) {
+                    RuleType.NUMBER -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = !viewModel.inputIsPrefix,
+                                onClick = { viewModel.inputIsPrefix = false },
+                                enabled = !viewModel.isSaving,
+                                label = { Text(stringResource(R.string.label_number_mode_full)) },
+                            )
+                            FilterChip(
+                                selected = viewModel.inputIsPrefix,
+                                onClick = { viewModel.inputIsPrefix = true },
+                                enabled = !viewModel.isSaving,
+                                label = { Text(stringResource(R.string.label_number_mode_prefix)) },
+                            )
+                        }
+                        if (viewModel.inputIsPrefix) {
+                            Text(
+                                stringResource(R.string.summary_prefix_match),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    RuleType.TAG -> {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = !viewModel.inputTagContains,
+                                onClick = { viewModel.inputTagContains = false },
+                                enabled = !viewModel.isSaving,
+                                label = { Text(stringResource(R.string.label_tag_mode_exact)) },
+                            )
+                            FilterChip(
+                                selected = viewModel.inputTagContains,
+                                onClick = { viewModel.inputTagContains = true },
+                                enabled = !viewModel.isSaving,
+                                label = { Text(stringResource(R.string.label_tag_mode_contains)) },
+                            )
+                        }
+                        Text(
+                            stringResource(
+                                if (viewModel.inputTagContains) R.string.summary_tag_contains
+                                else R.string.summary_tag_exact
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    RuleType.LOCATION -> {
+                        Text(
+                            stringResource(
+                                if (viewModel.noNetworkQuery) {
+                                    R.string.msg_location_match_disabled
+                                } else {
+                                    R.string.msg_location_match_requires_network
+                                }
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            if (isBlack) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 16.dp),
+                        ) {
+                            Text(
+                                stringResource(R.string.label_force_block),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                stringResource(
+                                    if (viewModel.inputForceBlock) {
+                                        R.string.summary_force_block_on
+                                    } else {
+                                        R.string.summary_force_block_off
+                                    }
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = viewModel.inputForceBlock,
+                            onCheckedChange = { viewModel.inputForceBlock = it },
+                            enabled = !viewModel.isSaving,
+                        )
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = viewModel.inputRemark,
+                onValueChange = { viewModel.inputRemark = it },
+                label = { Text(stringResource(R.string.label_remark_optional)) },
+                singleLine = true,
+                enabled = !viewModel.isSaving,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                modifier = Modifier.fillMaxWidth(),
             )
-        }
-    }
 
-    // 强制拦截开关：仅黑名单规则可配置，决定是否忽略“仅提示不拦截”
-    if (isBlack) {
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 24.dp)
+                .padding(top = 8.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 16.dp)
+            TextButton(
+                onClick = { viewModel.closeAddSheet() },
+                enabled = !viewModel.isSaving,
             ) {
-                Text(
-                    stringResource(R.string.label_force_block),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    stringResource(R.string.summary_force_block),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text(stringResource(R.string.action_cancel))
             }
-            Switch(
-                checked = viewModel.inputForceBlock,
-                onCheckedChange = { viewModel.inputForceBlock = it }
-            )
-        }
-        if (viewModel.inputForceBlock) {
-            Text(
-                stringResource(R.string.msg_force_block_warning),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
-    }
-
-    // 备注输入框（可选）
-    OutlinedTextField(
-        value = viewModel.inputRemark,
-        onValueChange = { viewModel.inputRemark = it },
-        label = { Text(stringResource(R.string.label_remark_optional)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    // 取消 / 删除 / 确认 按钮行
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        if (isEditing) {
-            OutlinedButton(
-                onClick = {
-                    viewModel.requestDelete(viewModel.editingEntry!!)
-                    viewModel.closeAddSheet()
-                },
+            Row(
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.error
-                )
-            ) { Text(stringResource(R.string.action_delete)) }
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isEditing) {
+                    TextButton(
+                        onClick = {
+                            viewModel.editingEntry?.let { entry ->
+                                viewModel.requestDelete(entry)
+                                viewModel.closeAddSheet()
+                            }
+                        },
+                        enabled = !viewModel.isSaving,
+                    ) {
+                        Text(
+                            stringResource(R.string.action_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                Button(
+                    onClick = { viewModel.requestSave() },
+                    enabled = viewModel.inputPhone.isNotBlank() &&
+                            !viewModel.isSaving &&
+                            viewModel.pendingSaveConfirmation == null,
+                ) {
+                    Text(
+                        stringResource(
+                            when {
+                                isEditing -> R.string.action_save
+                                isBlack -> R.string.action_add_to_blacklist
+                                else -> R.string.action_add_to_whitelist
+                            }
+                        )
+                    )
+                }
+            }
         }
-        OutlinedButton(
-            onClick = { viewModel.closeAddSheet() },
-            modifier = Modifier.weight(1f)
-        ) { Text(stringResource(R.string.action_cancel)) }
-        Button(
-            onClick = { viewModel.confirmAdd() },
-            modifier = Modifier.weight(1f)
-        ) { Text(stringResource(R.string.action_confirm)) }
     }
+}
+
+@Composable
+private fun RuleTypeSelector(viewModel: ListViewModel) {
+    val types = listOf(RuleType.NUMBER, RuleType.TAG, RuleType.LOCATION)
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        types.forEachIndexed { index, type ->
+            SegmentedButton(
+                selected = viewModel.inputRuleType == type,
+                onClick = { viewModel.selectRuleType(type) },
+                enabled = !viewModel.isSaving,
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = types.size),
+                modifier = Modifier.weight(1f),
+                label = {
+                    Text(
+                        stringResource(type.labelResource()),
+                        maxLines = 1,
+                    )
+                },
+            )
+        }
+    }
+}
+
+private fun RuleType.labelResource(): Int = when (this) {
+    RuleType.NUMBER -> R.string.label_rule_type_number
+    RuleType.TAG -> R.string.label_rule_type_tag
+    RuleType.LOCATION -> R.string.label_rule_type_location
 }
 
 /**
