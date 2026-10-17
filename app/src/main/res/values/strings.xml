@@ -73,8 +73,29 @@
     <string name="current_list_both">Current: In blacklist and whitelist</string>
     <string name="label_remark">"Remark: "</string>
     <string name="label_call_feedback">Call result feedback</string>
-    <string name="title_record_info">Record info</string>
-    <string name="title_more_actions">More actions</string>
+    <string name="label_record_time">Call time: %1$s</string>
+    <string name="label_remark_value">Remark: %1$s</string>
+    <string name="label_compact_separator"> · </string>
+    <string name="action_add_blacklist_short">Block</string>
+    <string name="action_add_whitelist_short">Allow</string>
+    <string name="action_set_local_label_short">Label</string>
+    <string name="action_edit_local_label_short">Edit label</string>
+    <string name="cd_add_number_to_blacklist">Add this number to the blacklist</string>
+    <string name="cd_add_number_to_whitelist">Add this number to the whitelist</string>
+    <string name="cd_set_local_label">Set a local label for this number</string>
+    <string name="cd_local_label_source">Local label set on this device</string>
+    <string name="cd_source_label">Identification label returned by the query source</string>
+    <string name="cd_local_label_value">Your local label: %1$s</string>
+    <string name="cd_source_label_value">Source identification label: %1$s</string>
+    <string name="record_result_blocked">Blocked</string>
+    <string name="record_result_allowed">Allowed</string>
+    <string name="record_result_query_failed_open">Query failed · Allowed</string>
+    <string name="record_result_notify_allowed">Allowed · Notify only</string>
+    <string name="label_record_result">Recorded result</string>
+    <string name="cd_record_blocked">This call was blocked</string>
+    <string name="cd_record_notify">This call was allowed with a notification</string>
+    <string name="cd_record_allowed">This call was allowed</string>
+    <string name="cd_record_query_failed">The query failed and the call was allowed</string>
     <string name="label_duration_with_network">"Duration: Local %1$dms | Network %2$dms"</string>
     <string name="label_duration_local">"Duration: Local %1$dms"</string>
     <string name="msg_querying">Querying %1$s…</string>
@@ -98,6 +119,7 @@
     <string name="title_delete_record">Delete Record</string>
     <string name="msg_delete_record_confirm">Are you sure you want to delete this intercept record? This action cannot be undone.</string>
     <string name="action_delete">Delete</string>
+    <string name="action_delete_record">Delete record</string>
     <string name="title_clear_all_records">Clear all intercept records?</string>
     <string name="msg_clear_all_records_confirm">All intercept records will be permanently deleted. Blacklist and whitelist rules will not be affected.</string>
     <string name="action_clear_all_records">Clear all</string>
@@ -468,6 +490,4 @@
     <string name="label_tag_exact">Tag · Exact match</string>
     <string name="label_tag_contains">Tag · Contains</string>
     <string name="summary_tag_contains">Example: “Insurance” matches “Insurance sales”. Case-sensitive; no regular expressions or wildcards. Matches offline or online identification tags, not handwritten local labels.</string>
-    <string name="state_expanded">Expanded</string>
-    <string name="state_collapsed">Collapsed</string>
 </resources>

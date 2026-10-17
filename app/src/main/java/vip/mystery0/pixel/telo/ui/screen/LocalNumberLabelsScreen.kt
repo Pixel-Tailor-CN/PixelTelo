@@ -129,6 +129,7 @@ fun LocalNumberLabelsScreen(
         onDraftChange = editorViewModel::updateDraft,
         onSave = editorViewModel::save,
         onDismissEditor = editorViewModel::close,
+        onRequestDelete = editorViewModel::requestDelete,
         onConfirmDelete = editorViewModel::confirmDelete,
         onDismissDelete = editorViewModel::close,
     )

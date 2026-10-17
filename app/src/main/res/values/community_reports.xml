@@ -5,6 +5,8 @@
     <string name="community_report_confirm">Send this number and the current installation identifier to the official service to report it as spam. Contacts and recordings are not uploaded. This does not add the number to your blocklist.</string>
     <string name="community_report_sent">This credential has been submitted. View My reports for the current status.</string>
     <string name="community_report_pending">Submitting…</string>
+    <string name="community_report_retry">Retry report</string>
+    <string name="community_report_checking">Checking report eligibility…</string>
     <string name="community_official_history">Manage reports sent to the official service by this installation, regardless of the selected query server.</string>
     <string name="community_identity_notice">Uninstalling or clearing app data loses access to previous reports. Manual backups do not include this identity.</string>
     <string name="community_stale_list">Previously loaded records are shown and may be outdated. Refresh to verify.</string>

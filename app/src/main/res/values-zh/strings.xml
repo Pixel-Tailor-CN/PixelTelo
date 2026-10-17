@@ -80,8 +80,29 @@
     <string name="current_list_both">当前状态: 同时在黑名单和白名单中</string>
     <string name="label_remark">"备注: "</string>
     <string name="label_call_feedback">来电结果反馈</string>
-    <string name="title_record_info">记录信息</string>
-    <string name="title_more_actions">更多操作</string>
+    <string name="label_record_time">来电时间：%1$s</string>
+    <string name="label_remark_value">备注：%1$s</string>
+    <string name="label_compact_separator"> · </string>
+    <string name="action_add_blacklist_short">加黑</string>
+    <string name="action_add_whitelist_short">加白</string>
+    <string name="action_set_local_label_short">标签</string>
+    <string name="action_edit_local_label_short">编辑标签</string>
+    <string name="cd_add_number_to_blacklist">将此号码加入黑名单</string>
+    <string name="cd_add_number_to_whitelist">将此号码加入白名单</string>
+    <string name="cd_set_local_label">为此号码设置本地标签</string>
+    <string name="cd_local_label_source">此设备设置的本地标签</string>
+    <string name="cd_source_label">查询来源返回的识别标签</string>
+    <string name="cd_local_label_value">你的本地标签：%1$s</string>
+    <string name="cd_source_label_value">查询来源识别标签：%1$s</string>
+    <string name="record_result_blocked">已拦截</string>
+    <string name="record_result_allowed">已放行</string>
+    <string name="record_result_query_failed_open">查询失败 · 已放行</string>
+    <string name="record_result_notify_allowed">已放行 · 仅提示</string>
+    <string name="label_record_result">处理结果</string>
+    <string name="cd_record_blocked">此来电已拦截</string>
+    <string name="cd_record_notify">此来电已放行并显示提示</string>
+    <string name="cd_record_allowed">此来电已放行</string>
+    <string name="cd_record_query_failed">查询失败，此来电已放行</string>
     <string name="label_duration_with_network">"处理耗时: 本地 %1$dms | 网络 %2$dms"</string>
     <string name="label_duration_local">"处理耗时: 本地 %1$dms"</string>
     <string name="msg_querying">正在查询 %1$s…</string>
@@ -103,6 +124,7 @@
     <string name="retry_error_connection">网络连接失败，请检查网络后重试。</string>
     <string name="retry_error_service_unavailable">查询服务暂不可用，当前查询不可重试。</string>
     <string name="title_delete_record">删除记录</string>
+    <string name="action_delete_record">删除记录</string>
     <string name="msg_delete_record_confirm">确定要删除这条拦截记录吗？此操作无法撤销。</string>
     <string name="action_delete">删除</string>
     <string name="title_clear_all_records">清空全部拦截记录？</string>
@@ -466,6 +488,4 @@
     <string name="label_tag_exact">标签·精确匹配</string>
     <string name="label_tag_contains">标签·包含匹配</string>
     <string name="summary_tag_contains">包含匹配示例：“保险”可匹配“保险推销”。区分大小写，不支持正则或通配符；仅匹配离线库或联网识别标签，不匹配手写的本地标签。</string>
-    <string name="state_expanded">已展开</string>
-    <string name="state_collapsed">已收起</string>
 </resources>

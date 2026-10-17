@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -43,7 +44,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import kotlinx.coroutines.launch
@@ -208,7 +212,10 @@ class MainActivity : ComponentActivity() {
                     },
                     bottomBar = {
                         if (!showMyReportsScreen && !showLocalNumberLabelsScreen && !showPairingScreen) {
-                            NavigationBar {
+                            val largeNavigationText = LocalDensity.current.fontScale > 1.3f
+                            NavigationBar(
+                                modifier = Modifier.heightIn(min = if (largeNavigationText) 104.dp else 80.dp),
+                            ) {
                                 AppDestinations.entries.forEach { destination ->
                                     NavigationBarItem(
                                         selected = currentDestination == destination,
@@ -222,10 +229,16 @@ class MainActivity : ComponentActivity() {
                                         icon = {
                                             Icon(
                                                 destination.icon,
-                                                contentDescription = stringResource(destination.labelResId)
+                                                contentDescription = null,
                                             )
                                         },
-                                        label = { Text(stringResource(destination.labelResId)) }
+                                        label = {
+                                            Text(
+                                                text = stringResource(destination.labelResId),
+                                                textAlign = TextAlign.Center,
+                                                maxLines = 2,
+                                            )
+                                        },
                                     )
                                 }
                             }
@@ -261,7 +274,6 @@ class MainActivity : ComponentActivity() {
                                         viewModel = homeViewModel,
                                         localLabelEditorViewModel = localNumberLabelEditorViewModel,
                                         callReportViewModel = callReportViewModel,
-                                        onNavigateToMyReports = ::openMyReports,
                                         onNavigateToSettings = {
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(

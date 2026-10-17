@@ -5,6 +5,8 @@
     <string name="community_report_confirm">将此号码和当前安装标识发送至官方服务，表示你认为它是骚扰电话。不上传通讯录或录音，也不会自动加入个人黑名单。</string>
     <string name="community_report_sent">已提交此凭据的上报，可在“我的上报”查看当前状态。</string>
     <string name="community_report_pending">正在提交…</string>
+    <string name="community_report_retry">重试上报</string>
+    <string name="community_report_checking">正在检查上报资格…</string>
     <string name="community_official_history">此页管理当前安装提交给官方的上报，与当前查询服务器选择无关。</string>
     <string name="community_identity_notice">卸载或清除数据后将失去旧上报的管理权，手动备份也不包含该身份。</string>
     <string name="community_stale_list">保留上次读取的记录，可能不是最新状态，请刷新核实。</string>
