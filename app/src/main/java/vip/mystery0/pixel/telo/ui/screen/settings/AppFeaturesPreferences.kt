@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.ManageSearch
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Schedule
@@ -44,7 +43,6 @@ fun AppFeaturesPreferences(
     viewModel: SettingViewModel,
     onRequestNotificationPermission: () -> Unit,
     onRequestPhoneStatePermission: () -> Unit,
-    onNavigateToLocalNumberLabels: () -> Unit,
 ) {
     val context = LocalContext.current
     var showAutoCheckIntervalDialog by remember { mutableStateOf(false) }
@@ -154,13 +152,6 @@ fun AppFeaturesPreferences(
         title = { Text(stringResource(R.string.setting_show_local_number_labels)) },
         summary = { Text(stringResource(R.string.setting_show_local_number_labels_summary)) },
         icon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null) },
-    )
-
-    Preference(
-        title = { Text(stringResource(R.string.setting_local_number_labels)) },
-        summary = { Text(stringResource(R.string.setting_local_number_labels_summary)) },
-        icon = { Icon(Icons.AutoMirrored.Filled.ManageSearch, contentDescription = null) },
-        onClick = onNavigateToLocalNumberLabels,
     )
 
     Preference(

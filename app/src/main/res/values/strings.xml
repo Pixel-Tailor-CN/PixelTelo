@@ -54,6 +54,7 @@
 
     <!-- Home Screen -->
     <string name="home_no_records">No intercept records</string>
+    <string name="home_no_records_hint">Incoming call identification and blocking records will appear here.</string>
     <string name="home_records_load_failed">Failed to load intercept records</string>
     <string name="action_retry_query">Retry Query (Domestic Numbers)</string>
     <string name="label_phone_location">Location: %1$s</string>
@@ -71,6 +72,9 @@
     <string name="current_list_white">Current: In whitelist</string>
     <string name="current_list_both">Current: In blacklist and whitelist</string>
     <string name="label_remark">"Remark: "</string>
+    <string name="label_call_feedback">Call result feedback</string>
+    <string name="title_record_info">Record info</string>
+    <string name="title_more_actions">More actions</string>
     <string name="label_duration_with_network">"Duration: Local %1$dms | Network %2$dms"</string>
     <string name="label_duration_local">"Duration: Local %1$dms"</string>
     <string name="msg_querying">Querying %1$s…</string>
@@ -240,6 +244,16 @@
     <string name="tab_blacklist">Blacklist</string>
     <string name="tab_whitelist">Whitelist</string>
     <string name="list_no_entries">No entries yet</string>
+    <string name="list_black_empty_hint">Add a number or matching rule to block unwanted calls.</string>
+    <string name="list_white_empty_hint">Add trusted numbers or rules that should always pass.</string>
+    <string name="label_community_report_section">Community spam report</string>
+    <string name="label_number_rules">Number rules and local labels</string>
+    <string name="category_data_management">Data &amp; reports</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="pairing_scan_hint">Scan a pairing QR code using the camera.</string>
+    <string name="pairing_manual_hint">Enter the server address and credential yourself.</string>
+    <string name="self_hosted_http_warning">HTTP does not encrypt traffic. Use HTTPS for production servers.</string>
+    <string name="self_hosted_https_notice">HTTPS address entered. The configured TLS verification still applies.</string>
     <string name="action_add_entry">Add Entry</string>
     <string name="title_add_to_blacklist">Add to Blacklist</string>
     <string name="title_add_to_whitelist">Add to Whitelist</string>
@@ -454,4 +468,6 @@
     <string name="label_tag_exact">Tag · Exact match</string>
     <string name="label_tag_contains">Tag · Contains</string>
     <string name="summary_tag_contains">Example: “Insurance” matches “Insurance sales”. Case-sensitive; no regular expressions or wildcards. Matches offline or online identification tags, not handwritten local labels.</string>
+    <string name="state_expanded">Expanded</string>
+    <string name="state_collapsed">Collapsed</string>
 </resources>

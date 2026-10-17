@@ -3,8 +3,12 @@ package vip.mystery0.pixel.telo.ui.screen
 import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
@@ -79,6 +83,7 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
+import vip.mystery0.pixel.telo.ui.components.EmptyState
 import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.ui.util.rememberPagerBoundaryHandoffConnection
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
@@ -230,7 +235,15 @@ fun ListScreen(
         ) {
             AnimatedContent(
                 targetState = viewModel.inputRuleType,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = {
+                    val direction = if (targetState == null) -1 else 1
+                    (slideInHorizontally(
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    ) { direction * it / 5 } + fadeIn()) togetherWith
+                        (slideOutHorizontally(
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        ) { -direction * it / 5 } + fadeOut())
+                },
                 label = "AddRuleContent"
             ) { ruleType ->
                 Column(
@@ -354,16 +367,20 @@ private fun RuleFormContent(viewModel: ListViewModel, ruleType: RuleType) {
             },
             style = MaterialTheme.typography.titleLarge
         )
+    }
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
         Text(
-            stringResource(
-                when (ruleType) {
-                    RuleType.NUMBER -> R.string.label_rule_type_number
-                    RuleType.TAG -> R.string.label_rule_type_tag
-                    RuleType.LOCATION -> R.string.label_rule_type_location
-                }
-            ),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
+            stringResource(when (ruleType) {
+                RuleType.NUMBER -> R.string.label_rule_type_number
+                RuleType.TAG -> R.string.label_rule_type_tag
+                RuleType.LOCATION -> R.string.label_rule_type_location
+            }),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelLarge,
         )
     }
 
@@ -565,9 +582,12 @@ private fun UserListContent(
                 .height(360.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                stringResource(R.string.list_no_entries),
-                style = MaterialTheme.typography.bodyLarge
+            EmptyState(
+                icon = if (viewModel.currentTab == ListType.BLACK)
+                    Icons.Default.Block else Icons.Default.CheckCircle,
+                title = stringResource(R.string.list_no_entries),
+                description = stringResource(if (viewModel.currentTab == ListType.BLACK)
+                    R.string.list_black_empty_hint else R.string.list_white_empty_hint),
             )
         }
     } else {

@@ -3,6 +3,8 @@ package vip.mystery0.pixel.telo.ui.screen
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -13,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.ui.components.EmptyState
 import vip.mystery0.pixel.telo.data.model.CommunityReportStatus
 import vip.mystery0.pixel.telo.data.model.ReportFailureKind
 import vip.mystery0.pixel.telo.util.displayText
@@ -53,7 +56,10 @@ fun MyReportsScreen(viewModel: MyReportsViewModel, modifier: Modifier = Modifier
                 }
                 if (state.loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 if (state.initialized && state.items.isEmpty() && !state.loading && state.failure == null) {
-                    Text(stringResource(R.string.community_empty))
+                    EmptyState(
+                        icon = Icons.Default.CloudOff,
+                        title = stringResource(R.string.community_empty),
+                    )
                 }
             }
         }
@@ -61,13 +67,40 @@ fun MyReportsScreen(viewModel: MyReportsViewModel, modifier: Modifier = Modifier
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(report.phone, style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(when (report.status) {
+                    val statusColor = when (report.status) {
+                        CommunityReportStatus.ACTIVE -> MaterialTheme.colorScheme.primaryContainer
+                        CommunityReportStatus.WITHDRAWN,
+                        CommunityReportStatus.INVALIDATED -> MaterialTheme.colorScheme.surfaceContainerHighest
+                        CommunityReportStatus.UNKNOWN -> MaterialTheme.colorScheme.tertiaryContainer
+                    }
+                    val statusContentColor = when (report.status) {
+                        CommunityReportStatus.ACTIVE -> MaterialTheme.colorScheme.onPrimaryContainer
+                        CommunityReportStatus.WITHDRAWN,
+                        CommunityReportStatus.INVALIDATED -> MaterialTheme.colorScheme.onSurface
+                        CommunityReportStatus.UNKNOWN -> MaterialTheme.colorScheme.onTertiaryContainer
+                    }
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = statusColor,
+                        contentColor = statusContentColor,
+                    ) {
+                        Text(stringResource(when (report.status) {
                         CommunityReportStatus.ACTIVE -> R.string.community_active_report
                         CommunityReportStatus.WITHDRAWN -> R.string.community_withdrawn_report
                         CommunityReportStatus.INVALIDATED -> R.string.community_invalidated_report
                         CommunityReportStatus.UNKNOWN -> R.string.community_unknown_report
-                    }))
-                    Text(stringResource(report.communityStatus.textRes()))
+                        }), modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelLarge)
+                    }
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ) {
+                        Text(stringResource(report.communityStatus.textRes()),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelMedium)
+                    }
                     Text(stringResource(R.string.community_reported_at, dateFormatter.format(report.reportedAt)),
                         style = MaterialTheme.typography.bodySmall)
                     report.withdrawnAt?.let {

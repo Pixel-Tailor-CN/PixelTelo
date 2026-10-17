@@ -11,8 +11,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -56,6 +65,7 @@ fun SelfHostedPairingScreen(viewModel: SettingViewModel, modifier: Modifier = Mo
     var candidate by remember { mutableStateOf<SelfHostedPairingResult.Success?>(null) }
     var importOpen by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<Int?>(null) }
+    var scanSession by remember { mutableStateOf(0) }
     val busy = viewModel.selfHostedValidationInProgress
 
     fun replaceCandidate(value: SelfHostedPairingResult.Success) {
@@ -79,6 +89,7 @@ fun SelfHostedPairingScreen(viewModel: SettingViewModel, modifier: Modifier = Mo
     }
     DisposableEffect(Unit) {
         onDispose {
+            scanSession++
             candidate?.close()
             tokenInput = TextFieldValue()
         }
@@ -88,69 +99,127 @@ fun SelfHostedPairingScreen(viewModel: SettingViewModel, modifier: Modifier = Mo
         modifier = modifier.imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        when (step) {
-            PairingStep.START -> {
-                Text(stringResource(R.string.msg_pairing_intro))
-                Button(onClick = { feedback = null; step = PairingStep.SCAN }, enabled = !busy,
-                    modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_pairing_scan)) }
-                OutlinedButton(onClick = { feedback = null; importOpen = true }, enabled = !busy,
-                    modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_pairing_paste)) }
-                TextButton(onClick = { feedback = null; step = PairingStep.MANUAL }, enabled = !busy,
-                    modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_pairing_manual)) }
-            }
-            PairingStep.MANUAL -> {
-                SelfHostedEditor(draft, tokenInput, !busy,
-                    onDraftChange = { draft = it; feedback = null },
-                    onTokenChange = { tokenInput = it; feedback = null })
-                Button(onClick = {
-                    when (val result = viewModel.prepareManualSelfHostedPairing(draft, tokenInput.text)) {
-                        is SelfHostedPairingResult.Failure -> feedback = result.error.messageRes()
-                        is SelfHostedPairingResult.Success -> replaceCandidate(result)
-                    }
-                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.action_pairing_confirm))
-                }
-                TextButton(onClick = { tokenInput = TextFieldValue(); step = PairingStep.START },
-                    enabled = !busy) { Text(stringResource(R.string.action_pairing_reimport)) }
-            }
-            PairingStep.CONFIRM -> {
-                val ready = candidate
-                if (ready != null) {
-                    Text(stringResource(R.string.title_pairing_confirm), style = MaterialTheme.typography.titleLarge)
-                    Text(stringResource(R.string.label_pairing_address, ready.baseUrl))
-                    Text(stringResource(R.string.label_pairing_tls,
-                        stringResource(if (ready.tlsMode == SelfHostedTlsMode.SYSTEM)
-                            R.string.tls_mode_system else R.string.tls_mode_spki_pin)))
-                    Text(stringResource(R.string.label_pairing_token_hidden))
-                    Text(stringResource(R.string.msg_pairing_confirm))
-                    Button(onClick = {
-                        // 验证入口接管一次性数组；确认页立即失去明文及可提交状态。
-                        val submitted = ready.token.copyOf()
-                        ready.close()
-                        candidate = null
-                        tokenInput = TextFieldValue()
+        if (step == PairingStep.SCAN) {
+            val scannerSession = scanSession
+            SelfHostedQrScanner(
+                onDecoded = { value ->
+                    if (step == PairingStep.SCAN && scanSession == scannerSession) {
+                        scanSession++
                         step = PairingStep.START
-                        viewModel.validateAndEnableSelfHosted(draft, submitted)
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.action_pairing_validate))
+                        import(value)
                     }
-                    OutlinedButton(onClick = {
-                        tokenInput = TextFieldValue(ready.token.concatToString())
-                        ready.close()
-                        candidate = null
-                        step = PairingStep.MANUAL
-                    }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.action_modify_self_hosted))
+                },
+                onFailure = { error ->
+                    if (step == PairingStep.SCAN && scanSession == scannerSession) {
+                        scanSession++
+                        feedback = error
+                        step = PairingStep.START
                     }
-                    TextButton(onClick = { ready.close(); candidate = null; step = PairingStep.START },
-                        enabled = !busy) { Text(stringResource(R.string.action_pairing_reimport)) }
+                },
+                onCancel = {
+                    if (step == PairingStep.SCAN && scanSession == scannerSession) {
+                        scanSession++
+                        step = PairingStep.START
+                    }
+                },
+            )
+        } else AnimatedContent(
+            targetState = step,
+            transitionSpec = {
+                val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
+                (slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) {
+                    direction * it / 6
+                } + fadeIn()) togetherWith
+                    (slideOutHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) {
+                        -direction * it / 6
+                    } + fadeOut())
+            },
+            label = "PairingStep",
+        ) { currentStep ->
+            // 每个动画快照都使用自己的布局根，避免多个直接子项按最大尺寸重叠。
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                when (currentStep) {
+                    PairingStep.START -> {
+                        Text(stringResource(R.string.msg_pairing_intro))
+                        Card(
+                            onClick = { feedback = null; scanSession++; step = PairingStep.SCAN },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(stringResource(R.string.action_pairing_scan), style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(R.string.pairing_scan_hint), style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Card(
+                            onClick = { feedback = null; step = PairingStep.MANUAL },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(stringResource(R.string.action_pairing_manual), style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(R.string.pairing_manual_hint), style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        OutlinedButton(onClick = { feedback = null; importOpen = true }, enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_pairing_paste)) }
+                }
+                    PairingStep.MANUAL -> {
+                        SelfHostedEditor(draft, tokenInput, !busy,
+                            onDraftChange = { draft = it; feedback = null },
+                            onTokenChange = { tokenInput = it; feedback = null })
+                        Button(onClick = {
+                            when (val result = viewModel.prepareManualSelfHostedPairing(draft, tokenInput.text)) {
+                                is SelfHostedPairingResult.Failure -> feedback = result.error.messageRes()
+                                is SelfHostedPairingResult.Success -> replaceCandidate(result)
+                            }
+                        }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.action_pairing_confirm))
+                        }
+                        TextButton(onClick = { tokenInput = TextFieldValue(); step = PairingStep.START },
+                            enabled = !busy) { Text(stringResource(R.string.action_pairing_reimport)) }
+                }
+                    PairingStep.CONFIRM -> {
+                        val ready = candidate
+                        if (ready != null) {
+                            Text(stringResource(R.string.title_pairing_confirm), style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(R.string.label_pairing_address, ready.baseUrl))
+                            Text(stringResource(R.string.label_pairing_tls,
+                                stringResource(if (ready.tlsMode == SelfHostedTlsMode.SYSTEM)
+                                    R.string.tls_mode_system else R.string.tls_mode_spki_pin)))
+                            Text(stringResource(R.string.label_pairing_token_hidden))
+                            Text(stringResource(R.string.msg_pairing_confirm))
+                            Button(onClick = {
+                                // 验证入口接管一次性数组；确认页立即失去明文及可提交状态。
+                                val submitted = ready.token.copyOf()
+                                ready.close()
+                                candidate = null
+                                tokenInput = TextFieldValue()
+                                step = PairingStep.START
+                                viewModel.validateAndEnableSelfHosted(draft, submitted)
+                            }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                                Text(stringResource(R.string.action_pairing_validate))
+                            }
+                            OutlinedButton(onClick = {
+                                tokenInput = TextFieldValue(ready.token.concatToString())
+                                ready.close()
+                                candidate = null
+                                step = PairingStep.MANUAL
+                            }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                                Text(stringResource(R.string.action_modify_self_hosted))
+                            }
+                            TextButton(onClick = { ready.close(); candidate = null; step = PairingStep.START },
+                                enabled = !busy) { Text(stringResource(R.string.action_pairing_reimport)) }
+                        }
+                }
+                    PairingStep.SCAN -> Unit
                 }
             }
-            PairingStep.SCAN -> SelfHostedQrScanner(
-                onDecoded = { step = PairingStep.START; import(it) },
-                onFailure = { feedback = it; step = PairingStep.START },
-                onCancel = { step = PairingStep.START },
-            )
         }
         if (busy) {
             CircularProgressIndicator()

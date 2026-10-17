@@ -53,6 +53,18 @@ internal fun SelfHostedEditor(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
         modifier = Modifier.fillMaxWidth(),
     )
+    when {
+        draft.baseUrl.trim().startsWith("http://", ignoreCase = true) -> Text(
+            stringResource(R.string.self_hosted_http_warning),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        draft.baseUrl.trim().startsWith("https://", ignoreCase = true) -> Text(
+            stringResource(R.string.self_hosted_https_notice),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
     OutlinedTextField(
         value = tokenValue,
         onValueChange = onTokenChange,

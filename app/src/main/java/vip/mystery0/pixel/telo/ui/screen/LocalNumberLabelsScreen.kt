@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,12 +26,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.LocalNumberLabel
 import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelEditorDialogs
+import vip.mystery0.pixel.telo.ui.components.EmptyState
 import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelEditorViewModel
 import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelsViewModel
 
@@ -69,6 +70,14 @@ fun LocalNumberLabelsScreen(
                     contentDescription = null,
                 )
             },
+            trailingIcon = if (hasSearchQuery) {
+                {
+                    IconButton(onClick = { viewModel.updateQuery("") }) {
+                        Icon(Icons.Default.Close,
+                            contentDescription = stringResource(R.string.action_clear_search))
+                    }
+                }
+            } else null,
         )
 
         if (entries.isEmpty()) {
@@ -79,30 +88,15 @@ fun LocalNumberLabelsScreen(
                     .padding(horizontal = 24.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    if (hasSearchQuery) {
-                        Text(
-                            text = stringResource(R.string.msg_no_matching_local_number_labels),
-                            style = MaterialTheme.typography.bodyLarge,
-                            textAlign = TextAlign.Center,
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.msg_no_local_number_labels),
-                            style = MaterialTheme.typography.bodyLarge,
-                            textAlign = TextAlign.Center,
-                        )
-                        Text(
-                            text = stringResource(R.string.msg_no_local_number_labels_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
+                EmptyState(
+                    icon = Icons.Default.Search,
+                    title = stringResource(if (hasSearchQuery)
+                        R.string.msg_no_matching_local_number_labels
+                        else R.string.msg_no_local_number_labels),
+                    description = if (hasSearchQuery) null else
+                        stringResource(R.string.msg_no_local_number_labels_hint),
+                    modifier = Modifier.align(Alignment.Center),
+                )
             }
         } else {
             LazyColumn(

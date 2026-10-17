@@ -14,15 +14,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.automirrored.outlined.Assignment
 import vip.mystery0.pixel.telo.viewmodel.CallReportViewModel
 import vip.mystery0.pixel.telo.viewmodel.MyReportsViewModel
 import vip.mystery0.pixel.telo.ui.screen.MyReportsScreen
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
@@ -31,6 +30,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -74,6 +78,7 @@ class MainActivity : ComponentActivity() {
         smartspacerInterceptRepository.acknowledge(this)
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -89,9 +94,7 @@ class MainActivity : ComponentActivity() {
                 var showClearRecordsDialog by remember { mutableStateOf(false) }
                 var showLocalNumberLabelsScreen by rememberSaveable { mutableStateOf(false) }
                 var showMyReportsScreen by rememberSaveable { mutableStateOf(false) }
-                var homeMenuOpen by remember { mutableStateOf(false) }
                 fun openMyReports() {
-                    homeMenuOpen = false
                     showClearRecordsDialog = false
                     homeViewModel.closeQuickAdd()
                     callReportViewModel.close()
@@ -167,12 +170,23 @@ class MainActivity : ComponentActivity() {
                             actions = {
                                 if (!showMyReportsScreen && !showLocalNumberLabelsScreen && !showPairingScreen &&
                                     currentDestination == AppDestinations.HOME) {
-                                    IconButton(onClick = { homeMenuOpen = true }) {
-                                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.community_home_menu))
-                                    }
-                                    DropdownMenu(expanded = homeMenuOpen, onDismissRequest = { homeMenuOpen = false }) {
-                                        DropdownMenuItem(text = { Text(stringResource(R.string.community_my_reports)) },
-                                            onClick = ::openMyReports)
+                                    TooltipBox(
+                                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                            TooltipAnchorPosition.Above,
+                                        ),
+                                        tooltip = {
+                                            PlainTooltip {
+                                                Text(stringResource(R.string.community_my_reports))
+                                            }
+                                        },
+                                        state = rememberTooltipState(),
+                                    ) {
+                                        IconButton(onClick = ::openMyReports) {
+                                            Icon(
+                                                Icons.AutoMirrored.Outlined.Assignment,
+                                                contentDescription = stringResource(R.string.community_my_reports),
+                                            )
+                                        }
                                     }
                                 }
                                 if (

@@ -61,6 +61,7 @@
 
     <!-- Home Screen -->
     <string name="home_no_records">暂无拦截记录</string>
+    <string name="home_no_records_hint">来电识别与拦截记录会显示在这里。</string>
     <string name="home_records_load_failed">拦截记录加载失败</string>
     <string name="action_retry_query">重新联网查询（仅国内号码）</string>
     <string name="label_phone_location">归属地：%1$s</string>
@@ -78,6 +79,9 @@
     <string name="current_list_white">当前状态: 已在白名单中</string>
     <string name="current_list_both">当前状态: 同时在黑名单和白名单中</string>
     <string name="label_remark">"备注: "</string>
+    <string name="label_call_feedback">来电结果反馈</string>
+    <string name="title_record_info">记录信息</string>
+    <string name="title_more_actions">更多操作</string>
     <string name="label_duration_with_network">"处理耗时: 本地 %1$dms | 网络 %2$dms"</string>
     <string name="label_duration_local">"处理耗时: 本地 %1$dms"</string>
     <string name="msg_querying">正在查询 %1$s…</string>
@@ -245,6 +249,16 @@
     <string name="tab_blacklist">黑名单</string>
     <string name="tab_whitelist">白名单</string>
     <string name="list_no_entries">暂无条目</string>
+    <string name="list_black_empty_hint">添加号码或匹配规则以拦截不需要的来电。</string>
+    <string name="list_white_empty_hint">添加始终允许接通的号码或规则。</string>
+    <string name="label_community_report_section">社区骚扰上报</string>
+    <string name="label_number_rules">号码规则与本地标签</string>
+    <string name="category_data_management">数据与上报</string>
+    <string name="action_clear_search">清除搜索</string>
+    <string name="pairing_scan_hint">使用相机扫描配对二维码。</string>
+    <string name="pairing_manual_hint">手动填写服务器地址和凭据。</string>
+    <string name="self_hosted_http_warning">HTTP 不会加密网络流量，正式使用请配置 HTTPS。</string>
+    <string name="self_hosted_https_notice">已填写 HTTPS 地址；连接仍会按当前 TLS 验证设置校验。</string>
     <string name="action_add_entry">添加条目</string>
     <string name="title_add_to_blacklist">加入黑名单</string>
     <string name="title_add_to_whitelist">加入白名单</string>
@@ -452,4 +466,6 @@
     <string name="label_tag_exact">标签·精确匹配</string>
     <string name="label_tag_contains">标签·包含匹配</string>
     <string name="summary_tag_contains">包含匹配示例：“保险”可匹配“保险推销”。区分大小写，不支持正则或通配符；仅匹配离线库或联网识别标签，不匹配手写的本地标签。</string>
+    <string name="state_expanded">已展开</string>
+    <string name="state_collapsed">已收起</string>
 </resources>

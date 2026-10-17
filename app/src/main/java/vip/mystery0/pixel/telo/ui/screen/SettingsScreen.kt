@@ -25,6 +25,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ManageSearch
+import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
@@ -827,13 +830,25 @@ fun SettingsScreen(
                             Manifest.permission.READ_PHONE_STATE
                         )
                     },
-                    onNavigateToLocalNumberLabels = onNavigateToLocalNumberLabels,
                 )
 
+                PreferenceCategory(title = { Text(stringResource(R.string.category_data_management)) })
                 me.zhanghai.compose.preference.Preference(
                     title = { Text(stringResource(R.string.community_my_reports)) },
                     summary = { Text(stringResource(R.string.community_official_history)) },
+                    icon = { Icon(Icons.AutoMirrored.Outlined.Assignment, contentDescription = null) },
                     onClick = onNavigateToMyReports,
+                )
+                me.zhanghai.compose.preference.Preference(
+                    title = { Text(stringResource(R.string.setting_local_number_labels)) },
+                    summary = { Text(stringResource(R.string.setting_local_number_labels_summary)) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.ManageSearch, contentDescription = null) },
+                    onClick = onNavigateToLocalNumberLabels,
+                )
+                PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
+                BackupRestorePreferences(
+                    viewModel = viewModel,
+                    onRestore = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
                 )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
@@ -866,12 +881,6 @@ fun SettingsScreen(
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_location_overlay)) })
                 LocationOverlayPreferences(viewModel)
-
-                PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
-                BackupRestorePreferences(
-                    viewModel = viewModel,
-                    onRestore = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
-                )
 
                 PreferenceCategory(title = { Text(stringResource(R.string.category_about)) })
                 AboutPreferences(viewModel)
