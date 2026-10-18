@@ -288,7 +288,8 @@ fun HomeScreen(
                             Text("${stringResource(R.string.label_source)}${resp.source}")
                             val community = decodeCommunityQueryMetadata(resp, state.call.queryBackendId == "official").status
                             if (community != CommunityStatus.UNKNOWN) {
-                                Text(stringResource(R.string.community_query_snapshot, stringResource(community.textRes())))
+                                Text(stringResource(R.string.community_query_snapshot,
+                                    stringResource(R.string.community_status_prefixed, stringResource(community.textRes()))))
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

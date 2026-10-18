@@ -667,7 +667,7 @@ fun SettingsScreen(
                         })
                         if (result.communityStatus != CommunityStatus.UNKNOWN) {
                             Text(stringResource(R.string.community_query_snapshot,
-                                stringResource(result.communityStatus.textRes())))
+                                stringResource(R.string.community_status_prefixed, stringResource(result.communityStatus.textRes()))))
                         }
                         val failureSummary = result.resultType.queryFailureSummaryRes()
                         Text(stringResource(R.string.label_result_type) +
