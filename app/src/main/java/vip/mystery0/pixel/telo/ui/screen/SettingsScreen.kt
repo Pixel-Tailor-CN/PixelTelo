@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
@@ -25,11 +26,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ManageSearch
 import androidx.compose.material.icons.automirrored.outlined.Assignment
-import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,24 +66,29 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import me.zhanghai.compose.preference.PreferenceCategory
-import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.util.queryFailureSummaryRes
 import vip.mystery0.pixel.telo.util.queryFailureAdviceRes
 import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
 import vip.mystery0.pixel.telo.data.query.QueryBackendState
+import vip.mystery0.pixel.telo.data.query.QueryBackendType
 import vip.mystery0.pixel.telo.data.query.SelfHostedConnectionState
 import vip.mystery0.pixel.telo.data.repository.QuerySourceItem
 import vip.mystery0.pixel.telo.service.IncomingCallOverlay
 import vip.mystery0.pixel.telo.ui.screen.settings.AboutPreferences
-import vip.mystery0.pixel.telo.ui.screen.settings.AppFeaturesPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.BackupRestorePreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.DebugPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.DisplayPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.InterceptBehaviorPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.LocationOverlayPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.OfflineDatabasePreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.OnlineQueryPreferences
 import vip.mystery0.pixel.telo.ui.screen.settings.PermissionsPreferences
+import vip.mystery0.pixel.telo.ui.screen.settings.SettingsSection
+import vip.mystery0.pixel.telo.ui.screen.settings.SettingsCategory
+import vip.mystery0.pixel.telo.ui.screen.settings.SettingsGroup
+import vip.mystery0.pixel.telo.ui.screen.settings.SettingsItemRow
+import vip.mystery0.pixel.telo.ui.screen.settings.SettingsRowItem
 import vip.mystery0.pixel.telo.ui.screen.settings.SelfHostedQueryDialog
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
@@ -91,6 +102,9 @@ import java.time.LocalDateTime
 @Composable
 fun SettingsScreen(
     viewModel: SettingViewModel,
+    saveableStateHolder: SaveableStateHolder,
+    settingsCategory: SettingsCategory?,
+    onNavigateToCategory: (SettingsCategory) -> Unit,
     onNavigateToLocalNumberLabels: () -> Unit,
     onNavigateToMyReports: () -> Unit,
 ) {
@@ -381,6 +395,11 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    stringResource(R.string.community_backup_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 BackupCheckboxRow(
                     checked = viewModel.backupOptions.includeBlockedCalls,
                     label = stringResource(R.string.label_backup_blocked_calls),
@@ -448,6 +467,11 @@ fun SettingsScreen(
                 Text(
                     stringResource(R.string.title_restore_select),
                     style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    stringResource(R.string.msg_restore_scope),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 BackupCheckboxRow(
                     checked = viewModel.restoreOptions.includeBlockedCalls,
@@ -810,84 +834,253 @@ fun SettingsScreen(
         }
     }
 
-    ProvidePreferenceLocals {
-        Box(modifier = Modifier.fillMaxSize()) {
+    val selfHostedConfig = when (val state = selfHostedConnectionState) {
+        is SelfHostedConnectionState.Ready -> state.config
+        is SelfHostedConnectionState.Blocked -> state.config
+        SelfHostedConnectionState.NotConfigured -> null
+    }
+    val selfHostedBackendFallback = stringResource(
+        R.string.setting_query_backend_self_hosted_unavailable_summary
+    )
+    val onlineBackendName = when (val backend = queryBackendState) {
+        is QueryBackendState.Ready -> when (backend.type) {
+            QueryBackendType.OFFICIAL ->
+                stringResource(R.string.setting_query_backend_official_summary)
+
+            QueryBackendType.SELF_HOSTED -> selfHostedConfig?.baseUrl
+                ?.let { Uri.parse(it).host }
+                ?: selfHostedBackendFallback
+        }
+
+        is QueryBackendState.Blocked -> selfHostedConfig?.baseUrl
+            ?.let { Uri.parse(it).host }
+            ?: selfHostedBackendFallback
+    }
+    val onlineSummary = if (viewModel.noNetworkQuery) {
+        stringResource(R.string.setting_category_online_disabled_summary)
+    } else {
+        stringResource(
+            R.string.setting_category_online_backend_summary,
+            onlineBackendName,
+            viewModel.networkTimeout,
+        )
+    }
+    val notFoundText = stringResource(R.string.msg_not_found)
+    val checkingText = stringResource(R.string.msg_checking)
+    val offlineSummary = when {
+        viewModel.offlineDbVersion.isBlank() || viewModel.offlineDbVersion == notFoundText ->
+            stringResource(R.string.setting_category_offline_not_initialized_summary)
+        viewModel.offlineDbVersion == checkingText ->
+            stringResource(R.string.setting_category_offline_checking_summary)
+        else -> stringResource(
+            R.string.setting_category_offline_version_summary,
+            viewModel.offlineDbVersion,
+        )
+    }
+    val overlaySummary = when {
+        viewModel.noNetworkQuery ->
+            stringResource(R.string.setting_category_overlay_network_disabled_summary)
+        !viewModel.showLocationOverlay ->
+            stringResource(R.string.setting_category_overlay_disabled_summary)
+        !overlayPermissionGranted ->
+            stringResource(R.string.setting_category_overlay_permission_required_summary)
+        else -> stringResource(R.string.setting_category_overlay_enabled_summary)
+    }
+    val appPermissions = PermissionUtils.allPermissions
+    val requiredPermissions = appPermissions.filter { it.isCritical }
+    val optionalPermissions = appPermissions.filterNot { it.isCritical }
+    val missingRequiredPermissionCount = requiredPermissions.count { item ->
+        permissionsState[item.permission] != true
+    }
+    val grantedOptionalPermissionCount = optionalPermissions.count { item ->
+        permissionsState[item.permission] == true
+    } + if (overlayPermissionGranted) 1 else 0
+    val optionalPermissionCount = optionalPermissions.size + 1
+    val requiredPermissionSummary = if (missingRequiredPermissionCount == 0) {
+        stringResource(R.string.setting_permissions_required_complete)
+    } else {
+        stringResource(
+            R.string.setting_permissions_required_missing,
+            missingRequiredPermissionCount,
+        )
+    }
+    val permissionsSummary = stringResource(
+        R.string.setting_category_permissions_summary,
+        requiredPermissionSummary,
+        grantedOptionalPermissionCount,
+        optionalPermissionCount,
+    )
+
+    saveableStateHolder.SaveableStateProvider(settingsCategory?.name ?: "settings-home") {
+        if (settingsCategory == null) {
+            val categoryGroups = listOf(
+                listOf(
+                    Triple(
+                        SettingsCategory.CALL_RECOGNITION,
+                        stringResource(
+                            if (viewModel.notifyOnly) {
+                                R.string.setting_category_call_notify_summary
+                            } else {
+                                R.string.setting_category_call_block_summary
+                            }
+                        ),
+                        Icons.Default.NotificationsNone,
+                    ),
+                    Triple(
+                        SettingsCategory.ONLINE_QUERY,
+                        onlineSummary,
+                        Icons.Default.Cloud,
+                    ),
+                    Triple(
+                        SettingsCategory.OFFLINE_DATABASE,
+                        offlineSummary,
+                        Icons.Default.Update,
+                    ),
+                ),
+                listOf(
+                    Triple(
+                        SettingsCategory.DISPLAY_ALERTS,
+                        overlaySummary,
+                        Icons.Default.Visibility,
+                    ),
+                    Triple(
+                        SettingsCategory.RECORDS_BACKUP,
+                        stringResource(R.string.setting_category_records_summary),
+                        Icons.AutoMirrored.Outlined.Assignment,
+                    ),
+                ),
+                listOf(
+                    Triple(
+                        SettingsCategory.PERMISSIONS,
+                        permissionsSummary,
+                        Icons.Default.Security,
+                    ),
+                    Triple(
+                        SettingsCategory.ABOUT,
+                        stringResource(
+                            R.string.setting_app_version_summary,
+                            viewModel.versionName,
+                            viewModel.versionCode,
+                        ),
+                        Icons.Default.Info,
+                    ),
+                ),
+            )
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                PreferenceCategory(title = { Text(stringResource(R.string.category_app_features)) })
-                AppFeaturesPreferences(
-                    viewModel = viewModel,
-                    onRequestNotificationPermission = {
-                        notificationPermissionLauncher.launch(
-                            Manifest.permission.POST_NOTIFICATIONS
+                categoryGroups.forEach { group ->
+                    SettingsGroup(
+                        rows = group.map { (category, summary, icon) ->
+                            SettingsRowItem(category.name) { modifier ->
+                                SettingsItemRow(
+                                    modifier = modifier,
+                                    title = stringResource(category.titleResId),
+                                    summary = summary,
+                                    icon = icon,
+                                    onClick = { onNavigateToCategory(category) },
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                when (settingsCategory) {
+                    SettingsCategory.CALL_RECOGNITION ->
+                        InterceptBehaviorPreferences(
+                            viewModel = viewModel,
+                            backendState = queryBackendState,
                         )
-                    },
-                    onRequestPhoneStatePermission = {
-                        callStateVibrationPermissionLauncher.launch(
-                            Manifest.permission.READ_PHONE_STATE
-                        )
-                    },
-                )
 
-                PreferenceCategory(title = { Text(stringResource(R.string.category_data_management)) })
-                me.zhanghai.compose.preference.Preference(
-                    title = { Text(stringResource(R.string.community_my_reports)) },
-                    summary = { Text(stringResource(R.string.community_official_history)) },
-                    icon = { Icon(Icons.AutoMirrored.Outlined.Assignment, contentDescription = null) },
-                    onClick = onNavigateToMyReports,
-                )
-                me.zhanghai.compose.preference.Preference(
-                    title = { Text(stringResource(R.string.setting_local_number_labels)) },
-                    summary = { Text(stringResource(R.string.setting_local_number_labels_summary)) },
-                    icon = { Icon(Icons.AutoMirrored.Filled.ManageSearch, contentDescription = null) },
-                    onClick = onNavigateToLocalNumberLabels,
-                )
-                PreferenceCategory(title = { Text(stringResource(R.string.category_backup_restore)) })
-                BackupRestorePreferences(
-                    viewModel = viewModel,
-                    onRestore = { restoreLauncher.launch(arrayOf("application/zip", "*/*")) }
-                )
-
-                PreferenceCategory(title = { Text(stringResource(R.string.category_permissions)) })
-                PermissionsPreferences(
-                    overlayPermissionGranted = overlayPermissionGranted,
-                    permissionsState = permissionsState,
-                    onRequestOverlayPermission = {
-                        val intent = Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            "package:${context.packageName}".toUri()
+                    SettingsCategory.ONLINE_QUERY ->
+                        OnlineQueryPreferences(
+                            viewModel = viewModel,
+                            backendState = queryBackendState,
+                            selfHostedConnectionState = selfHostedConnectionState,
                         )
-                        overlayPermissionLauncher.launch(intent)
-                    },
-                    onRequestPermission = { permission ->
-                        launcher.launch(arrayOf(permission))
+
+                    SettingsCategory.OFFLINE_DATABASE ->
+                        OfflineDatabasePreferences(
+                            viewModel = viewModel,
+                            onRequestNotificationPermission = {
+                                notificationPermissionLauncher.launch(
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                )
+                            },
+                        )
+
+                    SettingsCategory.DISPLAY_ALERTS -> {
+                        DisplayPreferences(
+                            viewModel = viewModel,
+                            backendState = queryBackendState,
+                            feedbackPermissions = feedbackPermissions,
+                            onRequestFeedbackPermissions = feedbackPermissionLauncher::launch,
+                            onRequestPhoneStatePermission = {
+                                callStateVibrationPermissionLauncher.launch(
+                                    Manifest.permission.READ_PHONE_STATE
+                                )
+                            },
+                        )
+                        LocationOverlayPreferences(viewModel)
                     }
-                )
 
-                PreferenceCategory(title = { Text(stringResource(R.string.category_intercept_behavior)) })
-                InterceptBehaviorPreferences(viewModel)
+                    SettingsCategory.RECORDS_BACKUP ->
+                        BackupRestorePreferences(
+                            viewModel = viewModel,
+                            onNavigateToMyReports = onNavigateToMyReports,
+                            onNavigateToLocalNumberLabels = onNavigateToLocalNumberLabels,
+                            onRestore = {
+                                restoreLauncher.launch(arrayOf("application/zip", "*/*"))
+                            },
+                        )
 
-                PreferenceCategory(title = { Text(stringResource(R.string.category_online_query)) })
-                OnlineQueryPreferences(
-                    viewModel = viewModel,
-                    backendState = queryBackendState,
-                    selfHostedConnectionState = selfHostedConnectionState,
-                    feedbackPermissions = feedbackPermissions,
-                    onRequestFeedbackPermissions = feedbackPermissionLauncher::launch
-                )
+                    SettingsCategory.PERMISSIONS ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        ) {
+                            PermissionsPreferences(
+                                overlayPermissionGranted = overlayPermissionGranted,
+                                permissionsState = permissionsState,
+                                onRequestOverlayPermission = {
+                                    val intent = Intent(
+                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        "package:${context.packageName}".toUri()
+                                    )
+                                    overlayPermissionLauncher.launch(intent)
+                                },
+                                onRequestPermission = { permission ->
+                                    launcher.launch(arrayOf(permission))
+                                },
+                            )
+                        }
 
-                PreferenceCategory(title = { Text(stringResource(R.string.category_location_overlay)) })
-                LocationOverlayPreferences(viewModel)
-
-                PreferenceCategory(title = { Text(stringResource(R.string.category_about)) })
-                AboutPreferences(viewModel)
-
-                if (viewModel.debugUnlocked) {
-                    PreferenceCategory(title = { Text(stringResource(R.string.category_debug_mode)) })
-                    DebugPreferences(viewModel)
+                    SettingsCategory.ABOUT -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        ) {
+                            AboutPreferences(viewModel)
+                        }
+                        if (viewModel.debugUnlocked) {
+                            SettingsSection(title = stringResource(R.string.category_debug_mode)) {
+                                DebugPreferences(viewModel)
+                            }
+                        }
+                    }
                 }
             }
         }

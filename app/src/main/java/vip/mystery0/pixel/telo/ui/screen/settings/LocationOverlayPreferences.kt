@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -20,102 +19,109 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
-import me.zhanghai.compose.preference.Preference
-import me.zhanghai.compose.preference.SwitchPreference
 import vip.mystery0.pixel.telo.R
-import vip.mystery0.pixel.telo.ui.components.SingleChoicePreference
 import vip.mystery0.pixel.telo.viewmodel.LocationOverlayDisplayMode
 import vip.mystery0.pixel.telo.viewmodel.LocationOverlayStyle
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
-/** 悬浮窗分类下的设置项。 */
+/** 悬浮窗分组；参数仍只受联网设置约束，不受显示开关约束。 */
 @Composable
 fun LocationOverlayPreferences(viewModel: SettingViewModel) {
     var showOverlayDurationDialog by remember { mutableStateOf(false) }
     val locationOverlayEnabled = !viewModel.noNetworkQuery
+    val disabledSummary = stringResource(R.string.setting_requires_network_enabled)
 
-    SwitchPreference(
-        value = viewModel.showLocationOverlay,
-        onValueChange = viewModel::updateShowLocationOverlay,
-        enabled = locationOverlayEnabled,
-        title = { Text(stringResource(R.string.setting_show_location_overlay)) },
-        summary = {
-            Text(
-                stringResource(
+    val rows = buildList {
+        add(SettingsRowItem("show-location-overlay") { modifier ->
+            SettingsSwitchRow(
+                modifier = modifier,
+                checked = viewModel.showLocationOverlay,
+                title = stringResource(R.string.setting_show_location_overlay),
+                summary = stringResource(
                     if (locationOverlayEnabled) {
                         R.string.setting_show_location_overlay_summary
                     } else {
                         R.string.setting_show_location_overlay_disabled_summary
                     }
-                )
+                ),
+                icon = Icons.Default.Map,
+                enabled = locationOverlayEnabled,
+                onCheckedChange = viewModel::updateShowLocationOverlay,
             )
-        },
-        icon = { Icon(Icons.Default.Map, contentDescription = null) }
-    )
-
-    SingleChoicePreference(
-        value = viewModel.locationOverlayDisplayMode,
-        options = LocationOverlayDisplayMode.entries,
-        onValueChange = viewModel::updateLocationOverlayDisplayMode,
-        enabled = locationOverlayEnabled,
-        title = { Text(stringResource(R.string.setting_location_overlay_display_mode)) },
-        summary = {
-            Text(stringResource(viewModel.locationOverlayDisplayMode.labelRes()))
-        },
-        icon = { Icon(Icons.Default.Visibility, contentDescription = null) },
-        optionContent = { mode ->
-            Text(stringResource(mode.labelRes()))
-        }
-    )
-
-    if (viewModel.locationOverlayDisplayMode == LocationOverlayDisplayMode.FIXED_DURATION) {
-        Preference(
-            enabled = locationOverlayEnabled,
-            title = { Text(stringResource(R.string.setting_location_overlay_duration)) },
-            summary = {
-                Text(
-                    stringResource(
-                        R.string.setting_location_overlay_duration_summary,
-                        viewModel.locationOverlayDurationSeconds
-                    )
+        })
+        add(SettingsRowItem("location-display-mode") { modifier ->
+            SettingsChoiceRow(
+                modifier = modifier,
+                value = viewModel.locationOverlayDisplayMode,
+                options = LocationOverlayDisplayMode.entries,
+                onValueChange = viewModel::updateLocationOverlayDisplayMode,
+                title = stringResource(R.string.setting_location_overlay_display_mode),
+                summary = if (locationOverlayEnabled) {
+                    stringResource(viewModel.locationOverlayDisplayMode.labelRes())
+                } else {
+                    "${stringResource(viewModel.locationOverlayDisplayMode.labelRes())} · $disabledSummary"
+                },
+                icon = Icons.Default.Visibility,
+                enabled = locationOverlayEnabled,
+                optionContent = { mode -> Text(stringResource(mode.labelRes())) },
+            )
+        })
+        if (viewModel.locationOverlayDisplayMode == LocationOverlayDisplayMode.FIXED_DURATION) {
+            add(SettingsRowItem("location-duration") { modifier ->
+                SettingsItemRow(
+                    modifier = modifier,
+                    enabled = locationOverlayEnabled,
+                    title = stringResource(R.string.setting_location_overlay_duration),
+                    summary = if (locationOverlayEnabled) {
+                        stringResource(
+                            R.string.setting_location_overlay_duration_summary,
+                            viewModel.locationOverlayDurationSeconds,
+                        )
+                    } else {
+                        disabledSummary
+                    },
+                    icon = Icons.Default.Timer,
+                    onClick = { showOverlayDurationDialog = true },
                 )
-            },
-            icon = { Icon(Icons.Default.Timer, contentDescription = null) },
-            onClick = { showOverlayDurationDialog = true }
-        )
-    }
-
-    SingleChoicePreference(
-        value = viewModel.locationOverlayStyle,
-        options = LocationOverlayStyle.entries,
-        onValueChange = viewModel::updateLocationOverlayStyle,
-        enabled = locationOverlayEnabled,
-        title = { Text(stringResource(R.string.setting_location_overlay_style)) },
-        summary = {
-            Text(stringResource(viewModel.locationOverlayStyle.labelRes()))
-        },
-        icon = { Icon(Icons.Default.Palette, contentDescription = null) },
-        optionContent = { style ->
-            Text(stringResource(style.labelRes()))
+            })
         }
-    )
-
-    Preference(
-        title = { Text(stringResource(R.string.setting_adjust_location_overlay)) },
-        summary = {
-            Text(
-                stringResource(
+        add(SettingsRowItem("location-style") { modifier ->
+            SettingsChoiceRow(
+                modifier = modifier,
+                value = viewModel.locationOverlayStyle,
+                options = LocationOverlayStyle.entries,
+                onValueChange = viewModel::updateLocationOverlayStyle,
+                title = stringResource(R.string.setting_location_overlay_style),
+                summary = if (locationOverlayEnabled) {
+                    stringResource(viewModel.locationOverlayStyle.labelRes())
+                } else {
+                    "${stringResource(viewModel.locationOverlayStyle.labelRes())} · $disabledSummary"
+                },
+                icon = Icons.Default.Palette,
+                enabled = locationOverlayEnabled,
+                optionContent = { style -> Text(stringResource(style.labelRes())) },
+            )
+        })
+        add(SettingsRowItem("adjust-location-overlay") { modifier ->
+            SettingsItemRow(
+                modifier = modifier,
+                title = stringResource(R.string.setting_adjust_location_overlay),
+                summary = stringResource(
                     if (viewModel.showLocationOverlayAdjuster) {
                         R.string.setting_adjust_location_overlay_active_summary
                     } else {
                         R.string.setting_adjust_location_overlay_summary
                     }
-                )
+                ),
+                icon = Icons.Default.OpenWith,
+                onClick = viewModel::toggleLocationOverlayAdjuster,
             )
-        },
-        icon = { Icon(Icons.Default.OpenWith, contentDescription = null) },
-        onClick = viewModel::toggleLocationOverlayAdjuster
-    )
+        })
+    }
+
+    SettingsSection(title = stringResource(R.string.setting_group_floating_window)) {
+        SettingsGroup(rows)
+    }
 
     if (showOverlayDurationDialog) {
         var sliderValue by remember {
@@ -129,7 +135,7 @@ fun LocationOverlayPreferences(viewModel: SettingViewModel) {
                     Text(
                         stringResource(
                             R.string.setting_location_overlay_duration_summary,
-                            sliderValue.toInt()
+                            sliderValue.toInt(),
                         )
                     )
                     Slider(
@@ -137,11 +143,9 @@ fun LocationOverlayPreferences(viewModel: SettingViewModel) {
                         onValueChange = { sliderValue = it },
                         valueRange =
                             SettingViewModel.MIN_LOCATION_OVERLAY_DURATION_SECONDS.toFloat()..
-                                    SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS.toFloat(),
-                        steps =
-                            SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS -
-                                    SettingViewModel.MIN_LOCATION_OVERLAY_DURATION_SECONDS -
-                                    1
+                                SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS.toFloat(),
+                        steps = SettingViewModel.MAX_LOCATION_OVERLAY_DURATION_SECONDS -
+                            SettingViewModel.MIN_LOCATION_OVERLAY_DURATION_SECONDS - 1,
                     )
                 }
             },
@@ -159,17 +163,14 @@ fun LocationOverlayPreferences(viewModel: SettingViewModel) {
                 OutlinedButton(onClick = { showOverlayDurationDialog = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
-            }
+            },
         )
     }
 }
 
 private fun LocationOverlayDisplayMode.labelRes(): Int = when (this) {
-    LocationOverlayDisplayMode.FIXED_DURATION ->
-        R.string.location_overlay_display_mode_fixed
-
-    LocationOverlayDisplayMode.UNTIL_CALL_END ->
-        R.string.location_overlay_display_mode_until_call_end
+    LocationOverlayDisplayMode.FIXED_DURATION -> R.string.location_overlay_display_mode_fixed
+    LocationOverlayDisplayMode.UNTIL_CALL_END -> R.string.location_overlay_display_mode_until_call_end
 }
 
 private fun LocationOverlayStyle.labelRes(): Int = when (this) {

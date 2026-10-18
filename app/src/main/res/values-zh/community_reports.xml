@@ -36,7 +36,8 @@
     <string name="community_query_snapshot">本次查询快照：%1$s</string>
     <string name="community_block_applied">当时因社区标记拦截</string>
     <string name="community_block_setting">拦截社区标记号码</string>
-    <string name="community_block_summary">默认仅提示。仅官方在线查询提供社区标记，开启后仍遵循“仅提示不拦截”和名单规则。</string>
+    <string name="community_block_summary">社区标记默认仅提示；仅官方查询支持，仍遵循“仅提示不拦截”和名单规则。</string>
+    <string name="community_block_disabled_summary">需开启联网查询并使用官方服务；仍遵循“仅提示不拦截”和名单规则。</string>
     <string name="community_backup_notice">系统备份及设备迁移不包含通话记录、名单和本地标签，请使用本页手动备份。手动备份包含社区历史展示，不包含上报身份或反馈凭据。</string>
     <string name="community_reset_identity">建立新上报身份</string>
     <string name="community_reset_confirm">当前身份无法使用。建立新身份后无法再查询、撤回或删除旧身份的上报，且不能恢复。是否继续？</string>

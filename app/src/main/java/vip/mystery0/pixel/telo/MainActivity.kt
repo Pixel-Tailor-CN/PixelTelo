@@ -44,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -60,6 +61,7 @@ import vip.mystery0.pixel.telo.ui.screen.HomeScreen
 import vip.mystery0.pixel.telo.ui.screen.ListScreen
 import vip.mystery0.pixel.telo.ui.screen.LocalNumberLabelsScreen
 import vip.mystery0.pixel.telo.ui.screen.SettingsScreen
+import vip.mystery0.pixel.telo.ui.screen.settings.SettingsCategory
 import vip.mystery0.pixel.telo.ui.screen.settings.SelfHostedPairingScreen
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
 import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
@@ -93,6 +95,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PixelTeloTheme {
+                val settingsSaveableStateHolder = rememberSaveableStateHolder()
                 val pagerState = rememberPagerState(pageCount = { AppDestinations.entries.size })
                 val currentDestination = AppDestinations.entries[pagerState.currentPage]
                 val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
@@ -102,6 +105,7 @@ class MainActivity : ComponentActivity() {
                 var showRecordsMenu by remember { mutableStateOf(false) }
                 var showLocalNumberLabelsScreen by rememberSaveable { mutableStateOf(false) }
                 var showMyReportsScreen by rememberSaveable { mutableStateOf(false) }
+                var settingsCategory by rememberSaveable { mutableStateOf<SettingsCategory?>(null) }
                 fun openMyReports() {
                     showClearRecordsDialog = false
                     homeViewModel.closeQuickAdd()
@@ -117,6 +121,7 @@ class MainActivity : ComponentActivity() {
                     // 从主页告警进入配对后，取消和成功均回到设置页。
                     if (showPairingScreen) {
                         showMyReportsScreen = false
+                        settingsCategory = SettingsCategory.ONLINE_QUERY
                         pagerState.requestScrollToPage(AppDestinations.SETTINGS.ordinal)
                     }
                 }
@@ -132,6 +137,15 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = showLocalNumberLabelsScreen) {
                     closeLocalNumberLabelsScreen()
                 }
+                BackHandler(
+                    enabled = settingsCategory != null &&
+                        currentDestination == AppDestinations.SETTINGS &&
+                        !showPairingScreen &&
+                        !showMyReportsScreen &&
+                        !showLocalNumberLabelsScreen,
+                ) {
+                    settingsCategory = null
+                }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -146,6 +160,10 @@ class MainActivity : ComponentActivity() {
                                             R.string.community_my_reports
                                         } else if (showLocalNumberLabelsScreen) {
                                             R.string.title_local_number_labels
+                                        } else if (currentDestination == AppDestinations.SETTINGS &&
+                                            settingsCategory != null
+                                        ) {
+                                            settingsCategory!!.titleResId
                                         } else {
                                             currentDestination.titleResId
                                         }
@@ -168,6 +186,16 @@ class MainActivity : ComponentActivity() {
                                     }
                                 } else if (showLocalNumberLabelsScreen) {
                                     IconButton(onClick = { closeLocalNumberLabelsScreen() }) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = stringResource(R.string.action_back),
+                                        )
+                                    }
+                                } else if (
+                                    currentDestination == AppDestinations.SETTINGS &&
+                                    settingsCategory != null
+                                ) {
+                                    IconButton(onClick = { settingsCategory = null }) {
                                         Icon(
                                             Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = stringResource(R.string.action_back),
@@ -225,7 +253,9 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     bottomBar = {
-                        if (!showMyReportsScreen && !showLocalNumberLabelsScreen && !showPairingScreen) {
+                        if (!showMyReportsScreen && !showLocalNumberLabelsScreen &&
+                            !showPairingScreen && settingsCategory == null
+                        ) {
                             val largeNavigationText = LocalDensity.current.fontScale > 1.3f
                             NavigationBar(
                                 modifier = Modifier.heightIn(min = if (largeNavigationText) 104.dp else 80.dp),
@@ -234,6 +264,7 @@ class MainActivity : ComponentActivity() {
                                     NavigationBarItem(
                                         selected = currentDestination == destination,
                                         onClick = {
+                                            settingsCategory = null
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(
                                                     destination.ordinal
@@ -271,6 +302,7 @@ class MainActivity : ComponentActivity() {
                             viewModel = localNumberLabelsViewModel,
                             editorViewModel = localNumberLabelEditorViewModel,
                             onNavigateToCallHistory = {
+                                settingsCategory = null
                                 closeLocalNumberLabelsScreen()
                                 coroutineScope.launch {
                                     pagerState.animateScrollToPage(AppDestinations.HOME.ordinal)
@@ -283,6 +315,7 @@ class MainActivity : ComponentActivity() {
                     } else {
                         HorizontalPager(
                             state = pagerState,
+                            userScrollEnabled = settingsCategory == null,
                             modifier = Modifier
                                 .padding(innerPadding)
                                 .fillMaxSize(),
@@ -296,6 +329,7 @@ class MainActivity : ComponentActivity() {
                                         callReportViewModel = callReportViewModel,
                                         onNavigateToMyReports = ::openMyReports,
                                         onNavigateToSettings = {
+                                            settingsCategory = null
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(
                                                     AppDestinations.SETTINGS.ordinal
@@ -305,6 +339,7 @@ class MainActivity : ComponentActivity() {
                                         onNavigateToSourceSettings = {
                                             // 先打开 source 设置 BottomSheet，再切换到设置页，
                                             // 保证用户到达设置页时直接看到 source 配置
+                                            settingsCategory = SettingsCategory.ONLINE_QUERY
                                             settingViewModel.openQuerySourceSettings()
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(
@@ -314,6 +349,7 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onNavigateToSelfHostedSettings = {
                                             // 打开自建服务管理入口后再切换页面，避免用户在设置中二次查找。
+                                            settingsCategory = SettingsCategory.ONLINE_QUERY
                                             settingViewModel.openSelfHostedConfig()
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(
@@ -334,6 +370,9 @@ class MainActivity : ComponentActivity() {
                                 AppDestinations.SETTINGS -> {
                                     SettingsScreen(
                                         viewModel = settingViewModel,
+                                        saveableStateHolder = settingsSaveableStateHolder,
+                                        settingsCategory = settingsCategory,
+                                        onNavigateToCategory = { category -> settingsCategory = category },
                                         onNavigateToMyReports = ::openMyReports,
                                         onNavigateToLocalNumberLabels = {
                                             showLocalNumberLabelsScreen = true
