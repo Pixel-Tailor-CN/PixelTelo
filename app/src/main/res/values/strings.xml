@@ -316,7 +316,8 @@
     <string name="list_no_entries">No entries yet</string>
     <string name="list_black_empty_hint">Add a number or matching rule to block unwanted calls.</string>
     <string name="list_white_empty_hint">Add trusted numbers or rules that should always pass.</string>
-    <string name="hint_search_user_list">Search numbers, tags, locations, or notes</string>
+    <string name="hint_search_user_list">Search rules or notes</string>
+    <string name="label_user_list_remark">Note: %1$s</string>
     <string name="msg_no_matching_user_list">No matching entries</string>
     <string name="msg_no_matching_user_list_hint">Try a different keyword.</string>
     <string name="label_community_report_section">Community spam report</string>

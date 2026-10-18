@@ -22,7 +22,7 @@
     <string name="community_invalidated_report">已被管理员作废</string>
     <string name="community_unknown_report">状态未知</string>
     <string name="cd_report_status">上报状态：%1$s</string>
-    <string name="community_invalidated_notice">作废不同于主动撤回：此上报不再计票，当前设备不能再次上报此号码，但仍可上报其他号码。只有此前已撤回的历史才能删除，删除不会解除限制。</string>
+    <string name="community_invalidated_notice">此上报已不计票，本设备无法再次上报此号码（不影响其他号码）；删除记录不会解除限制。</string>
     <string name="community_reported_at">上报于 %1$s</string>
     <string name="community_unknown_hint">无法确认当前状态，下拉可刷新</string>
     <string name="community_status_prefixed">社区标记：%1$s</string>

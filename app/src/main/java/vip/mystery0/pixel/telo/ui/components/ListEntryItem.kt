@@ -142,7 +142,7 @@ fun ListEntryItem(
                     }
                     remark?.let {
                         Text(
-                            text = it,
+                            text = stringResource(R.string.label_user_list_remark, it),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

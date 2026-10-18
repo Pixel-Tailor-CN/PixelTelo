@@ -321,7 +321,8 @@
     <string name="list_no_entries">暂无条目</string>
     <string name="list_black_empty_hint">添加号码或匹配规则以拦截不需要的来电。</string>
     <string name="list_white_empty_hint">添加始终允许接通的号码或规则。</string>
-    <string name="hint_search_user_list">搜索号码、标签、归属地或备注</string>
+    <string name="hint_search_user_list">搜索规则或备注</string>
+    <string name="label_user_list_remark">备注：%1$s</string>
     <string name="msg_no_matching_user_list">未找到匹配条目</string>
     <string name="msg_no_matching_user_list_hint">尝试使用其他关键词搜索。</string>
     <string name="label_community_report_section">社区骚扰上报</string>

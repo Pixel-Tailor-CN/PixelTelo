@@ -22,7 +22,7 @@
     <string name="community_invalidated_report">Invalidated by an administrator</string>
     <string name="community_unknown_report">Status unknown</string>
     <string name="cd_report_status">Report status: %1$s</string>
-    <string name="community_invalidated_notice">Unlike withdrawal, invalidation is an administrative action. This report no longer counts, and this device cannot report this number again. Other numbers are unaffected. Only previously withdrawn history can be deleted; deletion does not remove the restriction.</string>
+    <string name="community_invalidated_notice">This report no longer counts. This device cannot report this number again; other numbers are unaffected. Deleting the record does not remove this restriction.</string>
     <string name="community_reported_at">Reported on %1$s</string>
     <string name="community_unknown_hint">The current status cannot be confirmed. Pull to refresh.</string>
     <string name="community_status_prefixed">Community label: %1$s</string>
