@@ -33,6 +33,7 @@ import vip.mystery0.pixel.telo.data.query.QueryBackendType
 import vip.mystery0.pixel.telo.data.query.SelfHostedConnectionState
 import vip.mystery0.pixel.telo.data.query.SelfHostedDraft
 import vip.mystery0.pixel.telo.data.query.SelfHostedErrorCategory
+import vip.mystery0.pixel.telo.data.query.SelfHostedPairingResult
 import vip.mystery0.pixel.telo.data.query.SelfHostedTlsMode
 import vip.mystery0.pixel.telo.data.query.SelfHostedValidationResult
 import vip.mystery0.pixel.telo.data.query.VerifiedSelfHostedConfig
@@ -91,6 +92,12 @@ data class SelfHostedDraftUiState(
     val tlsMode: SelfHostedTlsMode = SelfHostedTlsMode.SYSTEM,
     val spkiPin: String = "",
 )
+
+/** 配对页的非敏感导航状态，Activity 重建后继续显示同一页面。 */
+enum class SelfHostedPairingPage { MANUAL, PASTE, SCAN, CONFIRM }
+
+/** 确认页返回时恢复原配对方式。 */
+enum class SelfHostedPairingOrigin { MANUAL, PASTE, SCAN }
 
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
@@ -597,25 +604,102 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var selfHostedValidationError by mutableStateOf<SelfHostedErrorCategory?>(null)
         private set
 
-    /** ViewModel 只持有不含 Token 的初始/提交草稿；Dialog 编辑状态由普通 `remember` 持有。 */
+    /** 当前配对表单草稿不含 Token 或原始 JSON。 */
     var selfHostedDraft by mutableStateOf<SelfHostedDraftUiState?>(null)
         private set
 
-    /** 打开自建 Backend 管理；当前未选择自建服务时直接进入配置编辑。 */
+    /** 配对表单的原始非敏感值，用于判断切换方式时是否需要确认丢弃。 */
+    var selfHostedPairingInitialDraft by mutableStateOf<SelfHostedDraftUiState?>(null)
+        private set
+
+    /** 当前配对路由与确认页来源只包含页面标识，不包含凭据。 */
+    var selfHostedPairingPage by mutableStateOf(SelfHostedPairingPage.MANUAL)
+        private set
+    var selfHostedPairingOrigin by mutableStateOf(SelfHostedPairingOrigin.MANUAL)
+        private set
+
+    /** 一次性凭据已提交且需要再次输入；清除错误文案不改变此状态。 */
+    var selfHostedTokenRetryRequired by mutableStateOf(false)
+        private set
+
+    /** 打开自建 Backend 管理页；配对输入由页面临时状态承载。 */
     fun openSelfHostedConfig() {
         if (selfHostedValidationInProgress) return
         selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
-        selfHostedConfigEditing = !queryBackendProvider.state.value.isSelfHostedSelected()
+        selfHostedPairingInitialDraft = selfHostedDraft
+        selfHostedConfigEditing = false
         selfHostedValidationError = null
+        selfHostedTokenRetryRequired = false
         showSelfHostedSettings = true
+    }
+
+    /** 从管理页开始一条新的配对流程。 */
+    fun beginSelfHostedPairing(page: SelfHostedPairingPage = SelfHostedPairingPage.MANUAL) {
+        if (!showSelfHostedSettings || selfHostedValidationInProgress) return
+        selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
+        selfHostedPairingInitialDraft = selfHostedDraft
+        selfHostedConfigEditing = true
+        selfHostedValidationError = null
+        selfHostedTokenRetryRequired = false
+        setSelfHostedPairingPage(page)
+    }
+
+    /** 配对页取消或扫码结束后返回管理页。 */
+    fun returnToSelfHostedManagement() {
+        if (!showSelfHostedSettings || selfHostedValidationInProgress) return
+        selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
+        selfHostedPairingInitialDraft = selfHostedDraft
+        selfHostedConfigEditing = false
+        selfHostedValidationError = null
+        selfHostedTokenRetryRequired = false
+        selfHostedPairingPage = SelfHostedPairingPage.MANUAL
+        selfHostedPairingOrigin = SelfHostedPairingOrigin.MANUAL
     }
 
     /** 从管理视图进入配置编辑，Token 始终重新输入，不从凭据存储回填。 */
     fun editSelfHostedConfig() {
         if (!showSelfHostedSettings || selfHostedValidationInProgress) return
         selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
+        selfHostedPairingInitialDraft = selfHostedDraft
         selfHostedConfigEditing = true
         selfHostedValidationError = null
+        selfHostedTokenRetryRequired = false
+        setSelfHostedPairingPage(SelfHostedPairingPage.MANUAL)
+    }
+
+    /** 更新不含凭据的表单值；Token 和原始 JSON 始终留在页面临时状态。 */
+    fun updateSelfHostedPairingDraft(draft: SelfHostedDraftUiState) {
+        if (selfHostedConfigEditing && !selfHostedValidationInProgress) {
+            selfHostedDraft = draft
+        }
+    }
+
+    /** 更新非敏感页面状态，来源只在进入确认页时改变。 */
+    fun setSelfHostedPairingPage(
+        page: SelfHostedPairingPage,
+        origin: SelfHostedPairingOrigin? = null,
+    ) {
+        if (!selfHostedConfigEditing || selfHostedValidationInProgress) return
+        selfHostedPairingPage = page
+        when (page) {
+            SelfHostedPairingPage.MANUAL -> selfHostedPairingOrigin = SelfHostedPairingOrigin.MANUAL
+            SelfHostedPairingPage.PASTE -> selfHostedPairingOrigin = SelfHostedPairingOrigin.PASTE
+            SelfHostedPairingPage.SCAN -> selfHostedPairingOrigin = SelfHostedPairingOrigin.SCAN
+            SelfHostedPairingPage.CONFIRM -> if (origin != null) selfHostedPairingOrigin = origin
+        }
+    }
+
+    /** UI 被重建后，一次性 Token 已不存在；保留确认页并要求重新输入。 */
+    fun requireSelfHostedTokenRetry() {
+        if (selfHostedConfigEditing && !selfHostedValidationInProgress &&
+            selfHostedPairingPage == SelfHostedPairingPage.CONFIRM
+        ) {
+            selfHostedTokenRetryRequired = true
+        }
+    }
+
+    fun clearSelfHostedTokenRetryRequired() {
+        if (!selfHostedValidationInProgress) selfHostedTokenRetryRequired = false
     }
 
     /** 关闭 Dialog，并主动断开所有草稿引用。验证进行中时拒绝关闭，避免后台静默切换 Backend。 */
@@ -631,16 +715,30 @@ class SettingViewModel : ViewModel(), KoinComponent {
     /** 手动输入也先检查字段，确认后才允许发起网络验证。 */
     fun prepareManualSelfHostedPairing(draft: SelfHostedDraftUiState, token: String):
         vip.mystery0.pixel.telo.data.query.SelfHostedPairingResult {
-        // 手动选择 Pin 模式时必须提供 Pin；JSON 的空字段则按协议表示系统信任。
+        // 按 URL、Token、Pin 的输入顺序返回首个错误；空 Pin 绝不能隐式降级为系统信任。
+        val withoutPin = vip.mystery0.pixel.telo.data.query.validateSelfHostedPairingFields(
+            draft.baseUrl, token, "",
+        )
+        if (withoutPin is vip.mystery0.pixel.telo.data.query.SelfHostedPairingResult.Failure) {
+            return withoutPin
+        }
         if (draft.tlsMode == SelfHostedTlsMode.SPKI_PIN && draft.spkiPin.isBlank()) {
+            (withoutPin as SelfHostedPairingResult.Success).close()
             return vip.mystery0.pixel.telo.data.query.SelfHostedPairingResult.Failure(
                 vip.mystery0.pixel.telo.data.query.SelfHostedPairingError.INVALID_PIN,
             )
         }
-        return vip.mystery0.pixel.telo.data.query.validateSelfHostedPairingFields(
-            draft.baseUrl, token,
-            if (draft.tlsMode == SelfHostedTlsMode.SPKI_PIN) draft.spkiPin else "",
-        )
+        if (draft.tlsMode == SelfHostedTlsMode.SPKI_PIN) {
+            val temporary = withoutPin as SelfHostedPairingResult.Success
+            return try {
+                vip.mystery0.pixel.telo.data.query.validateSelfHostedPairingFields(
+                    draft.baseUrl, token, draft.spkiPin,
+                )
+            } finally {
+                temporary.close()
+            }
+        }
+        return withoutPin
     }
 
     fun clearSelfHostedValidationError() {
@@ -658,8 +756,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
             return
         }
         selfHostedDraft = draft
+        selfHostedPairingPage = SelfHostedPairingPage.CONFIRM
         selfHostedValidationInProgress = true
         selfHostedValidationError = null
+        selfHostedTokenRetryRequired = false
         val validationJob = viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
@@ -677,9 +777,15 @@ class SettingViewModel : ViewModel(), KoinComponent {
                     )
                 }
                 when (result) {
-                    is SelfHostedValidationResult.Success -> clearSelfHostedSettingsState()
+                    is SelfHostedValidationResult.Success -> {
+                        selfHostedDraft = result.config.toDraftUiState()
+                        selfHostedConfigEditing = false
+                        selfHostedValidationError = null
+                        selfHostedTokenRetryRequired = false
+                    }
                     is SelfHostedValidationResult.Failure -> {
                         selfHostedValidationError = result.category
+                        selfHostedTokenRetryRequired = true
                     }
                 }
             } finally {
@@ -720,7 +826,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
             selfHostedValidationInProgress = false
             val state = queryBackendProvider.state.value
             if (state is QueryBackendState.Ready && state.type == QueryBackendType.OFFICIAL) {
-                clearSelfHostedSettingsState()
+                selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState()
+                selfHostedConfigEditing = false
             } else {
                 selfHostedValidationError = SelfHostedErrorCategory.STORAGE
             }
@@ -729,8 +836,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     private fun clearSelfHostedSettingsState() {
         selfHostedDraft = null
+        selfHostedPairingInitialDraft = null
         selfHostedValidationError = null
         selfHostedConfigEditing = false
+        selfHostedPairingPage = SelfHostedPairingPage.MANUAL
+        selfHostedPairingOrigin = SelfHostedPairingOrigin.MANUAL
+        selfHostedTokenRetryRequired = false
         showSelfHostedSettings = false
     }
 

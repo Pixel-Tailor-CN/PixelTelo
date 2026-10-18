@@ -754,25 +754,6 @@ fun SettingsScreen(
         }
     }
 
-    val selfHostedDraft = viewModel.selfHostedDraft
-    if (viewModel.showSelfHostedSettings && !viewModel.selfHostedConfigEditing && selfHostedDraft != null) {
-        val currentConfig = when (val state = selfHostedConnectionState) {
-            is SelfHostedConnectionState.Ready -> state.config
-            is SelfHostedConnectionState.Blocked -> state.config
-            SelfHostedConnectionState.NotConfigured -> null
-        }
-        SelfHostedQueryDialog(
-            currentConfig = currentConfig,
-            blockedReason = (queryBackendState as? QueryBackendState.Blocked)?.reason,
-            validationInProgress = viewModel.selfHostedValidationInProgress,
-            validationError = viewModel.selfHostedValidationError,
-            onRevalidate = viewModel::revalidateSelfHosted,
-            onEdit = viewModel::editSelfHostedConfig,
-            onUseOfficial = viewModel::useOfficialBackend,
-            onDismiss = viewModel::closeSelfHostedConfig,
-        )
-    }
-
     // 联网查询数据源设置 BottomSheet：有草稿时可编辑，无缓存时展示加载/失败与重试
     if (viewModel.showQuerySourceSheet) {
         val sourceState by viewModel.querySourceState.collectAsState()

@@ -62,7 +62,10 @@ import vip.mystery0.pixel.telo.ui.screen.ListScreen
 import vip.mystery0.pixel.telo.ui.screen.LocalNumberLabelsScreen
 import vip.mystery0.pixel.telo.ui.screen.SettingsScreen
 import vip.mystery0.pixel.telo.ui.screen.settings.SettingsCategory
+import vip.mystery0.pixel.telo.ui.screen.settings.SelfHostedManagementScreen
+import vip.mystery0.pixel.telo.ui.screen.settings.SelfHostedPairingEntry
 import vip.mystery0.pixel.telo.ui.screen.settings.SelfHostedPairingScreen
+import vip.mystery0.pixel.telo.viewmodel.SelfHostedPairingPage
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
 import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
@@ -115,19 +118,29 @@ class MainActivity : ComponentActivity() {
                     showMyReportsScreen = true
                 }
                 BackHandler(enabled = showMyReportsScreen) { showMyReportsScreen = false }
-                val showPairingScreen = settingViewModel.showSelfHostedSettings &&
+                val showSelfHostedSettings = settingViewModel.showSelfHostedSettings
+                val showPairingScreen = showSelfHostedSettings &&
                     settingViewModel.selfHostedConfigEditing
+                var pairingEntry by remember { mutableStateOf(SelfHostedPairingEntry.MANUAL) }
+                var pairingBackRequest by remember { mutableStateOf(0) }
+                var pairingTitle by remember { mutableStateOf(R.string.title_pairing_manual) }
 
-                LaunchedEffect(showPairingScreen) {
-                    // 从主页告警进入配对后，取消和成功均回到设置页。
-                    if (showPairingScreen) {
+                LaunchedEffect(showSelfHostedSettings) {
+                    if (showSelfHostedSettings) {
                         showMyReportsScreen = false
                         settingsCategory = SettingsCategory.ONLINE_QUERY
                         pagerState.requestScrollToPage(AppDestinations.SETTINGS.ordinal)
                     }
                 }
-                BackHandler(enabled = showPairingScreen) {
-                    settingViewModel.closeSelfHostedConfig()
+                fun requestSelfHostedBack() {
+                    if (showPairingScreen) {
+                        pairingBackRequest++
+                    } else if (showSelfHostedSettings) {
+                        settingViewModel.closeSelfHostedConfig()
+                    }
+                }
+                BackHandler(enabled = showSelfHostedSettings) {
+                    requestSelfHostedBack()
                 }
 
                 fun closeLocalNumberLabelsScreen() {
@@ -141,7 +154,7 @@ class MainActivity : ComponentActivity() {
                 BackHandler(
                     enabled = settingsCategory != null &&
                         currentDestination == AppDestinations.SETTINGS &&
-                        !showPairingScreen &&
+                        !showSelfHostedSettings &&
                         !showMyReportsScreen &&
                         !showLocalNumberLabelsScreen,
                 ) {
@@ -155,8 +168,9 @@ class MainActivity : ComponentActivity() {
                             title = {
                                 Text(
                                     stringResource(
-                                        if (showPairingScreen) {
-                                            R.string.title_self_hosted_pairing
+                                        if (showSelfHostedSettings) {
+                                            if (showPairingScreen) pairingTitle
+                                            else R.string.title_self_hosted_management
                                         } else if (showMyReportsScreen) {
                                             R.string.community_my_reports
                                         } else if (showLocalNumberLabelsScreen) {
@@ -172,9 +186,9 @@ class MainActivity : ComponentActivity() {
                                 )
                             },
                             navigationIcon = {
-                                if (showPairingScreen) {
+                                if (showSelfHostedSettings) {
                                     IconButton(
-                                        onClick = settingViewModel::closeSelfHostedConfig,
+                                        onClick = ::requestSelfHostedBack,
                                         enabled = !settingViewModel.selfHostedValidationInProgress,
                                     ) {
                                         Icon(Icons.AutoMirrored.Filled.ArrowBack,
@@ -205,7 +219,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             actions = {
-                                if (!showMyReportsScreen && !showLocalNumberLabelsScreen && !showPairingScreen &&
+                                if (!showMyReportsScreen && !showLocalNumberLabelsScreen && !showSelfHostedSettings &&
                                     currentDestination == AppDestinations.HOME) {
                                     TooltipBox(
                                         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
@@ -227,7 +241,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                                 if (
-                                    !showMyReportsScreen && !showLocalNumberLabelsScreen && !showPairingScreen &&
+                                    !showMyReportsScreen && !showLocalNumberLabelsScreen && !showSelfHostedSettings &&
                                     currentDestination == AppDestinations.HOME &&
                                     hasBlockedCallRecords
                                 ) {
@@ -255,7 +269,7 @@ class MainActivity : ComponentActivity() {
                     },
                     bottomBar = {
                         if (!showMyReportsScreen && !showLocalNumberLabelsScreen &&
-                            !showPairingScreen && settingsCategory == null
+                            !showSelfHostedSettings && settingsCategory == null
                         ) {
                             val largeNavigationText = LocalDensity.current.fontScale > 1.3f
                             NavigationBar(
@@ -294,6 +308,30 @@ class MainActivity : ComponentActivity() {
                     if (showPairingScreen) {
                         SelfHostedPairingScreen(
                             viewModel = settingViewModel,
+                            initialEntry = pairingEntry,
+                            backRequest = pairingBackRequest,
+                            onBackToManagement = settingViewModel::returnToSelfHostedManagement,
+                            onTitleChange = { pairingTitle = it },
+                            modifier = Modifier.padding(innerPadding).fillMaxSize(),
+                        )
+                    } else if (showSelfHostedSettings) {
+                        SelfHostedManagementScreen(
+                            viewModel = settingViewModel,
+                            onPairing = { entry ->
+                                pairingEntry = entry
+                                pairingTitle = when (entry) {
+                                    SelfHostedPairingEntry.SCAN -> R.string.title_pairing_scan
+                                    SelfHostedPairingEntry.PASTE -> R.string.title_pairing_paste
+                                    SelfHostedPairingEntry.MANUAL -> R.string.title_pairing_manual
+                                }
+                                settingViewModel.beginSelfHostedPairing(
+                                    when (entry) {
+                                        SelfHostedPairingEntry.SCAN -> SelfHostedPairingPage.SCAN
+                                        SelfHostedPairingEntry.PASTE -> SelfHostedPairingPage.PASTE
+                                        SelfHostedPairingEntry.MANUAL -> SelfHostedPairingPage.MANUAL
+                                    },
+                                )
+                            },
                             modifier = Modifier.padding(innerPadding).fillMaxSize(),
                         )
                     } else if (showMyReportsScreen) {

@@ -54,6 +54,10 @@
 * Argon 首页与来电详情扁平化：
   [实施计划](plans/2026-10-17-argon-ui-refinement-plan.md)（已完成本轮 UI 实施及模拟器范围审查；缺样本、真机和 TalkBack 未验证项见计划）
 
+* 实时查询服务器配置与扫码交互：
+  [设计](plans/2026-10-18-query-server-ui-design.md) ·
+  [实施计划](plans/2026-10-18-query-server-ui-implementation.md)（已实现；验证边界见计划）
+
 ### 架构与技术 (`architecture/`)
 
 * [MVVM 架构](architecture/mvvm-structure.md): 详细解释 MVVM、Backend Snapshot、网络 Client 隔离、
