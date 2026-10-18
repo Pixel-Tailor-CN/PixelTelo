@@ -25,8 +25,13 @@ import vip.mystery0.pixel.telo.R
 fun NumberQuickActions(
     hasLocalLabel: Boolean,
     labelEnabled: Boolean,
+    userListsLoaded: Boolean,
+    isBlacklisted: Boolean,
+    isWhitelisted: Boolean,
     onAddToBlacklist: () -> Unit,
     onAddToWhitelist: () -> Unit,
+    onOpenBlacklist: () -> Unit,
+    onOpenWhitelist: () -> Unit,
     onEditLocalLabel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -35,18 +40,26 @@ fun NumberQuickActions(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        QuickAction(
-            icon = Icons.Default.Block,
-            label = R.string.action_add_blacklist_short,
-            description = R.string.cd_add_number_to_blacklist,
-            onClick = onAddToBlacklist,
-        )
-        QuickAction(
-            icon = Icons.Default.CheckCircle,
-            label = R.string.action_add_whitelist_short,
-            description = R.string.cd_add_number_to_whitelist,
-            onClick = onAddToWhitelist,
-        )
+        if (userListsLoaded) {
+            QuickAction(
+                icon = if (isBlacklisted) Icons.Default.CheckCircle else Icons.Default.Block,
+                label = if (isBlacklisted) R.string.action_already_in_blacklist
+                else R.string.action_add_blacklist_short,
+                description = if (isBlacklisted) R.string.cd_open_blacklist_rule
+                else R.string.cd_add_number_to_blacklist,
+                onClick = if (isBlacklisted) onOpenBlacklist else onAddToBlacklist,
+            )
+            QuickAction(
+                icon = Icons.Default.CheckCircle,
+                label = if (isWhitelisted) R.string.action_already_in_whitelist
+                else R.string.action_add_whitelist_short,
+                description = if (isWhitelisted) R.string.cd_open_whitelist_rule
+                else R.string.cd_add_number_to_whitelist,
+                onClick = if (isWhitelisted) onOpenWhitelist else onAddToWhitelist,
+            )
+        } else {
+            Text(stringResource(R.string.msg_checking_user_lists))
+        }
         QuickAction(
             icon = Icons.Default.Edit,
             label = if (hasLocalLabel) R.string.action_edit_local_label_short

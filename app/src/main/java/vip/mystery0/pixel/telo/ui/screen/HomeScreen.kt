@@ -88,6 +88,7 @@ import vip.mystery0.pixel.telo.util.queryFailureAdviceRes
 import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
+import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.ui.components.BlockedCallItem
@@ -115,6 +116,7 @@ import vip.mystery0.pixel.telo.data.model.CommunityStatus
 import vip.mystery0.pixel.telo.data.query.decodeCommunityQueryMetadata
 import vip.mystery0.pixel.telo.viewmodel.FeedbackSubmissionState
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
+import vip.mystery0.pixel.telo.viewmodel.ListViewModel
 import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelEditorViewModel
 import vip.mystery0.pixel.telo.viewmodel.RetryQueryState
 import vip.mystery0.pixel.telo.viewmodel.SelfHostedWarning
@@ -123,9 +125,11 @@ import vip.mystery0.pixel.telo.viewmodel.SelfHostedWarning
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
+    listViewModel: ListViewModel,
     localLabelEditorViewModel: LocalNumberLabelEditorViewModel,
     callReportViewModel: vip.mystery0.pixel.telo.viewmodel.CallReportViewModel,
     onNavigateToMyReports: () -> Unit,
+    onNavigateToListRule: (UserListEntry) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToSourceSettings: () -> Unit,
     onNavigateToSelfHostedSettings: () -> Unit,
@@ -133,6 +137,9 @@ fun HomeScreen(
     val context = LocalContext.current
     val blockedCallItems = viewModel.blockedCallItems.collectAsLazyPagingItems()
     val contactNames by viewModel.contactNames.collectAsState()
+    val blackList by listViewModel.blackList.collectAsState()
+    val whiteList by listViewModel.whiteList.collectAsState()
+    val userListsLoaded = listViewModel.areUserListsLoaded
     val localLabels by viewModel.localLabels.collectAsState()
     val showLocalNumberLabels by viewModel.showLocalNumberLabels.collectAsState()
     val localLabelEditorState by localLabelEditorViewModel.state.collectAsState()
@@ -375,6 +382,12 @@ fun HomeScreen(
             onDispose { callReportViewModel.close() }
         }
         val phone = call.phoneNumber
+        val blackListEntry = if (userListsLoaded) {
+            blackList.firstOrNull { listViewModel.matchesExactNumberRule(it, phone) }
+        } else null
+        val whiteListEntry = if (userListsLoaded) {
+            whiteList.firstOrNull { listViewModel.matchesExactNumberRule(it, phone) }
+        } else null
         val label = call.label?.takeIf { it.isNotBlank() }
         val contactName = contactNames[phone]
         val location = call.locationText()
@@ -482,8 +495,17 @@ fun HomeScreen(
                         NumberQuickActions(
                             hasLocalLabel = identityLocalLabel != null,
                             labelEnabled = labelEnabled,
+                            userListsLoaded = userListsLoaded,
+                            isBlacklisted = blackListEntry != null,
+                            isWhitelisted = whiteListEntry != null,
                             onAddToBlacklist = { requestRule(NumberRuleAction.BLACKLIST) },
                             onAddToWhitelist = { requestRule(NumberRuleAction.WHITELIST) },
+                            onOpenBlacklist = {
+                                blackListEntry?.let(onNavigateToListRule)
+                            },
+                            onOpenWhitelist = {
+                                whiteListEntry?.let(onNavigateToListRule)
+                            },
                             onEditLocalLabel = localLabelEditorViewModel::openEditor,
                         )
                     }

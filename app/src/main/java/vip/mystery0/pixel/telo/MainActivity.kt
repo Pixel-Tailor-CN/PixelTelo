@@ -67,6 +67,7 @@ import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
 import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
+import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelEditorViewModel
 import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelsViewModel
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
@@ -325,9 +326,19 @@ class MainActivity : ComponentActivity() {
                                 AppDestinations.HOME -> {
                                     HomeScreen(
                                         viewModel = homeViewModel,
+                                        listViewModel = listViewModel,
                                         localLabelEditorViewModel = localNumberLabelEditorViewModel,
                                         callReportViewModel = callReportViewModel,
                                         onNavigateToMyReports = ::openMyReports,
+                                        onNavigateToListRule = { entry: UserListEntry ->
+                                            homeViewModel.closeQuickAdd()
+                                            listViewModel.navigateToEntry(entry)
+                                            coroutineScope.launch {
+                                                pagerState.animateScrollToPage(
+                                                    AppDestinations.LIST.ordinal,
+                                                )
+                                            }
+                                        },
                                         onNavigateToSettings = {
                                             settingsCategory = null
                                             coroutineScope.launch {

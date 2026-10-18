@@ -131,6 +131,11 @@
     <string name="action_edit_local_label_short">本地标签</string>
     <string name="cd_add_number_to_blacklist">将此号码加入黑名单</string>
     <string name="cd_add_number_to_whitelist">将此号码加入白名单</string>
+    <string name="action_already_in_blacklist">已在黑名单</string>
+    <string name="action_already_in_whitelist">已在白名单</string>
+    <string name="cd_open_blacklist_rule">打开此黑名单规则</string>
+    <string name="cd_open_whitelist_rule">打开此白名单规则</string>
+    <string name="msg_checking_user_lists">正在检查名单状态…</string>
     <string name="cd_set_local_label">为此号码设置本地标签</string>
     <string name="cd_local_label_source">此设备设置的本地标签</string>
     <string name="cd_source_label">查询来源返回的识别标签</string>
@@ -429,18 +434,18 @@
     <!-- Backup/Restore Selection -->
     <string name="title_backup_select">选择备份内容</string>
     <string name="msg_backup_select_hint">请选择需要包含在本次备份中的数据</string>
-    <string name="label_backup_blocked_calls">拦截记录</string>
+    <string name="label_backup_blocked_calls">来电记录</string>
     <string name="label_backup_blacklist">黑名单</string>
     <string name="label_backup_whitelist">白名单</string>
     <string name="label_backup_local_number_labels">本地号码标签</string>
     <string name="action_backup">备份</string>
     <string name="title_restore_select">选择恢复内容</string>
-    <string name="label_restore_blocked_calls">拦截记录（共 %1$d 条）</string>
+    <string name="label_restore_blocked_calls">来电记录（共 %1$d 条）</string>
     <string name="label_restore_blacklist">黑名单（共 %1$d 条）</string>
     <string name="label_restore_whitelist">白名单（共 %1$d 条）</string>
     <string name="label_restore_local_number_labels">本地号码标签（共 %1$d 条）</string>
     <string name="action_restore">恢复</string>
-    <string name="msg_restored_summary">已恢复：%1$d 条拦截记录、%2$d 条黑名单、%3$d 条白名单、本地标签新增 %4$d、覆盖 %5$d、跳过 %6$d</string>
+    <string name="msg_restored_summary">已恢复：%1$d 条来电记录、%2$d 条黑名单、%3$d 条白名单、本地标签新增 %4$d、覆盖 %5$d、跳过 %6$d</string>
 
     <!-- Query Sources -->
     <string name="setting_query_backend">实时查询服务器</string>

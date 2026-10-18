@@ -45,9 +45,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -326,13 +328,29 @@ fun SettingsScreen(
 
     // 备份/恢复结果 Bottom Sheet
     val backupState = viewModel.backupRestoreState
+    val backupResultSheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    val backupOptionsSheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
+    val restoreOptionsSheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
     if (backupState is BackupRestoreState.Success) {
-        ModalBottomSheet(onDismissRequest = { viewModel.dismissBackupRestoreResult() }) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissBackupRestoreResult() },
+            sheetState = backupResultSheetState,
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(bottom = 32.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
@@ -351,12 +369,16 @@ fun SettingsScreen(
             }
         }
     } else if (backupState is BackupRestoreState.Failure) {
-        ModalBottomSheet(onDismissRequest = { viewModel.dismissBackupRestoreResult() }) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.dismissBackupRestoreResult() },
+            sheetState = backupResultSheetState,
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(bottom = 32.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
@@ -378,12 +400,16 @@ fun SettingsScreen(
 
     // 备份内容选择 Sheet
     if (viewModel.showBackupOptionsSheet) {
-        ModalBottomSheet(onDismissRequest = { viewModel.closeBackupOptionsSheet() }) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.closeBackupOptionsSheet() },
+            sheetState = backupOptionsSheetState,
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(bottom = 32.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
@@ -456,12 +482,16 @@ fun SettingsScreen(
     // 恢复内容选择 Sheet
     val preview = viewModel.backupPreview
     if (preview != null) {
-        ModalBottomSheet(onDismissRequest = { viewModel.closeRestoreOptionsSheet() }) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.closeRestoreOptionsSheet() },
+            sheetState = restoreOptionsSheetState,
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(bottom = 32.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(

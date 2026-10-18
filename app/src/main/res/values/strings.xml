@@ -124,6 +124,11 @@
     <string name="action_edit_local_label_short">Local label</string>
     <string name="cd_add_number_to_blacklist">Add this number to the blacklist</string>
     <string name="cd_add_number_to_whitelist">Add this number to the whitelist</string>
+    <string name="action_already_in_blacklist">Already in blacklist</string>
+    <string name="action_already_in_whitelist">Already in whitelist</string>
+    <string name="cd_open_blacklist_rule">Open this blacklist rule</string>
+    <string name="cd_open_whitelist_rule">Open this whitelist rule</string>
+    <string name="msg_checking_user_lists">Checking list status…</string>
     <string name="cd_set_local_label">Set a local label for this number</string>
     <string name="cd_local_label_source">Local label set on this device</string>
     <string name="cd_source_label">Identification label returned by the query source</string>
@@ -431,18 +436,18 @@
     <!-- Backup/Restore Selection -->
     <string name="title_backup_select">Select Data to Backup</string>
     <string name="msg_backup_select_hint">Choose which data to include in this backup</string>
-    <string name="label_backup_blocked_calls">Intercept Records</string>
+    <string name="label_backup_blocked_calls">Call History</string>
     <string name="label_backup_blacklist">Blacklist</string>
     <string name="label_backup_whitelist">Whitelist</string>
     <string name="label_backup_local_number_labels">Local Number Labels</string>
     <string name="action_backup">Backup</string>
     <string name="title_restore_select">Select Data to Restore</string>
-    <string name="label_restore_blocked_calls">Intercept Records (%1$d entries)</string>
+    <string name="label_restore_blocked_calls">Call History (%1$d entries)</string>
     <string name="label_restore_blacklist">Blacklist (%1$d entries)</string>
     <string name="label_restore_whitelist">Whitelist (%1$d entries)</string>
     <string name="label_restore_local_number_labels">Local Number Labels (%1$d entries)</string>
     <string name="action_restore">Restore</string>
-    <string name="msg_restored_summary">Restored: %1$d intercept records, %2$d blacklist, %3$d whitelist, %4$d local labels added, %5$d overwritten, %6$d skipped</string>
+    <string name="msg_restored_summary">Restored: %1$d call records, %2$d blacklist, %3$d whitelist, %4$d local labels added, %5$d overwritten, %6$d skipped</string>
 
     <!-- Query Sources -->
     <string name="setting_query_backend">Real-time query server</string>

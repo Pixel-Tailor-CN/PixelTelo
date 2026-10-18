@@ -11,6 +11,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -62,6 +64,12 @@ data class RuleSaveRequest(
         }
 }
 
+/** 从其他页面打开名单条目的分页导航请求。 */
+data class ListTabNavigationRequest(
+    val id: Long,
+    val listType: ListType,
+)
+
 class ListViewModel : ViewModel(), KoinComponent {
     companion object {
         private const val TAG = "ListViewModel"
@@ -74,6 +82,12 @@ class ListViewModel : ViewModel(), KoinComponent {
     /** 当前选中的 Tab：BLACK 或 WHITE */
     var currentTab by mutableStateOf(ListType.BLACK)
         private set
+
+    /** 尚未完成的外部分页请求；完成定位前不让恢复页覆盖目标名单。 */
+    var pendingTabNavigationRequest by mutableStateOf<ListTabNavigationRequest?>(null)
+        private set
+
+    private var nextTabNavigationRequestId = 0L
 
     /** 自定义页搜索词。搜索框位于两个 Tab 之上，查询在黑白名单之间共享，不写回数据库。 */
     var searchQuery by mutableStateOf("")
@@ -143,14 +157,55 @@ class ListViewModel : ViewModel(), KoinComponent {
     var toastMessage by mutableStateOf<String?>(null)
         private set
 
+    var hasLoadedBlackList by mutableStateOf(false)
+        private set
+
+    var hasLoadedWhiteList by mutableStateOf(false)
+        private set
+
+    val areUserListsLoaded: Boolean
+        get() = hasLoadedBlackList && hasLoadedWhiteList
+
     val blackList: StateFlow<List<UserListEntry>> = userListRepository.observeBlackList()
+        .onStart { hasLoadedBlackList = false }
+        .onEach { hasLoadedBlackList = true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val whiteList: StateFlow<List<UserListEntry>> = userListRepository.observeWhiteList()
+        .onStart { hasLoadedWhiteList = false }
+        .onEach { hasLoadedWhiteList = true }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** 只判断现有精确号码规则，排除前缀、标签与归属地规则。 */
+    fun matchesExactNumberRule(entry: UserListEntry, phoneNumber: String): Boolean =
+        !entry.tagMatch && !entry.locationMatch && !entry.isPrefix &&
+            PhoneNumberRuleMatcher.ruleMatches(
+                rule = entry.phoneNumber,
+                isPrefix = false,
+                phoneNumber = phoneNumber,
+            )
 
     fun selectTab(type: ListType) {
         currentTab = type
+    }
+
+    /** 从其他页面进入指定名单并编辑该条目。 */
+    fun navigateToEntry(entry: UserListEntry) {
+        if (isSaving) return
+        nextTabNavigationRequestId += 1
+        pendingTabNavigationRequest = ListTabNavigationRequest(
+            id = nextTabNavigationRequestId,
+            listType = entry.listType,
+        )
+        currentTab = entry.listType
+        openEditSheet(entry)
+    }
+
+    /** 只消费当前请求，避免较晚完成的旧导航清除更新的目标。 */
+    fun completeTabNavigationRequest(requestId: Long) {
+        if (pendingTabNavigationRequest?.id == requestId) {
+            pendingTabNavigationRequest = null
+        }
     }
 
     fun updateSearchQuery(value: String) {

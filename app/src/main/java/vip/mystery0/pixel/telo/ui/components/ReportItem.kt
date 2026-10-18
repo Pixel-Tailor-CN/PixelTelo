@@ -3,6 +3,7 @@ package vip.mystery0.pixel.telo.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,13 +14,14 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -168,21 +170,23 @@ fun ReportItem(
                 // 操作中的卡片用卡内小进度表达，不降低整卡对比度。
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
             } else if (report.canWithdraw || report.canDelete) {
-                // AssistChip 保持约 32dp 的可见高度，Material3 提供至少 48dp 的触摸区域；
-                // 描边与文字同色，删除历史沿用详情页的低强调红。
-                AssistChip(
+                // 胶囊描边按钮统一撤回与删除样式；Material3 保留最小触摸区域。
+                OutlinedButton(
                     onClick = onAction,
                     enabled = actionsEnabled,
+                    shape = CircleShape,
                     border = BorderStroke(
                         width = 1.dp,
                         color = if (actionsEnabled) actionTint else MaterialTheme.colorScheme.outlineVariant,
                     ),
-                    colors = AssistChipDefaults.assistChipColors(
-                        labelColor = actionTint,
-                        disabledLabelColor = MaterialTheme.colorScheme.outline,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = actionTint,
+                        disabledContentColor = MaterialTheme.colorScheme.outline,
                     ),
-                    label = { Text(stringResource(actionLabel)) },
-                )
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                ) {
+                    Text(stringResource(actionLabel))
+                }
             }
         }
     }

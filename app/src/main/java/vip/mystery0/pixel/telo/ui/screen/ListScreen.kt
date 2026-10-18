@@ -59,6 +59,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -95,6 +97,12 @@ fun ListScreen(
     parentPagerState: PagerState,
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    fun clearListSearchFocus() {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+    }
     val blackList by viewModel.blackList.collectAsState()
     val whiteList by viewModel.whiteList.collectAsState()
     val scope = rememberCoroutineScope()
@@ -116,14 +124,19 @@ fun ListScreen(
     // 监听 viewModel.showAddSheet 变化
     LaunchedEffect(viewModel.showAddSheet) {
         if (viewModel.showAddSheet) {
+            clearListSearchFocus()
             showSheet = true
         } else if (showSheet) {
+            clearListSearchFocus()
             try {
                 sheetState.hide()
             } finally {
                 // 遮罩点击、返回或拖动可能取消 hide 动画；关闭请求仍须移除模态窗口。
                 // 若取消来自重新打开，则不能让旧协程关闭新表单。
-                if (!viewModel.showAddSheet) showSheet = false
+                if (!viewModel.showAddSheet) {
+                    clearListSearchFocus()
+                    showSheet = false
+                }
             }
         }
     }
@@ -226,11 +239,26 @@ fun ListScreen(
     val tabs = listOf(ListType.BLACK, ListType.WHITE)
     val tabLabels =
         listOf(stringResource(R.string.tab_blacklist), stringResource(R.string.tab_whitelist))
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val pagerState = rememberPagerState(
+        initialPage = tabs.indexOf(viewModel.currentTab).coerceAtLeast(0),
+        pageCount = { tabs.size },
+    )
 
-    // Pager 页面变化时同步 ViewModel 的 currentTab 状态
-    LaunchedEffect(pagerState.currentPage) {
-        viewModel.selectTab(tabs[pagerState.currentPage])
+    val pendingTabNavigationRequest = viewModel.pendingTabNavigationRequest
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            if (viewModel.pendingTabNavigationRequest == null) {
+                viewModel.selectTab(tabs[page])
+            }
+        }
+    }
+    LaunchedEffect(pagerState, pendingTabNavigationRequest?.id) {
+        val request = pendingTabNavigationRequest ?: return@LaunchedEffect
+        val targetPage = tabs.indexOf(request.listType).coerceAtLeast(0)
+        if (pagerState.settledPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+        viewModel.completeTabNavigationRequest(request.id)
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -242,7 +270,10 @@ fun ListScreen(
         floatingActionButton = {
             // 搜索框弹出键盘时把悬浮按钮抬到键盘上方，避免添加入口被输入法遮挡。
             FloatingActionButton(
-                onClick = { viewModel.openAddSheet() },
+                onClick = {
+                    clearListSearchFocus()
+                    viewModel.openAddSheet()
+                },
                 modifier = Modifier.imePadding(),
             ) {
                 Icon(
@@ -320,7 +351,10 @@ fun ListScreen(
                     isBlack = page == 0,
                     hasSearchQuery = hasSearchQuery,
                     noNetworkQuery = viewModel.noNetworkQuery,
-                    onEntryClick = { viewModel.openEditSheet(it) },
+                    onEntryClick = {
+                        clearListSearchFocus()
+                        viewModel.openEditSheet(it)
+                    },
                     onClearSearch = viewModel::clearSearchQuery,
                 )
             }
@@ -330,7 +364,12 @@ fun ListScreen(
     // Material3 BottomSheet 已处理导航栏安全区；表单统一避让 IME，正文独立滚动。
     if (showSheet) {
         ModalBottomSheet(
-            onDismissRequest = { viewModel.closeAddSheet() },
+            onDismissRequest = {
+                if (!viewModel.isSaving) {
+                    clearListSearchFocus()
+                    viewModel.closeAddSheet()
+                }
+            },
             sheetState = sheetState,
             sheetGesturesEnabled = !viewModel.isSaving,
         ) {
@@ -343,7 +382,7 @@ fun ListScreen(
 @Composable
 private fun RuleFormContent(viewModel: ListViewModel) {
     val ruleType = viewModel.inputRuleType
-    val isBlack = viewModel.currentTab == ListType.BLACK
+    val isBlack = (viewModel.editingEntry?.listType ?: viewModel.currentTab) == ListType.BLACK
     val isEditing = viewModel.editingEntry != null
 
     Column(
