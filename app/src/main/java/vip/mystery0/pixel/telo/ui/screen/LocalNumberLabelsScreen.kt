@@ -3,35 +3,48 @@ package vip.mystery0.pixel.telo.ui.screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.LocalNumberLabel
-import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelEditorDialogs
 import vip.mystery0.pixel.telo.ui.components.EmptyState
+import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelEditorDialogs
 import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelEditorViewModel
 import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelsViewModel
 
@@ -44,81 +57,108 @@ import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelsViewModel
 fun LocalNumberLabelsScreen(
     viewModel: LocalNumberLabelsViewModel,
     editorViewModel: LocalNumberLabelEditorViewModel,
+    onNavigateToCallHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val entries by viewModel.items.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val editorState by editorViewModel.state.collectAsState()
-    val hasSearchQuery = searchQuery.trim().isNotEmpty()
+    val hasSearchQuery = uiState.searchQuery.trim().isNotEmpty()
+    val showSearchField = !uiState.hasLoadedLabels || uiState.hasAnyLabels ||
+        uiState.searchQuery.isNotEmpty()
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .imePadding(),
     ) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = viewModel::updateQuery,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            singleLine = true,
-            placeholder = { Text(stringResource(R.string.hint_search_local_number_labels)) },
-            leadingIcon = {
-                Icon(
-                    Icons.Default.Search,
-                    contentDescription = null,
-                )
-            },
-            trailingIcon = if (hasSearchQuery) {
-                {
-                    IconButton(onClick = { viewModel.updateQuery("") }) {
-                        Icon(Icons.Default.Close,
-                            contentDescription = stringResource(R.string.action_clear_search))
-                    }
-                }
-            } else null,
-        )
+        if (showSearchField) {
+            LocalNumberLabelSearchField(
+                query = uiState.searchQuery,
+                onQueryChange = viewModel::updateQuery,
+                onClear = { viewModel.updateQuery("") },
+            )
+        }
 
-        if (entries.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 24.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                EmptyState(
-                    icon = Icons.Default.Search,
-                    title = stringResource(if (hasSearchQuery)
-                        R.string.msg_no_matching_local_number_labels
-                        else R.string.msg_no_local_number_labels),
-                    description = if (hasSearchQuery) null else
-                        stringResource(R.string.msg_no_local_number_labels_hint),
-                    modifier = Modifier.align(Alignment.Center),
-                )
+        when {
+            !uiState.hasLoadedLabels -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            ) {
-                items(
-                    items = entries,
-                    key = { it.normalizedPhoneNumber },
-                ) { entry ->
-                    LocalNumberLabelRow(
-                        entry = entry,
-                        onEdit = {
-                            editorViewModel.observe(entry.normalizedPhoneNumber)
-                            editorViewModel.openEditor()
-                        },
-                        onDelete = {
-                            editorViewModel.observe(entry.normalizedPhoneNumber)
-                            editorViewModel.requestDelete()
+
+            uiState.items.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    EmptyState(
+                        icon = if (hasSearchQuery) Icons.Default.Search else
+                            Icons.AutoMirrored.Filled.Label,
+                        title = stringResource(
+                            if (hasSearchQuery) {
+                                R.string.msg_no_matching_local_number_labels
+                            } else {
+                                R.string.msg_no_local_number_labels
+                            },
+                        ),
+                        description = stringResource(
+                            if (hasSearchQuery) {
+                                R.string.msg_no_matching_local_number_labels_hint
+                            } else {
+                                R.string.msg_no_local_number_labels_hint
+                            },
+                        ),
+                        modifier = Modifier.align(Alignment.Center),
+                        action = {
+                            TextButton(
+                                onClick = if (hasSearchQuery) {
+                                    { viewModel.updateQuery("") }
+                                } else {
+                                    onNavigateToCallHistory
+                                },
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (hasSearchQuery) {
+                                            R.string.action_clear_search
+                                        } else {
+                                            R.string.action_view_call_history
+                                        },
+                                    ),
+                                )
+                            }
                         },
                     )
+                }
+            }
+
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(
+                        items = uiState.items,
+                        key = { it.normalizedPhoneNumber },
+                    ) { entry ->
+                        LocalNumberLabelCard(
+                            entry = entry,
+                            onClick = {
+                                editorViewModel.observe(entry.normalizedPhoneNumber)
+                                editorViewModel.openEditor()
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -136,47 +176,88 @@ fun LocalNumberLabelsScreen(
 }
 
 @Composable
-private fun LocalNumberLabelRow(
-    entry: LocalNumberLabel,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
+private fun LocalNumberLabelSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit,
 ) {
-    Row(
+    val focusManager = LocalFocusManager.current
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        singleLine = true,
+        shape = MaterialTheme.shapes.extraLarge,
+        placeholder = { Text(stringResource(R.string.hint_search_local_number_labels)) },
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = null)
+        },
+        trailingIcon = if (query.isNotEmpty()) {
+            {
+                IconButton(onClick = onClear) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.action_clear_search),
+                    )
+                }
+            }
+        } else null,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+        ),
+    )
+}
+
+@Composable
+private fun LocalNumberLabelCard(
+    entry: LocalNumberLabel,
+    onClick: () -> Unit,
+) {
+    val editActionLabel = stringResource(R.string.cd_edit_local_label)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { onClick(label = editActionLabel, action = null) },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        onClick = onClick,
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .padding(end = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = entry.label,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = entry.normalizedPhoneNumber,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        IconButton(onClick = onEdit) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = entry.label,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = entry.normalizedPhoneNumber,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Icon(
-                Icons.Default.Edit,
-                contentDescription = stringResource(R.string.cd_edit_local_label),
-            )
-        }
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = stringResource(R.string.cd_delete_local_label),
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
             )
         }
     }

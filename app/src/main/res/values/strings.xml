@@ -197,6 +197,8 @@
     <string name="msg_no_local_number_labels">No local number labels</string>
     <string name="msg_no_local_number_labels_hint">You can set them in intercept record details</string>
     <string name="msg_no_matching_local_number_labels">No matching number labels</string>
+    <string name="msg_no_matching_local_number_labels_hint">Try searching for another number or label.</string>
+    <string name="action_view_call_history">View call history</string>
     <string name="cd_edit_local_label">Edit label</string>
     <string name="cd_delete_local_label">Delete label</string>
 

@@ -2,16 +2,26 @@ package vip.mystery0.pixel.telo.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.entity.LocalNumberLabel
 import vip.mystery0.pixel.telo.data.repository.LocalNumberLabelRepository
+
+/** 统一管理页的显示状态；标签集合首次发射前保留加载态。 */
+data class LocalNumberLabelsUiState(
+    val hasLoadedLabels: Boolean = false,
+    val hasAnyLabels: Boolean = false,
+    val items: List<LocalNumberLabel> = emptyList(),
+    val searchQuery: String = "",
+)
 
 /**
  * 统一本地号码标签管理页的列表与搜索状态。
@@ -22,22 +32,35 @@ class LocalNumberLabelsViewModel : ViewModel(), KoinComponent {
     private val repository: LocalNumberLabelRepository by inject()
 
     private val query = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = query.asStateFlow()
+    private val allLabels: Flow<List<LocalNumberLabel>?> = repository.observeAll()
+        .map<List<LocalNumberLabel>, List<LocalNumberLabel>?> { it }
+        .onStart { emit(null) }
 
-    val items: StateFlow<List<LocalNumberLabel>> = combine(
-        repository.observeAll(),
+    val uiState: StateFlow<LocalNumberLabelsUiState> = combine(
+        allLabels,
         query,
     ) { labels, text ->
         val normalizedQuery = text.trim()
-        if (normalizedQuery.isEmpty()) {
-            labels
+        val availableLabels = labels.orEmpty()
+        val filteredLabels = if (normalizedQuery.isEmpty()) {
+            availableLabels
         } else {
-            labels.filter { entry ->
+            availableLabels.filter { entry ->
                 entry.normalizedPhoneNumber.contains(normalizedQuery, ignoreCase = true) ||
                     entry.label.contains(normalizedQuery, ignoreCase = true)
             }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        LocalNumberLabelsUiState(
+            hasLoadedLabels = labels != null,
+            hasAnyLabels = labels?.isNotEmpty() == true,
+            items = filteredLabels,
+            searchQuery = text,
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000, replayExpirationMillis = 0),
+        LocalNumberLabelsUiState(),
+    )
 
     /** 更新搜索词；匹配时再 trim，输入框保留用户原文。 */
     fun updateQuery(text: String) {

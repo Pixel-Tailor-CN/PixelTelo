@@ -195,9 +195,8 @@ Token 只发送到与已验证配置完全相同的 scheme、host 和有效端�
 * 显示开关由进程级 `LocalNumberLabelPreferences` 暴露 `StateFlow`，键
   `show_local_number_labels`，默认关闭。关闭只隐藏 Directory、Overlay 和历史列表的普通
   展示，不影响编辑、统一管理、存储和备份恢复。
-* 统一管理页通过 `LocalNumberLabelsViewModel` 观察全部标签，支持按号码/标签搜索、编辑和
-  删除；不提供任意号码新增。设置页以现有 HorizontalPager 的非底部二级页面进入，不增加
-  `AppDestinations` 项，也不引入 Navigation Compose。
+* 统一管理页由 `LocalNumberLabelsViewModel` 单次观察全部标签，并从同一集合派生过滤结果与全量是否为空；首个异步结果到达前保留加载态，避免空结果时误隐藏搜索框。
+  页面支持按号码/标签搜索、编辑和删除，不提供任意号码新增。设置页以现有 HorizontalPager 的非底部二级页面进入，不增加 `AppDestinations` 项，也不引入 Navigation Compose。
 * 备份格式 v5 把本地标签作为第四个独立选择范围。`BackupData.localNumberLabels` 缺省空列表
   以兼容 v1–v4；当前新导出显式写入 `CURRENT_BACKUP_VERSION`（v7）。显示开关不进入备份。未选择该范围时恢复
   不读取、不修改标签表。

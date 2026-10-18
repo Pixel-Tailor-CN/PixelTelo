@@ -270,6 +270,12 @@ class MainActivity : ComponentActivity() {
                         LocalNumberLabelsScreen(
                             viewModel = localNumberLabelsViewModel,
                             editorViewModel = localNumberLabelEditorViewModel,
+                            onNavigateToCallHistory = {
+                                closeLocalNumberLabelsScreen()
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(AppDestinations.HOME.ordinal)
+                                }
+                            },
                             modifier = Modifier
                                 .padding(innerPadding)
                                 .fillMaxSize(),

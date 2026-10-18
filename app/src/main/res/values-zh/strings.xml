@@ -204,6 +204,8 @@
     <string name="msg_no_local_number_labels">暂无本地号码标签</string>
     <string name="msg_no_local_number_labels_hint">可在来电记录详情中设置</string>
     <string name="msg_no_matching_local_number_labels">没有匹配的号码标签</string>
+    <string name="msg_no_matching_local_number_labels_hint">尝试使用其他号码或标签搜索。</string>
+    <string name="action_view_call_history">查看来电记录</string>
     <string name="cd_edit_local_label">编辑标签</string>
     <string name="cd_delete_local_label">删除标签</string>
 
