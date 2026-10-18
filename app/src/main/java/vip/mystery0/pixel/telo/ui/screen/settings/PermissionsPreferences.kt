@@ -1,15 +1,23 @@
 package vip.mystery0.pixel.telo.ui.screen.settings
 
+import android.Manifest
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import vip.mystery0.pixel.telo.R
@@ -31,6 +39,7 @@ fun PermissionsPreferences(
             SettingsRowItem("overlay-permission") { modifier ->
                 PermissionRow(
                     modifier = modifier,
+                    icon = Icons.Default.PictureInPicture,
                     title = stringResource(R.string.permission_overlay_name),
                     description = stringResource(R.string.permission_overlay_desc),
                     granted = overlayPermissionGranted,
@@ -64,6 +73,7 @@ fun PermissionsPreferences(
 private fun PermissionRow(
     modifier: androidx.compose.ui.Modifier,
     title: String,
+    icon: ImageVector,
     description: String,
     granted: Boolean,
     grantedLabel: String,
@@ -73,6 +83,7 @@ private fun PermissionRow(
     SettingsItemRow(
         modifier = modifier,
         title = title,
+        icon = icon,
         summary = description,
         trailing = SettingsRowTrailing.NONE,
         trailingContent = {
@@ -98,6 +109,14 @@ private fun PermissionRow(
     PermissionRow(
         modifier = modifier,
         title = stringResource(item.nameResId),
+        icon = when (item.permission) {
+            Manifest.permission.READ_CONTACTS -> Icons.Default.Contacts
+            Manifest.permission.WRITE_CONTACTS -> Icons.Default.PersonAdd
+            Manifest.permission.READ_CALL_LOG -> Icons.Default.History
+            Manifest.permission.READ_PHONE_STATE -> Icons.Default.Phone
+            Manifest.permission.POST_NOTIFICATIONS -> Icons.Default.NotificationsNone
+            else -> Icons.Default.Check
+        },
         description = stringResource(item.descriptionResId),
         granted = granted,
         grantedLabel = grantedLabel,
