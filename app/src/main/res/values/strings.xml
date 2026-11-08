@@ -404,6 +404,7 @@
     <string name="error_location_empty">Location keyword cannot be empty</string>
     <string name="error_phone_already_exists">The same rule already exists</string>
     <string name="error_list_save_failed">Could not save this rule. Try again.</string>
+    <string name="error_rule_no_longer_exists">This rule no longer exists. Close the editor and add it again.</string>
     <string name="title_confirm_rule_scope">Confirm rule impact</string>
     <string name="msg_confirm_prefix_scope">Scope: calls from numbers starting with %1$s.</string>
     <string name="msg_confirm_tag_exact_scope">Scope: calls whose recognized tag exactly matches “%1$s”.</string>

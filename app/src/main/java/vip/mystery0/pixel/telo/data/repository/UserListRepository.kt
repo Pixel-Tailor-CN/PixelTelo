@@ -6,6 +6,7 @@ import vip.mystery0.pixel.telo.data.dao.UserListDao
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.remote.PhoneLocationInfo
+import vip.mystery0.pixel.telo.data.model.UserListWriteResult
 
 /**
  * 用户自定义黑白名单的数据仓库。
@@ -115,7 +116,7 @@ class UserListRepository(private val dao: UserListDao) {
 
     /**
      * 添加条目到指定名单。
-     * 输入无效或唯一键已存在时返回 false，成功插入返回 true。
+     * 分别返回成功、输入无效和唯一键冲突，不把校验失败伪装成重复。
      */
     suspend fun add(
         phoneNumber: String,
@@ -126,7 +127,7 @@ class UserListRepository(private val dao: UserListDao) {
         locationMatch: Boolean = false,
         forceBlock: Boolean = false,
         tagContains: Boolean = false,
-    ): Boolean {
+    ): UserListWriteResult {
         val entry = buildEntry(
             existing = null,
             tagContains = tagContains,
@@ -137,12 +138,12 @@ class UserListRepository(private val dao: UserListDao) {
             tagMatch = tagMatch,
             locationMatch = locationMatch,
             forceBlock = forceBlock,
-        ) ?: return false
-        return dao.insert(entry) != -1L
+        ) ?: return UserListWriteResult.INVALID_INPUT
+        return if (dao.insert(entry) == -1L) UserListWriteResult.DUPLICATE else UserListWriteResult.SAVED
     }
 
     /**
-     * 原位更新规则。输入无效或唯一键冲突时返回 false，旧规则保持不变。
+     * 原位更新规则，区分输入无效、唯一键冲突和条目已不存在，失败时保留原条目。
      */
     suspend fun update(
         existing: UserListEntry,
@@ -153,7 +154,7 @@ class UserListRepository(private val dao: UserListDao) {
         locationMatch: Boolean = false,
         forceBlock: Boolean = false,
         tagContains: Boolean = false,
-    ): Boolean {
+    ): UserListWriteResult {
         val entry = buildEntry(
             existing = existing,
             tagContains = tagContains,
@@ -164,8 +165,9 @@ class UserListRepository(private val dao: UserListDao) {
             tagMatch = tagMatch,
             locationMatch = locationMatch,
             forceBlock = forceBlock,
-        ) ?: return false
-        return dao.update(entry) > 0
+        ) ?: return UserListWriteResult.INVALID_INPUT
+        if (dao.update(entry) > 0) return UserListWriteResult.SAVED
+        return if (dao.containsId(existing.id)) UserListWriteResult.DUPLICATE else UserListWriteResult.NOT_FOUND
     }
 
     private fun buildEntry(

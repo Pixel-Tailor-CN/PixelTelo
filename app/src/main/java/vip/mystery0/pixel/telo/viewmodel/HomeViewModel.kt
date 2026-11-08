@@ -29,6 +29,7 @@ import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.ListType
+import vip.mystery0.pixel.telo.data.model.UserListWriteResult
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
@@ -411,16 +412,16 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         }
     }
 
-    /** 快捷加入黑名单。@return true=成功插入，false=已存在 */
-    suspend fun quickAddToBlackList(phone: String): Boolean =
+    /** 快捷加入黑名单，明确区分成功、重复和输入无效。 */
+    suspend fun quickAddToBlackList(phone: String): UserListWriteResult =
         userListRepository.add(phone, false, ListType.BLACK, null)
 
-    /** 快捷加入白名单。@return true=成功插入，false=已存在 */
-    suspend fun quickAddToWhiteList(phone: String): Boolean =
+    /** 快捷加入白名单，明确区分成功、重复和输入无效。 */
+    suspend fun quickAddToWhiteList(phone: String): UserListWriteResult =
         userListRepository.add(phone, false, ListType.WHITE, null)
 
-    /** 快捷加入标签白名单。@return true=成功插入，false=已存在 */
-    suspend fun quickAddTagToWhiteList(tag: String): Boolean =
+    /** 快捷加入标签白名单，明确区分成功、重复和输入无效。 */
+    suspend fun quickAddTagToWhiteList(tag: String): UserListWriteResult =
         userListRepository.add(tag, false, ListType.WHITE, null, tagMatch = true)
 }
 

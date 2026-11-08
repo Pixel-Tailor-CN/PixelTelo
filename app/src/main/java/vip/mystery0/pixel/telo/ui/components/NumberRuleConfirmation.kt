@@ -30,16 +30,20 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.model.UserListWriteResult
 
 enum class NumberRuleAction { BLACKLIST, WHITELIST, TAG_WHITELIST }
 
-/** 确认和提交作用域绑定当前目标，详情关闭或换目标即丢弃，取消不触发写入。 */
+/**
+ * 确认和提交作用域绑定当前目标，详情关闭或换目标即丢弃，取消不触发写入。
+ * onComplete 只处理成功和真正重复；false 仅表示重复，不包含校验或写入失败。
+ */
 @Composable
 fun NumberRuleConfirmation(
     callId: Long,
     phone: String,
     label: String?,
-    onAdd: suspend (NumberRuleAction) -> Boolean,
+    onAdd: suspend (NumberRuleAction) -> UserListWriteResult,
     onComplete: (NumberRuleAction, Boolean) -> Unit,
     content: @Composable (request: (NumberRuleAction) -> Unit) -> Unit,
 ) {
@@ -47,10 +51,10 @@ fun NumberRuleConfirmation(
         val scope = rememberCoroutineScope()
         var pending by remember { mutableStateOf<NumberRuleAction?>(null) }
         var submitting by remember { mutableStateOf(false) }
-        var failed by remember { mutableStateOf(false) }
+        var failureMessage by remember { mutableStateOf<Int?>(null) }
         content { action ->
             if (!submitting && (action != NumberRuleAction.TAG_WHITELIST || label != null)) {
-                failed = false
+                failureMessage = null
                 pending = action
             }
         }
@@ -86,7 +90,7 @@ fun NumberRuleConfirmation(
                             NumberRuleAction.WHITELIST -> R.string.confirm_whitelist_message
                             NumberRuleAction.TAG_WHITELIST -> R.string.confirm_tag_whitelist_message
                         }))
-                        if (failed) Text(stringResource(R.string.rule_add_failed), color = MaterialTheme.colorScheme.error)
+                        failureMessage?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error) }
                     }
                 },
                 confirmButton = {
@@ -99,17 +103,29 @@ fun NumberRuleConfirmation(
                         onClick = {
                             if (!submitting) {
                                 submitting = true
-                                failed = false
+                                failureMessage = null
                                 scope.launch {
                                     try {
-                                        val added = onAdd(action)
+                                        val result = onAdd(action)
                                         ensureActive()
-                                        pending = null
-                                        onComplete(action, added)
+                                        when (result) {
+                                            UserListWriteResult.SAVED, UserListWriteResult.DUPLICATE -> {
+                                                pending = null
+                                                onComplete(action, result == UserListWriteResult.SAVED)
+                                            }
+                                            UserListWriteResult.INVALID_INPUT -> {
+                                                failureMessage = if (action == NumberRuleAction.TAG_WHITELIST) {
+                                                    R.string.error_tag_empty
+                                                } else R.string.error_phone_invalid
+                                            }
+                                            UserListWriteResult.NOT_FOUND -> {
+                                                failureMessage = R.string.error_rule_no_longer_exists
+                                            }
+                                        }
                                     } catch (e: CancellationException) {
                                         throw e
                                     } catch (_: Exception) {
-                                        failed = true
+                                        failureMessage = R.string.rule_add_failed
                                     } finally {
                                         submitting = false
                                     }

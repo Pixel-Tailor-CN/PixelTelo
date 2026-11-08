@@ -21,6 +21,7 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
+import vip.mystery0.pixel.telo.data.model.UserListWriteResult
 import vip.mystery0.pixel.telo.data.repository.UserListRepository
 
 /**
@@ -363,7 +364,7 @@ class ListViewModel : ViewModel(), KoinComponent {
         isSaving = true
         viewModelScope.launch {
             try {
-                val success = request.existingEntry?.let { existing ->
+                val result = request.existingEntry?.let { existing ->
                     userListRepository.update(
                         existing = existing,
                         phoneNumber = request.value,
@@ -384,18 +385,28 @@ class ListViewModel : ViewModel(), KoinComponent {
                     forceBlock = request.forceBlock,
                     tagContains = request.tagContains,
                 )
-                if (success) {
-                    showAddSheet = false
-                    editingEntry = null
-                    toastMessage = context.getString(
-                        if (request.existingEntry == null) {
-                            R.string.msg_added_to_list
-                        } else {
-                            R.string.msg_updated_in_list
-                        }
-                    )
-                } else {
-                    addErrorMessage = context.getString(R.string.error_phone_already_exists)
+                when (result) {
+                    UserListWriteResult.SAVED -> {
+                        showAddSheet = false
+                        editingEntry = null
+                        toastMessage = context.getString(
+                            if (request.existingEntry == null) R.string.msg_added_to_list
+                            else R.string.msg_updated_in_list
+                        )
+                    }
+                    UserListWriteResult.DUPLICATE -> {
+                        addErrorMessage = context.getString(R.string.error_phone_already_exists)
+                    }
+                    UserListWriteResult.INVALID_INPUT -> {
+                        addErrorMessage = context.getString(when (request.ruleType) {
+                            RuleType.NUMBER -> R.string.error_phone_invalid
+                            RuleType.TAG -> R.string.error_tag_empty
+                            RuleType.LOCATION -> R.string.error_location_empty
+                        })
+                    }
+                    UserListWriteResult.NOT_FOUND -> {
+                        addErrorMessage = context.getString(R.string.error_rule_no_longer_exists)
+                    }
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation

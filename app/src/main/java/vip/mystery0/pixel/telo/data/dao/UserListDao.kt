@@ -20,7 +20,7 @@ interface UserListDao {
     @Query("SELECT * FROM user_list WHERE listType = :type")
     suspend fun getAllByType(type: ListType): List<UserListEntry>
 
-    /** 插入，若 (phoneNumber, listType) 已存在则忽略 */
+    /** 插入，同一号码/关键词、名单类型及规则类型的唯一键冲突时忽略。 */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entry: UserListEntry): Long
 
@@ -30,6 +30,10 @@ interface UserListDao {
     /** 原位更新规则；唯一键冲突时保留旧规则并返回 0。 */
     @Update(onConflict = OnConflictStrategy.IGNORE)
     suspend fun update(entry: UserListEntry): Int
+
+    /** 区分更新时的唯一键冲突与条目已经被删除。 */
+    @Query("SELECT EXISTS(SELECT 1 FROM user_list WHERE id = :id)")
+    suspend fun containsId(id: Long): Boolean
 
     /** 查询是否存在匹配的条目（精确或前缀），用于拦截判断。
      *  前缀匹配使用 SUBSTR 而非 LIKE，避免 phoneNumber 中含有 '%'/'_' 等 LIKE 通配符时产生语义错误。

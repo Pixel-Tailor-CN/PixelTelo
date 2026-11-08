@@ -402,6 +402,7 @@
     <string name="error_location_empty">归属地关键词不能为空</string>
     <string name="error_phone_already_exists">相同规则已存在</string>
     <string name="error_list_save_failed">保存失败，请重试。</string>
+    <string name="error_rule_no_longer_exists">该规则已不存在，请关闭编辑器后重新添加。</string>
     <string name="title_confirm_rule_scope">确认规则影响范围</string>
     <string name="msg_confirm_prefix_scope">匹配范围：来电号码以“%1$s”开头。</string>
     <string name="msg_confirm_tag_exact_scope">匹配范围：来电识别标签与“%1$s”完全相同。</string>

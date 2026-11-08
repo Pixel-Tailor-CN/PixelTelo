@@ -15,6 +15,22 @@ object PhoneNumberNormalizer {
         "125833",
     )
 
+    /**
+     * 清除号码展示格式：空白、ASCII 分隔符和 Unicode 格式控制字符（如双向标记、零宽空格）。
+     * 按码点处理，保留数字、开头的 + 以及其他可见字符；非法输入仍由号码规则校验拒绝。
+     */
+    internal fun compactFormattedNumber(value: String): String = buildString(value.length) {
+        var offset = 0
+        while (offset < value.length) {
+            val codePoint = Character.codePointAt(value, offset)
+            offset += Character.charCount(codePoint)
+            val formatting = Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint) ||
+                Character.getType(codePoint) == Character.FORMAT.toInt() ||
+                codePoint == '-'.code || codePoint == '('.code || codePoint == ')'.code
+            if (!formatting) appendCodePoint(codePoint)
+        }
+    }
+
     internal fun normalizeCountryCode(phoneNumber: String): String {
         val trimmedNumber = phoneNumber.trim()
         if (trimmedNumber.startsWith(CHINA_COUNTRY_CODE)) {
@@ -42,9 +58,7 @@ object PhoneNumberNormalizer {
     }
 
     fun normalizeForLookup(phoneNumber: String): String {
-        val compactNumber = phoneNumber.trim().filterNot { char ->
-            char.isWhitespace() || char == '-' || char == '(' || char == ')'
-        }
+        val compactNumber = compactFormattedNumber(phoneNumber)
         val domesticNumber = normalizeCountryCode(compactNumber)
         val multiNumberPrefix = CHINA_MOBILE_MULTI_NUMBER_PREFIXES.firstOrNull {
             domesticNumber.startsWith(it)

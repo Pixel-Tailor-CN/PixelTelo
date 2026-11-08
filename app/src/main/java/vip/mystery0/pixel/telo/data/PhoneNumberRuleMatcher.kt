@@ -10,13 +10,15 @@ object PhoneNumberRuleMatcher {
     private val numberRulePattern = Regex("\\+?[0-9]+")
 
     /** 精确号码与前缀共用校验：标准化后必须含数字，仅允许开头保留一个 +。 */
-    fun isValidRule(value: String): Boolean =
-        numberRulePattern.matches(normalizeRuleForStorage(value))
+    fun isValidRule(value: String): Boolean {
+        val compactRule = compact(value)
+        // 归一化不能把原本含多个 + 或其他非法字符的输入变成另一个有效号码。
+        return numberRulePattern.matches(compactRule) &&
+            numberRulePattern.matches(normalizeRuleForStorage(compactRule))
+    }
 
     /** 将输入中的安全格式字符移除，但保留号码开头的 +。 */
-    private fun compact(value: String): String = value.trim().filterNot { char ->
-        char.isWhitespace() || char == '-' || char == '(' || char == ')'
-    }
+    private fun compact(value: String): String = PhoneNumberNormalizer.compactFormattedNumber(value)
 
     /** 判断号码是否为带有明确国际标记的非中国号码。 */
     fun isExplicitInternational(phoneNumber: String): Boolean {
@@ -68,11 +70,12 @@ object PhoneNumberRuleMatcher {
 
     /** 判断号码规则是否精确命中或前缀命中来电号码。 */
     fun ruleMatches(rule: String, isPrefix: Boolean, phoneNumber: String): Boolean {
-        val compactRule = compact(rule)
-        if (!isValidRule(rule)) return false
+        // 存储规则必须是合法的原始存储值，与 DAO 的非法旧数据门禁一致。
+        // 只对来电候选做格式清理，不能让 UI 把数据库拒绝匹配的旧记录显示为已命中。
+        if (!numberRulePattern.matches(rule)) return false
         return matchCandidates(phoneNumber).any { candidate ->
             if (candidate.isBlank()) return false
-            if (isPrefix) candidate.startsWith(compactRule) else candidate == compactRule
+            if (isPrefix) candidate.startsWith(rule) else candidate == rule
         }
     }
 }
