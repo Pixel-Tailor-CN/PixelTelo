@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Android 11 及更早版本的系统备份：运行时记录通过 App 手动备份迁移。 -->
 <full-backup-content>
+    <!-- 提示门槛和退出状态仅属于当前安装。 -->
+    <exclude domain="sharedpref" path="engagement_prompt.xml" />
     <exclude domain="sharedpref" path="self_hosted_credentials.xml" />
     <exclude domain="database" path="app-database" />
     <exclude domain="database" path="app-database-wal" />

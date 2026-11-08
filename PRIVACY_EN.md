@@ -13,7 +13,7 @@ This policy describes the current Pixel Telo client. Number identification start
 | `READ_CALL_LOG` | Meet the Directory lookup forwarding requirement when targeting Android API 37 or later; the app does not batch-read the system call log |
 | `READ_PHONE_STATE` | Observe call connection and end for optional vibration, overlay dismissal, and post-call feedback reminders |
 | `VIBRATE` | Provide optional connection and hang-up vibration |
-| `INTERNET` | Real-time lookup, offline database checks and downloads, user-submitted quality feedback, and community report management |
+| `INTERNET` | Real-time lookup, offline database checks and downloads, user-submitted quality feedback, community report management, and public support configuration and QR images when the support page is opened |
 | `POST_NOTIFICATIONS` | Notify about offline updates and post-call quality feedback; automatic update checks require notification permission |
 | `SYSTEM_ALERT_WINDOW` | Show an optional call overlay only after explicit enablement and permission; disabled by default |
 | `CAMERA` | Decode a self-hosted pairing QR code locally when requested; release the camera when the scanner is paused or closed |
@@ -27,6 +27,7 @@ System screening and Directory callbacks supply numbers. Outgoing calls can also
 - **Processing records:** Depending on settings and results, numbers, times, result types, remarks, source labels, province/city information, query durations, and query backend. Online records may also contain official feedback credentials, expiry information, use states, and historical community snapshots.
 - **User rules and labels:** Numbers, prefixes, source-label or location rules, remarks, matching and force-block options, and separate local number labels.
 - **Offline database:** Identification data and version information downloaded through the official synchronization channel. Offline lookups do not send the queried number to a server.
+- **Support and rating prompt state:** First foreground use, up to five qualifying sessions, up to three active dates, last counted and first displayed times, and dismissal state are stored only for this installation. Sessions require ten foreground seconds, at least thirty minutes apart; background calls and call contents are not counted. This state is never uploaded, backed up or transferred.
 - **Preferences:** Multiple blocking, timeout, source-order, display, notification, vibration, and update-interval settings.
 - **Self-hosted configuration:** Service address, TLS mode, SPKI pin, instance identity, and verification state. Tokens are encrypted using Android Keystore AES-GCM, stored separately, and excluded from system backup and device transfer.
 - **Community management identity:** A randomly generated 32-byte installation identity stored in a no-backup directory. This is not an IMEI, Android ID, or hardware identifier. Possession grants management access to its reports, so it must be protected as a credential.
@@ -61,9 +62,15 @@ Quality feedback and community reports are independent and do not automatically 
 
 These network operations use HTTPS. Service operators receive the requests and connection metadata needed to serve them. This client policy does not promise retention periods for official or user-selected services that the client does not control.
 
+### Voluntary support and ratings
+
+Opening or explicitly retrying the support page requests public configuration from `https://pixel.mystery0.app/support/config.json` and QR images under `/support/`. Requests contain no numbers, call contents, installation identity or self-hosted credentials; the website receives network connection information. Only an explicit save writes the QR image to photos through MediaStore, without storage permission or reading other photos.
+
+After a payment app, Google Play or browser is opened, that service handles subsequent actions. Support is voluntary and provides no digital benefits. Pixel Telo does not read, verify or record payment or rating outcomes. Minimal local prompt counters are used only to decide when to show the optional card.
+
 ## 4. Backup, migration, and deletion
 
-System backup and device transfer exclude the runtime `app-database` and encrypted self-hosted tokens. The random community identity is also excluded. Other preferences retain the existing system backup behavior.
+System backup and device transfer exclude the runtime `app-database` and encrypted self-hosted tokens. The random community identity is also excluded. Support and rating prompt counters are also excluded from cloud backup, device transfer and manual backups. Other preferences retain the existing system backup behavior.
 
 Manual ZIP backups can include processing records, block/allow lists, and local number labels. Records may include historical community display snapshots. Backups do not include contact names, self-hosted tokens, the community identity, feedback tokens, or reporting eligibility. They contain complete numbers and user remarks; users should select trusted storage and protect their archives.
 
@@ -71,7 +78,7 @@ Users can disable network lookup and optional display/notification features, and
 
 ## 5. Data collection the app does not perform
 
-The app does not read hardware identifiers, record calls, obtain device location, upload the address book or complete system call history, collect usage analytics, or automatically upload crash diagnostics. The random community identity and user-requested feedback/reports are the separate data processing described above.
+The app does not read hardware identifiers, record calls, obtain device location, upload the address book or complete system call history, upload usage analytics, or automatically upload crash diagnostics. The random community identity and user-requested feedback/reports are the separate data processing described above.
 
 ## 6. Children, changes, and contact
 

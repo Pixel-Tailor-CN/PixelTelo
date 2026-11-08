@@ -10,6 +10,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Star
+import vip.mystery0.pixel.telo.util.openAppReview
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
+import vip.mystery0.pixel.telo.viewmodel.EngagementPromptViewModel
 
 private const val FEEDBACK_URL = "https://github.com/Pixel-Tailor-CN/PixelTelo/issues/new"
 private const val PIXEL_TAILOR_URL = "https://pixel.mystery0.app"
@@ -27,7 +31,11 @@ private const val TELEGRAM_URL = "https://t.me/pixel_tailor_cn"
 
 /** 关于分组；版本点击仍用于解锁调试，刻意不显示普通导航箭头。 */
 @Composable
-fun AboutPreferences(viewModel: SettingViewModel) {
+fun AboutPreferences(
+    viewModel: SettingViewModel,
+    onNavigateToDeveloperSupport: () -> Unit,
+    engagementPromptViewModel: EngagementPromptViewModel,
+) {
     val context = LocalContext.current
     val externalLinkUnavailableMessage = stringResource(R.string.error_external_link_unavailable)
 
@@ -45,6 +53,30 @@ fun AboutPreferences(viewModel: SettingViewModel) {
                     icon = Icons.Default.Info,
                     trailing = SettingsRowTrailing.NONE,
                     onClick = viewModel::onVersionClick,
+                )
+            },
+            SettingsRowItem("developer-support") { modifier ->
+                SettingsItemRow(
+                    modifier = modifier,
+                    title = stringResource(R.string.support_developer),
+                    summary = stringResource(R.string.support_developer_summary),
+                    icon = Icons.Default.Favorite,
+                    onClick = { engagementPromptViewModel.dismissThen(onNavigateToDeveloperSupport) },
+                )
+            },
+            SettingsRowItem("app-review") { modifier ->
+                val unavailable = stringResource(R.string.support_review_unavailable)
+                SettingsItemRow(
+                    modifier = modifier,
+                    title = stringResource(R.string.support_review),
+                    summary = stringResource(R.string.support_review_summary),
+                    icon = Icons.Default.Star,
+                    trailing = SettingsRowTrailing.EXTERNAL_LINK,
+                    onClick = {
+                        engagementPromptViewModel.dismissThen {
+                            if (!context.openAppReview()) Toast.makeText(context, unavailable, Toast.LENGTH_SHORT).show()
+                        }
+                    },
                 )
             },
             SettingsRowItem("feedback-link") { modifier ->

@@ -303,3 +303,15 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 **Made with ❤️ by [Pixel Tailor CN](https://pixel.mystery0.app)**
 
 </div>
+
+## 支持开发者与评价
+
+设置 → 关于提供「支持开发者」和「评价应用」。赞助完全自愿，不解锁功能或权益；进入赞助页后才从官网获取渠道配置及收款码，可放大、保存到相册并打开对应支付应用。应用不记录付款状态；评价跳转正式应用的 Google Play 页面。
+
+首页在满 7 天、3 个活跃日期、5 次有效前台使用后，才可能显示可关闭的支持与评价卡片；连续使用 10 秒才计数，两次至少间隔 30 分钟。关闭或点击任一入口后永久停止自动提示，关于页的入口始终保留。计数只存本机，不读取通话内容，不上传或进入备份；初始化、权限引导及其他弹层期间不显示。
+
+### Developer support and ratings
+
+Settings → About provides permanent developer support and Google Play rating links. Support is voluntary and unlocks no features or benefits. Opening the support page fetches public configuration and payment QR images from the website; images can be enlarged, saved to photos, or used with the corresponding payment app. Pixel Telo does not record payment or rating outcomes.
+
+An optional home card requires seven days since first foreground use, three active dates and five qualifying sessions. A session requires ten continuous foreground seconds, at least thirty minutes apart. Dismissing the card or choosing either action permanently stops automatic suggestions. Minimal local counters contain no call contents and are never uploaded, backed up or transferred. Initialization, permission prompts and other overlays suppress the card.

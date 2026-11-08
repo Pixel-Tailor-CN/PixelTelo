@@ -1,5 +1,14 @@
 package vip.mystery0.pixel.telo
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import java.time.LocalDate
+import vip.mystery0.pixel.telo.data.repository.EngagementPromptRepository
+import vip.mystery0.pixel.telo.data.preferences.EngagementPromptPolicy
+import vip.mystery0.pixel.telo.viewmodel.DeveloperSupportViewModel
+import vip.mystery0.pixel.telo.viewmodel.EngagementPromptViewModel
+import vip.mystery0.pixel.telo.ui.screen.DeveloperSupportScreen
 import android.os.Bundle
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.background
@@ -81,6 +90,10 @@ import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelsViewModel
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 class MainActivity : ComponentActivity() {
+    private val developerSupportViewModel: DeveloperSupportViewModel by viewModels()
+    private val engagementPromptViewModel: EngagementPromptViewModel by viewModels()
+    private val engagementRepository: EngagementPromptRepository by inject()
+    private var engagementSessionJob: Job? = null
     private val callReportViewModel: CallReportViewModel by viewModels()
     private val myReportsViewModel: MyReportsViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
@@ -94,6 +107,17 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // 进入应用即视为已知晓静默拦截，清零 Smartspacer 计数
         smartspacerInterceptRepository.acknowledge(this)
+        engagementSessionJob?.cancel()
+        engagementSessionJob = lifecycleScope.launch {
+            engagementRepository.noteForegroundStarted(System.currentTimeMillis())
+            delay(EngagementPromptPolicy.MIN_SESSION_MILLIS)
+            engagementRepository.recordQualifiedSession(System.currentTimeMillis(), LocalDate.now().toEpochDay())
+        }
+    }
+
+    override fun onPause() {
+        engagementSessionJob?.cancel()
+        super.onPause()
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -119,6 +143,7 @@ class MainActivity : ComponentActivity() {
                 var showRecordsMenu by remember { mutableStateOf(false) }
                 var showLocalNumberLabelsScreen by rememberSaveable { mutableStateOf(false) }
                 var showMyReportsScreen by rememberSaveable { mutableStateOf(false) }
+                var showDeveloperSupportScreen by rememberSaveable { mutableStateOf(false) }
                 var settingsCategory by rememberSaveable { mutableStateOf<SettingsCategory?>(null) }
                 fun openMyReports() {
                     showClearRecordsDialog = false
@@ -126,6 +151,15 @@ class MainActivity : ComponentActivity() {
                     callReportViewModel.close()
                     showLocalNumberLabelsScreen = false
                     showMyReportsScreen = true
+                }
+                fun openDeveloperSupport() {
+                    showClearRecordsDialog = false
+                    showRecordsMenu = false
+                    homeViewModel.closeQuickAdd()
+                    callReportViewModel.close()
+                    showMyReportsScreen = false
+                    showLocalNumberLabelsScreen = false
+                    showDeveloperSupportScreen = true
                 }
                 val showSelfHostedSettings = settingViewModel.showSelfHostedSettings
                 val showPairingScreen = showSelfHostedSettings &&
@@ -156,6 +190,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val page = when {
+                    showDeveloperSupportScreen -> AppPage.DEVELOPER_SUPPORT
                     showPairingScreen -> AppPage.PAIRING
                     showSelfHostedSettings -> AppPage.SELF_HOSTED
                     showMyReportsScreen -> AppPage.MY_REPORTS
@@ -173,7 +208,7 @@ class MainActivity : ComponentActivity() {
                 }
                 val backTarget = when (page) {
                     AppPage.MAIN -> if (destination.category != null) NavigationPage(AppPage.MAIN, null) else null
-                    AppPage.MY_REPORTS, AppPage.LOCAL_LABELS -> NavigationPage(AppPage.MAIN, returnCategory)
+                    AppPage.MY_REPORTS, AppPage.LOCAL_LABELS, AppPage.DEVELOPER_SUPPORT -> NavigationPage(AppPage.MAIN, returnCategory)
                     AppPage.SELF_HOSTED -> if (!settingViewModel.selfHostedValidationInProgress) {
                         NavigationPage(AppPage.MAIN, SettingsCategory.ONLINE_QUERY)
                     } else null
@@ -181,6 +216,7 @@ class MainActivity : ComponentActivity() {
                 }
                 val backAction: (() -> Unit)? = when (page) {
                     AppPage.MAIN -> if (destination.category != null) ({ settingsCategory = null }) else null
+                    AppPage.DEVELOPER_SUPPORT -> ({ showDeveloperSupportScreen = false })
                     AppPage.MY_REPORTS -> ({ showMyReportsScreen = false })
                     AppPage.LOCAL_LABELS -> ::closeLocalNumberLabelsScreen
                     AppPage.SELF_HOSTED -> settingViewModel::closeSelfHostedConfig
@@ -211,7 +247,9 @@ class MainActivity : ComponentActivity() {
                                         title = {
                                             Text(
                                                 stringResource(
-                                                    if (displayedPage == AppPage.SELF_HOSTED || displayedPage == AppPage.PAIRING) {
+                                                    if (displayedPage == AppPage.DEVELOPER_SUPPORT) {
+                                                            R.string.support_developer
+                                                        } else if (displayedPage == AppPage.SELF_HOSTED || displayedPage == AppPage.PAIRING) {
                                                         if (displayedPage == AppPage.PAIRING) pairingTitle
                                                         else R.string.title_self_hosted_management
                                                     } else if (displayedPage == AppPage.MY_REPORTS) {
@@ -227,7 +265,12 @@ class MainActivity : ComponentActivity() {
                                             )
                                         },
                                         navigationIcon = {
-                                            if (displayedPage == AppPage.SELF_HOSTED || displayedPage == AppPage.PAIRING) {
+                                            if (displayedPage == AppPage.DEVELOPER_SUPPORT) {
+                                                IconButton(onClick = { showDeveloperSupportScreen = false }) {
+                                                    Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                                                        contentDescription = stringResource(R.string.action_back))
+                                                }
+                                            } else if (displayedPage == AppPage.SELF_HOSTED || displayedPage == AppPage.PAIRING) {
                                                 IconButton(
                                                     onClick = ::requestSelfHostedBack,
                                                     enabled = !settingViewModel.selfHostedValidationInProgress,
@@ -341,7 +384,9 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) { innerPadding ->
                                 Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-                                    if (displayedPage == AppPage.PAIRING) {
+                                    if (displayedPage == AppPage.DEVELOPER_SUPPORT) {
+                                        DeveloperSupportScreen(viewModel = developerSupportViewModel)
+                                    } else if (displayedPage == AppPage.PAIRING) {
                                         SelfHostedPairingScreen(
                                             viewModel = settingViewModel,
                                             initialEntry = pairingEntry,
@@ -390,10 +435,12 @@ class MainActivity : ComponentActivity() {
                                     } else if (displayedCategory != null) {
                                         SettingsScreen(
                                             viewModel = settingViewModel,
+                                            engagementPromptViewModel = engagementPromptViewModel,
                                             saveableStateHolder = settingsSaveableStateHolder,
                                             settingsCategory = displayedCategory,
                                             onNavigateToCategory = { settingsCategory = it },
                                             onNavigateToMyReports = ::openMyReports,
+                                            onNavigateToDeveloperSupport = ::openDeveloperSupport,
                                             onNavigateToLocalNumberLabels = { showLocalNumberLabelsScreen = true },
                                         )
                                     } else {
@@ -407,10 +454,17 @@ class MainActivity : ComponentActivity() {
                                                 AppDestinations.HOME -> {
                                                     HomeScreen(
                                                         viewModel = homeViewModel,
+                                                        engagementPromptViewModel = engagementPromptViewModel,
+                                                        allowEngagementPrompt = mainPage && displayed == destination &&
+                                                            currentDestination == AppDestinations.HOME,
+                                                        homeUiObscured = kotlin.math.abs(pagerState.currentPageOffsetFraction) > 0.01f ||
+                                                                pagerState.targetPage != AppDestinations.HOME.ordinal ||
+                                                            showRecordsMenu || showClearRecordsDialog,
                                                         listViewModel = listViewModel,
                                                         localLabelEditorViewModel = localNumberLabelEditorViewModel,
                                                         callReportViewModel = callReportViewModel,
                                                         onNavigateToMyReports = ::openMyReports,
+                                                        onNavigateToDeveloperSupport = ::openDeveloperSupport,
                                                         onNavigateToListRule = { entry: UserListEntry ->
                                                             homeViewModel.closeQuickAdd()
                                                             listViewModel.navigateToEntry(entry)
@@ -462,10 +516,12 @@ class MainActivity : ComponentActivity() {
                                                 AppDestinations.SETTINGS -> {
                                                     SettingsScreen(
                                                         viewModel = settingViewModel,
+                                                        engagementPromptViewModel = engagementPromptViewModel,
                                                         saveableStateHolder = settingsSaveableStateHolder,
                                                         settingsCategory = null,
                                                         onNavigateToCategory = { category -> settingsCategory = category },
                                                         onNavigateToMyReports = ::openMyReports,
+                                                        onNavigateToDeveloperSupport = ::openDeveloperSupport,
                                                         onNavigateToLocalNumberLabels = {
                                                             showLocalNumberLabelsScreen = true
                                                         },
@@ -516,6 +572,7 @@ enum class AppDestinations(val titleResId: Int, val labelResId: Int, val icon: I
 /** 底部 Tab 的切换交给 Pager；这里只描述覆盖其上的二级页面层级。 */
 private enum class AppPage(val depth: Int) {
     MAIN(0),
+    DEVELOPER_SUPPORT(2),
     MY_REPORTS(2),
     LOCAL_LABELS(2),
     SELF_HOSTED(2),

@@ -28,6 +28,8 @@ import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
 import vip.mystery0.pixel.telo.data.query.SelfHostedCredentialStore
 import vip.mystery0.pixel.telo.data.query.SelfHostedQueryClientFactory
 import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
+import vip.mystery0.pixel.telo.data.repository.DeveloperSupportRepository
+import vip.mystery0.pixel.telo.data.repository.EngagementPromptRepository
 import vip.mystery0.pixel.telo.data.repository.BackupRepository
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.ContactRepository
@@ -48,6 +50,8 @@ private const val OFFICIAL_COMMUNITY = "officialCommunity"
 private const val OFFICIAL_BASE_URL = "https://pixeltelo.api.mystery0.vip/"
 
 val appModule = module {
+    single { DeveloperSupportRepository(androidContext()) }
+    single { EngagementPromptRepository(androidContext()) }
     single {
         Room.databaseBuilder(
             androidContext(),

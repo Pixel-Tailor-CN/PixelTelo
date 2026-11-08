@@ -58,6 +58,9 @@
   [设计](plans/2026-10-18-query-server-ui-design.md) ·
   [实施计划](plans/2026-10-18-query-server-ui-implementation.md)（已实现；验证边界见计划）
 
+* 支持开发者与评价入口：
+  [设计与实施](plans/2026-11-08-support-and-review.md)
+
 * 全仓审查问题修复：
   [实施计划](plans/2026-11-08-audit-cleanup.md)（来电响应预算、离线库安全更新、持久下载及遗留清理）
 

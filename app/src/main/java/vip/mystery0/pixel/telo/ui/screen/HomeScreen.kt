@@ -57,6 +57,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +78,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.compose.foundation.lazy.rememberLazyListState
+import vip.mystery0.pixel.telo.ui.components.EngagementPromptCard
+import vip.mystery0.pixel.telo.viewmodel.EngagementPromptViewModel
+import vip.mystery0.pixel.telo.util.openAppReview
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -129,6 +135,10 @@ fun HomeScreen(
     localLabelEditorViewModel: LocalNumberLabelEditorViewModel,
     callReportViewModel: vip.mystery0.pixel.telo.viewmodel.CallReportViewModel,
     onNavigateToMyReports: () -> Unit,
+    onNavigateToDeveloperSupport: () -> Unit,
+    engagementPromptViewModel: EngagementPromptViewModel,
+    allowEngagementPrompt: Boolean,
+    homeUiObscured: Boolean,
     onNavigateToListRule: (UserListEntry) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToSourceSettings: () -> Unit,
@@ -160,6 +170,38 @@ fun HomeScreen(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<BlockedCall?>(null) }
+    val listState = rememberLazyListState()
+    val promptEntryToken by engagementPromptViewModel.entryToken.collectAsState()
+    val promptVisible by engagementPromptViewModel.visible.collectAsState()
+    LifecycleResumeEffect(allowEngagementPrompt) {
+        val entry = if (allowEngagementPrompt) engagementPromptViewModel.prepareEntry(true) else null
+        onPauseOrDispose { entry?.let(engagementPromptViewModel::suspendEntry) }
+    }
+    val promptAllowedNow = allowEngagementPrompt && !homeUiObscured && isDefaultApp &&
+        missingPermissions.isEmpty() && isDatabaseReady && unavailableSourceWarning.isEmpty() &&
+        selfHostedWarning == null && blockedCallItems.loadState.refresh is LoadState.NotLoading &&
+        retryQueryState is RetryQueryState.Idle && viewModel.quickAddCall == null &&
+        !showDeleteDialog && !localLabelEditorState.editorVisible && !localLabelEditorState.deleteConfirmationVisible
+    LaunchedEffect(promptEntryToken, promptAllowedNow) {
+        if (promptEntryToken > 0 && promptAllowedNow) engagementPromptViewModel.showIfEligible()
+    }
+    val showPrompt = promptVisible && promptAllowedNow
+    var promptWasInViewport by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(showPrompt, listState) {
+        if (showPrompt) {
+            // 字体变化重建时，异步资格恢复不能把原本可见的卡片留在保存的列表锚点之前。
+            // 只恢复用户刚才正在看的卡片；阅读后续记录时不主动滚动。
+            if (promptWasInViewport && listState.layoutInfo.visibleItemsInfo.none { it.key == "engagement_prompt" }) {
+                listState.scrollToItem(0)
+            }
+            snapshotFlow {
+                listState.layoutInfo.visibleItemsInfo.any { it.key == "engagement_prompt" && it.size > 0 }
+            }.collect {
+                promptWasInViewport = it
+                if (it) engagementPromptViewModel.confirmShown()
+            }
+        }
+    }
 
     LaunchedEffect(blockedCallItems) {
         snapshotFlow {
@@ -190,6 +232,7 @@ fun HomeScreen(
     }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
@@ -225,6 +268,29 @@ fun HomeScreen(
                 SelfHostedWarningCard(
                     warning = warning,
                     onClick = onNavigateToSelfHostedSettings,
+                )
+            }
+        }
+        // 保留稳定的列表槽位，避免字体变化重建时把已展示的卡片锚定到可视区之外。
+        item(key = "engagement_prompt") {
+            if (showPrompt) {
+                val reviewUnavailable = stringResource(R.string.support_review_unavailable)
+                EngagementPromptCard(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    onDismiss = {
+                        promptWasInViewport = false
+                        engagementPromptViewModel.dismissThen()
+                    },
+                    onReview = {
+                        promptWasInViewport = false
+                        engagementPromptViewModel.dismissThen {
+                            if (!context.openAppReview()) Toast.makeText(context, reviewUnavailable, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onSupport = {
+                        promptWasInViewport = false
+                        engagementPromptViewModel.dismissThen(onNavigateToDeveloperSupport)
+                    },
                 )
             }
         }

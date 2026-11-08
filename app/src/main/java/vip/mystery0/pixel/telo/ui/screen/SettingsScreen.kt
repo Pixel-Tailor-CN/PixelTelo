@@ -105,11 +105,13 @@ import java.time.LocalDateTime
 @Composable
 fun SettingsScreen(
     viewModel: SettingViewModel,
+    engagementPromptViewModel: vip.mystery0.pixel.telo.viewmodel.EngagementPromptViewModel,
     saveableStateHolder: SaveableStateHolder,
     settingsCategory: SettingsCategory?,
     onNavigateToCategory: (SettingsCategory) -> Unit,
     onNavigateToLocalNumberLabels: () -> Unit,
     onNavigateToMyReports: () -> Unit,
+    onNavigateToDeveloperSupport: () -> Unit,
 ) {
     val active = LocalNavigationActive.current
     val latestActive by rememberUpdatedState(active)
@@ -1096,7 +1098,7 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp),
                         ) {
-                            AboutPreferences(viewModel)
+                            AboutPreferences(viewModel, onNavigateToDeveloperSupport, engagementPromptViewModel)
                         }
                         if (viewModel.debugUnlocked) {
                             SettingsSection(title = stringResource(R.string.category_debug_mode)) {

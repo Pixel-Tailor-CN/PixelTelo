@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="support_developer">Support the developer</string>
+    <string name="support_review">Rate the app</string>
+    <string name="support_review_summary">Share your experience on Google Play</string>
+    <string name="support_developer_summary">Voluntarily support development and maintenance</string>
+    <string name="support_review_unavailable">Unable to open Google Play. Please try again later.</string>
+    <string name="support_unavailable">Support information is unavailable. Please try again later.</string>
+    <string name="support_paused">Developer support is currently paused</string>
+    <string name="support_website">Visit website</string>
+    <string name="support_website_unavailable">Unable to open the website. Please check your browser.</string>
+    <string name="support_voluntary">Supporting development and maintenance is voluntary and does not unlock any features or benefits. Verify the recipient before paying.</string>
+    <string name="support_alipay">Alipay</string>
+    <string name="support_wechat">WeChat</string>
+    <string name="support_qr_description">%1$s payment QR code. Tap to enlarge.</string>
+    <string name="support_enlarge">Enlarge QR code</string>
+    <string name="support_image_failed">Unable to load the QR code</string>
+    <string name="support_reload">Reload</string>
+    <string name="support_saving">Saving…</string>
+    <string name="support_save">Save QR code</string>
+    <string name="support_open_app">Open %1$s</string>
+    <string name="support_save_hint">Save the QR code, then select it from your album in the %1$s scanner.</string>
+    <string name="support_qr">Payment QR code</string>
+    <string name="support_saved">QR code saved to your photos</string>
+    <string name="support_save_failed">Unable to save. Please try again later.</string>
+    <string name="support_app_unavailable">Unable to open the payment app. Check that it is installed and available.</string>
+    <string name="engagement_title">Support ongoing Pixel Telo development</string>
+    <string name="engagement_dismiss">Dismiss support and rating suggestion</string>
+    <string name="engagement_summary">Share your experience or voluntarily support development.</string>
+</resources>

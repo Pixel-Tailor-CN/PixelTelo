@@ -16,6 +16,12 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- 仅为用户主动打开赞助渠道应用而查询两个固定包，不查询已安装应用列表。 -->
+    <queries>
+        <package android:name="com.eg.android.AlipayGphone" />
+        <package android:name="com.tencent.mm" />
+    </queries>
+
     <application
         android:name=".PixelTeloApplication"
         android:allowBackup="true"

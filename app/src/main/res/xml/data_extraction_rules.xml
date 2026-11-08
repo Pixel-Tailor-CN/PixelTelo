@@ -2,6 +2,7 @@
 <!-- Android 12+ 的云备份及设备迁移均不携带运行时凭据。 -->
 <data-extraction-rules>
     <cloud-backup>
+        <exclude domain="sharedpref" path="engagement_prompt.xml" />
         <exclude domain="sharedpref" path="self_hosted_credentials.xml" />
         <exclude domain="database" path="app-database" />
         <exclude domain="database" path="app-database-wal" />
@@ -9,6 +10,7 @@
         <exclude domain="database" path="app-database-journal" />
     </cloud-backup>
     <device-transfer>
+        <exclude domain="sharedpref" path="engagement_prompt.xml" />
         <exclude domain="sharedpref" path="self_hosted_credentials.xml" />
         <exclude domain="database" path="app-database" />
         <exclude domain="database" path="app-database-wal" />
