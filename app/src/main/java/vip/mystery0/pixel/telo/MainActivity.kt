@@ -6,6 +6,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import vip.mystery0.pixel.telo.ui.components.NavigationContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -161,6 +168,15 @@ class MainActivity : ComponentActivity() {
                     settingsCategory = null
                 }
 
+                val page = when {
+                    showPairingScreen -> AppPage.PAIRING
+                    showSelfHostedSettings -> AppPage.SELF_HOSTED
+                    showMyReportsScreen -> AppPage.MY_REPORTS
+                    showLocalNumberLabelsScreen -> AppPage.LOCAL_LABELS
+                    else -> AppPage.MAIN
+                }
+                val pageStateHolder = rememberSaveableStateHolder()
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
@@ -268,8 +284,10 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     bottomBar = {
-                        if (!showMyReportsScreen && !showLocalNumberLabelsScreen &&
-                            !showSelfHostedSettings && settingsCategory == null
+                        AnimatedVisibility(
+                            visible = page == AppPage.MAIN && settingsCategory == null,
+                            enter = expandVertically(tween(300)) + fadeIn(tween(210)),
+                            exit = shrinkVertically(tween(300)) + fadeOut(tween(150)),
                         ) {
                             val largeNavigationText = LocalDensity.current.fontScale > 1.3f
                             NavigationBar(
@@ -278,6 +296,7 @@ class MainActivity : ComponentActivity() {
                                 AppDestinations.entries.forEach { destination ->
                                     NavigationBarItem(
                                         selected = currentDestination == destination,
+                                        enabled = page == AppPage.MAIN && settingsCategory == null,
                                         onClick = {
                                             settingsCategory = null
                                             coroutineScope.launch {
@@ -305,128 +324,132 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                 ) { innerPadding ->
-                    if (showPairingScreen) {
-                        SelfHostedPairingScreen(
-                            viewModel = settingViewModel,
-                            initialEntry = pairingEntry,
-                            backRequest = pairingBackRequest,
-                            onBackToManagement = settingViewModel::returnToSelfHostedManagement,
-                            onTitleChange = { pairingTitle = it },
-                            modifier = Modifier.padding(innerPadding).fillMaxSize(),
-                        )
-                    } else if (showSelfHostedSettings) {
-                        SelfHostedManagementScreen(
-                            viewModel = settingViewModel,
-                            onPairing = { entry ->
-                                pairingEntry = entry
-                                pairingTitle = when (entry) {
-                                    SelfHostedPairingEntry.SCAN -> R.string.title_pairing_scan
-                                    SelfHostedPairingEntry.PASTE -> R.string.title_pairing_paste
-                                    SelfHostedPairingEntry.MANUAL -> R.string.title_pairing_manual
-                                }
-                                settingViewModel.beginSelfHostedPairing(
-                                    when (entry) {
-                                        SelfHostedPairingEntry.SCAN -> SelfHostedPairingPage.SCAN
-                                        SelfHostedPairingEntry.PASTE -> SelfHostedPairingPage.PASTE
-                                        SelfHostedPairingEntry.MANUAL -> SelfHostedPairingPage.MANUAL
-                                    },
+                    NavigationContent(
+                        targetState = page,
+                        depth = { it.depth },
+                        modifier = Modifier.padding(innerPadding),
+                    ) { displayedPage ->
+                        pageStateHolder.SaveableStateProvider(displayedPage.name) {
+                            if (displayedPage == AppPage.PAIRING) {
+                                SelfHostedPairingScreen(
+                                    viewModel = settingViewModel,
+                                    initialEntry = pairingEntry,
+                                    backRequest = pairingBackRequest,
+                                    onBackToManagement = settingViewModel::returnToSelfHostedManagement,
+                                    onTitleChange = { pairingTitle = it },
+                                    modifier = Modifier.fillMaxSize(),
                                 )
-                            },
-                            modifier = Modifier.padding(innerPadding).fillMaxSize(),
-                        )
-                    } else if (showMyReportsScreen) {
-                        MyReportsScreen(myReportsViewModel, Modifier.padding(innerPadding).fillMaxSize())
-                    } else if (showLocalNumberLabelsScreen) {
-                        LocalNumberLabelsScreen(
-                            viewModel = localNumberLabelsViewModel,
-                            editorViewModel = localNumberLabelEditorViewModel,
-                            onNavigateToCallHistory = {
-                                settingsCategory = null
-                                closeLocalNumberLabelsScreen()
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(AppDestinations.HOME.ordinal)
-                                }
-                            },
-                            modifier = Modifier
-                                .padding(innerPadding)
-                                .fillMaxSize(),
-                        )
-                    } else {
-                        HorizontalPager(
-                            state = pagerState,
-                            userScrollEnabled = settingsCategory == null,
-                            modifier = Modifier
-                                .padding(innerPadding)
-                                .fillMaxSize(),
-                            pageNestedScrollConnection = EmptyPagerNestedScrollConnection
-                        ) { page ->
-                            when (AppDestinations.entries[page]) {
-                                AppDestinations.HOME -> {
-                                    HomeScreen(
-                                        viewModel = homeViewModel,
-                                        listViewModel = listViewModel,
-                                        localLabelEditorViewModel = localNumberLabelEditorViewModel,
-                                        callReportViewModel = callReportViewModel,
-                                        onNavigateToMyReports = ::openMyReports,
-                                        onNavigateToListRule = { entry: UserListEntry ->
-                                            homeViewModel.closeQuickAdd()
-                                            listViewModel.navigateToEntry(entry)
-                                            coroutineScope.launch {
-                                                pagerState.animateScrollToPage(
-                                                    AppDestinations.LIST.ordinal,
-                                                )
-                                            }
-                                        },
-                                        onNavigateToSettings = {
-                                            settingsCategory = null
-                                            coroutineScope.launch {
-                                                pagerState.animateScrollToPage(
-                                                    AppDestinations.SETTINGS.ordinal
-                                                )
-                                            }
-                                        },
-                                        onNavigateToSourceSettings = {
-                                            // 先打开 source 设置 BottomSheet，再切换到设置页，
-                                            // 保证用户到达设置页时直接看到 source 配置
-                                            settingsCategory = SettingsCategory.ONLINE_QUERY
-                                            settingViewModel.openQuerySourceSettings()
-                                            coroutineScope.launch {
-                                                pagerState.animateScrollToPage(
-                                                    AppDestinations.SETTINGS.ordinal
-                                                )
-                                            }
-                                        },
-                                        onNavigateToSelfHostedSettings = {
-                                            // 打开自建服务管理入口后再切换页面，避免用户在设置中二次查找。
-                                            settingsCategory = SettingsCategory.ONLINE_QUERY
-                                            settingViewModel.openSelfHostedConfig()
-                                            coroutineScope.launch {
-                                                pagerState.animateScrollToPage(
-                                                    AppDestinations.SETTINGS.ordinal
-                                                )
-                                            }
-                                        },
-                                    )
-                                }
+                            } else if (displayedPage == AppPage.SELF_HOSTED) {
+                                SelfHostedManagementScreen(
+                                    viewModel = settingViewModel,
+                                    onPairing = { entry ->
+                                        pairingEntry = entry
+                                        pairingTitle = when (entry) {
+                                            SelfHostedPairingEntry.SCAN -> R.string.title_pairing_scan
+                                            SelfHostedPairingEntry.PASTE -> R.string.title_pairing_paste
+                                            SelfHostedPairingEntry.MANUAL -> R.string.title_pairing_manual
+                                        }
+                                        settingViewModel.beginSelfHostedPairing(
+                                            when (entry) {
+                                                SelfHostedPairingEntry.SCAN -> SelfHostedPairingPage.SCAN
+                                                SelfHostedPairingEntry.PASTE -> SelfHostedPairingPage.PASTE
+                                                SelfHostedPairingEntry.MANUAL -> SelfHostedPairingPage.MANUAL
+                                            },
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            } else if (displayedPage == AppPage.MY_REPORTS) {
+                                MyReportsScreen(myReportsViewModel, Modifier.fillMaxSize())
+                            } else if (displayedPage == AppPage.LOCAL_LABELS) {
+                                LocalNumberLabelsScreen(
+                                    viewModel = localNumberLabelsViewModel,
+                                    editorViewModel = localNumberLabelEditorViewModel,
+                                    onNavigateToCallHistory = {
+                                        settingsCategory = null
+                                        closeLocalNumberLabelsScreen()
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(AppDestinations.HOME.ordinal)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            } else {
+                                HorizontalPager(
+                                    state = pagerState,
+                                    userScrollEnabled = settingsCategory == null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    pageNestedScrollConnection = EmptyPagerNestedScrollConnection
+                                ) { page ->
+                                    when (AppDestinations.entries[page]) {
+                                        AppDestinations.HOME -> {
+                                            HomeScreen(
+                                                viewModel = homeViewModel,
+                                                listViewModel = listViewModel,
+                                                localLabelEditorViewModel = localNumberLabelEditorViewModel,
+                                                callReportViewModel = callReportViewModel,
+                                                onNavigateToMyReports = ::openMyReports,
+                                                onNavigateToListRule = { entry: UserListEntry ->
+                                                    homeViewModel.closeQuickAdd()
+                                                    listViewModel.navigateToEntry(entry)
+                                                    coroutineScope.launch {
+                                                        pagerState.animateScrollToPage(
+                                                            AppDestinations.LIST.ordinal,
+                                                        )
+                                                    }
+                                                },
+                                                onNavigateToSettings = {
+                                                    settingsCategory = null
+                                                    coroutineScope.launch {
+                                                        pagerState.animateScrollToPage(
+                                                            AppDestinations.SETTINGS.ordinal
+                                                        )
+                                                    }
+                                                },
+                                                onNavigateToSourceSettings = {
+                                                    // 先打开 source 设置 BottomSheet，再切换到设置页，
+                                                    // 保证用户到达设置页时直接看到 source 配置
+                                                    settingsCategory = SettingsCategory.ONLINE_QUERY
+                                                    settingViewModel.openQuerySourceSettings()
+                                                    coroutineScope.launch {
+                                                        pagerState.animateScrollToPage(
+                                                            AppDestinations.SETTINGS.ordinal
+                                                        )
+                                                    }
+                                                },
+                                                onNavigateToSelfHostedSettings = {
+                                                    // 打开自建服务管理入口后再切换页面，避免用户在设置中二次查找。
+                                                    settingsCategory = SettingsCategory.ONLINE_QUERY
+                                                    settingViewModel.openSelfHostedConfig()
+                                                    coroutineScope.launch {
+                                                        pagerState.animateScrollToPage(
+                                                            AppDestinations.SETTINGS.ordinal
+                                                        )
+                                                    }
+                                                },
+                                            )
+                                        }
 
-                                AppDestinations.LIST -> {
-                                    ListScreen(
-                                        viewModel = listViewModel,
-                                        parentPagerState = pagerState
-                                    )
-                                }
+                                        AppDestinations.LIST -> {
+                                            ListScreen(
+                                                viewModel = listViewModel,
+                                                parentPagerState = pagerState
+                                            )
+                                        }
 
-                                AppDestinations.SETTINGS -> {
-                                    SettingsScreen(
-                                        viewModel = settingViewModel,
-                                        saveableStateHolder = settingsSaveableStateHolder,
-                                        settingsCategory = settingsCategory,
-                                        onNavigateToCategory = { category -> settingsCategory = category },
-                                        onNavigateToMyReports = ::openMyReports,
-                                        onNavigateToLocalNumberLabels = {
-                                            showLocalNumberLabelsScreen = true
-                                        },
-                                    )
+                                        AppDestinations.SETTINGS -> {
+                                            SettingsScreen(
+                                                viewModel = settingViewModel,
+                                                saveableStateHolder = settingsSaveableStateHolder,
+                                                settingsCategory = settingsCategory,
+                                                onNavigateToCategory = { category -> settingsCategory = category },
+                                                onNavigateToMyReports = ::openMyReports,
+                                                onNavigateToLocalNumberLabels = {
+                                                    showLocalNumberLabelsScreen = true
+                                                },
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -464,4 +487,13 @@ enum class AppDestinations(val titleResId: Int, val labelResId: Int, val icon: I
     HOME(R.string.app_name, R.string.nav_home, Icons.Default.Home),
     LIST(R.string.nav_list, R.string.nav_list, Icons.AutoMirrored.Filled.Rule),
     SETTINGS(R.string.nav_settings, R.string.nav_settings, Icons.Default.Settings)
+}
+
+/** 底部 Tab 的切换交给 Pager；这里只描述覆盖其上的二级页面层级。 */
+private enum class AppPage(val depth: Int) {
+    MAIN(0),
+    MY_REPORTS(1),
+    LOCAL_LABELS(1),
+    SELF_HOSTED(2),
+    PAIRING(3),
 }

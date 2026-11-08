@@ -3,6 +3,7 @@ package vip.mystery0.pixel.telo.ui.screen.settings
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +48,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.ui.components.LocalNavigationActive
+import vip.mystery0.pixel.telo.ui.components.NavigationContent
 import vip.mystery0.pixel.telo.data.query.MAX_PAIRING_JSON_LENGTH
 import vip.mystery0.pixel.telo.data.query.SelfHostedPairingError
 import vip.mystery0.pixel.telo.data.query.SelfHostedPairingResult
@@ -69,6 +72,7 @@ fun SelfHostedPairingScreen(
     onTitleChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val active = LocalNavigationActive.current
     val context = LocalContext.current
     val initialDraft = remember {
         viewModel.selfHostedDraft ?: SelfHostedDraftUiState()
@@ -279,9 +283,9 @@ fun SelfHostedPairingScreen(
             source = viewModel.selfHostedPairingOrigin
         }
     }
-    LaunchedEffect(step) { onTitleChange(titleFor(step)) }
-    LaunchedEffect(backRequest) {
-        if (backRequest != handledBackRequest) {
+    LaunchedEffect(step, active) { if (active) onTitleChange(titleFor(step)) }
+    LaunchedEffect(backRequest, active) {
+        if (active && backRequest != handledBackRequest) {
             handledBackRequest = backRequest
             requestBack()
         }
@@ -293,345 +297,356 @@ fun SelfHostedPairingScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        if (step == SelfHostedPairingPage.SCAN) {
-            val session = scanSession
-            androidx.compose.runtime.key(session) {
-                SelfHostedQrScanner(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    onDecoded = { value ->
-                        if (step == SelfHostedPairingPage.SCAN && scanSession == session) {
-                            parseInput(value, SelfHostedPairingOrigin.SCAN)
-                        }
-                    },
-                    onFailure = { error ->
-                        if (step == SelfHostedPairingPage.SCAN && scanSession == session) {
-                            scanError = error
-                        }
-                    },
-                    onRetryCamera = {
-                        if (step == SelfHostedPairingPage.SCAN && scanSession == session) {
-                            scanError = null
-                            scanSession++
-                        }
-                    },
-                )
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-            ) {
-                when (step) {
-                    SelfHostedPairingPage.MANUAL -> {
-                        Text(
-                            text = stringResource(R.string.msg_pairing_manual_hint),
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                        SelfHostedEditor(
-                            draft = draft,
-                            tokenValue = tokenInput,
-                            enabled = !busy,
-                            fieldError = fieldError,
-                            onDraftChange = {
-                                draft = it
-                                fieldError = null
-                                inputError = null
-                                viewModel.updateSelfHostedPairingDraft(it)
-                                viewModel.clearSelfHostedValidationError()
-                            },
-                            onTokenChange = {
-                                tokenInput = it
-                                fieldError = null
-                                inputError = null
-                                viewModel.clearSelfHostedValidationError()
-                            },
-                        )
-                        inputError?.let {
-                            Text(
-                                stringResource(it),
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = MaterialTheme.colorScheme.error,
+    NavigationContent(
+        targetState = step,
+        depth = { if (it == SelfHostedPairingPage.CONFIRM) 1 else 0 },
+        modifier = modifier,
+    ) { displayedStep ->
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (displayedStep == SelfHostedPairingPage.SCAN) {
+                val session = scanSession
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    // 扫码页离场立即释放相机，不等待动画结束；旧回调也不得改变当前步骤。
+                    if (LocalNavigationActive.current) {
+                        androidx.compose.runtime.key(session) {
+                            SelfHostedQrScanner(
+                                modifier = Modifier.fillMaxSize(),
+                                onDecoded = { value ->
+                                    if (active && step == SelfHostedPairingPage.SCAN && scanSession == session) {
+                                        parseInput(value, SelfHostedPairingOrigin.SCAN)
+                                    }
+                                },
+                                onFailure = { error ->
+                                    if (active && step == SelfHostedPairingPage.SCAN && scanSession == session) {
+                                        scanError = error
+                                    }
+                                },
+                                onRetryCamera = {
+                                    if (active && step == SelfHostedPairingPage.SCAN && scanSession == session) {
+                                        scanError = null
+                                        scanSession++
+                                    }
+                                },
                             )
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    navigateToPage(SelfHostedPairingPage.SCAN, SelfHostedPairingOrigin.SCAN)
-                                },
-                                enabled = !busy,
-                                modifier = Modifier.weight(1f),
-                            ) { Text(stringResource(R.string.action_pairing_scan)) }
-                            TextButton(
-                                onClick = {
-                                    navigateToPage(SelfHostedPairingPage.PASTE, SelfHostedPairingOrigin.PASTE)
-                                },
-                                enabled = !busy,
-                                modifier = Modifier.weight(1f),
-                            ) { Text(stringResource(R.string.action_pairing_paste)) }
-                        }
                     }
-                    SelfHostedPairingPage.PASTE -> {
-                        val pasteLabel = stringResource(R.string.action_pairing_paste)
-                        val pasteFocusRequester = remember { FocusRequester() }
-                        val pasteError = inputError?.let { stringResource(it) }
-                        SettingsSection(title = stringResource(R.string.section_pairing_connection)) {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(stringResource(R.string.msg_pairing_paste_hint))
-                                OutlinedTextField(
-                                    value = pasteInput,
-                                    onValueChange = {
-                                        if (it.text.length <= MAX_PAIRING_JSON_LENGTH) {
-                                            pasteInput = it
-                                            inputError = null
-                                        } else {
-                                            inputError = R.string.error_pairing_too_large
-                                        }
-                                    },
-                                    label = { Text(pasteLabel) },
-                                    supportingText = pasteError?.let { message ->
-                                        { Text(message, color = MaterialTheme.colorScheme.error) }
-                                    },
-                                    isError = inputError != null,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Password,
-                                        autoCorrectEnabled = false,
-                                    ),
-                                    minLines = 4,
-                                    maxLines = 8,
-                                    enabled = !busy,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .focusRequester(pasteFocusRequester)
-                                        .clearAndSetSemantics {
-                                            contentDescription = pasteLabel
-                                            password()
-                                            isEditable = !busy
-                                            if (pasteError != null) error(pasteError)
-                                            if (!busy) {
-                                                onClick {
-                                                    pasteFocusRequester.requestFocus()
-                                                    true
-                                                }
-                                            } else {
-                                                disabled()
-                                            }
-                                        },
-                                )
-                                OutlinedButton(
-                                    onClick = ::pasteFromClipboard,
-                                    enabled = !busy,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text(stringResource(R.string.action_pairing_clipboard)) }
-                            }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    navigateToPage(SelfHostedPairingPage.SCAN, SelfHostedPairingOrigin.SCAN)
-                                },
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    when (displayedStep) {
+                        SelfHostedPairingPage.MANUAL -> {
+                            Text(
+                                text = stringResource(R.string.msg_pairing_manual_hint),
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                            SelfHostedEditor(
+                                draft = draft,
+                                tokenValue = tokenInput,
                                 enabled = !busy,
-                                modifier = Modifier.weight(1f),
-                            ) { Text(stringResource(R.string.action_pairing_scan)) }
-                            TextButton(
-                                onClick = {
-                                    navigateToPage(SelfHostedPairingPage.MANUAL, SelfHostedPairingOrigin.MANUAL)
+                                fieldError = fieldError,
+                                onDraftChange = {
+                                    draft = it
+                                    fieldError = null
+                                    inputError = null
+                                    viewModel.updateSelfHostedPairingDraft(it)
+                                    viewModel.clearSelfHostedValidationError()
                                 },
-                                enabled = !busy,
-                                modifier = Modifier.weight(1f),
-                            ) { Text(stringResource(R.string.action_pairing_manual)) }
-                        }
-                    }
-                    SelfHostedPairingPage.CONFIRM -> {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Text(stringResource(R.string.msg_pairing_confirm))
-                            val preview = candidate
-                            val tlsMode = preview?.tlsMode ?: draft.tlsMode
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Text(
-                                        stringResource(
-                                            R.string.label_pairing_address,
-                                            preview?.baseUrl ?: draft.baseUrl,
-                                        ),
-                                    )
-                                    Text(
-                                        stringResource(
-                                            R.string.label_pairing_tls,
-                                            stringResource(
-                                                if (tlsMode == SelfHostedTlsMode.SYSTEM) {
-                                                    R.string.tls_mode_system
-                                                } else {
-                                                    R.string.tls_mode_spki_pin
-                                                },
-                                            ),
-                                        ),
-                                    )
-                                    if (tlsMode == SelfHostedTlsMode.SPKI_PIN) {
-                                        Text(
-                                            stringResource(
-                                                R.string.label_pairing_pin,
-                                                preview?.spkiPin ?: draft.spkiPin,
-                                            ),
-                                        )
-                                    }
-                                    if (preview != null) {
-                                        Text(stringResource(R.string.label_pairing_token_hidden))
-                                    }
-                                }
-                            }
-                            viewModel.selfHostedValidationError?.let {
+                                onTokenChange = {
+                                    tokenInput = it
+                                    fieldError = null
+                                    inputError = null
+                                    viewModel.clearSelfHostedValidationError()
+                                },
+                            )
+                            inputError?.let {
                                 Text(
-                                    stringResource(it.messageRes()),
+                                    stringResource(it),
+                                    modifier = Modifier.padding(horizontal = 16.dp),
                                     color = MaterialTheme.colorScheme.error,
                                 )
                             }
-                            if (retryRequired) {
-                                Text(stringResource(R.string.msg_pairing_retry_token))
-                                RetryTokenField(
-                                    value = tokenInput,
-                                    enabled = !busy,
-                                    errorMessage = viewModel.selfHostedValidationError
-                                        ?.messageRes()?.let { stringResource(it) },
-                                    onValueChange = {
-                                        tokenInput = it
-                                        viewModel.clearSelfHostedValidationError()
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        navigateToPage(SelfHostedPairingPage.SCAN, SelfHostedPairingOrigin.SCAN)
                                     },
-                                )
-                            }
-                            if (busy) {
-                                CircularProgressIndicator()
-                                Text(stringResource(R.string.msg_self_hosted_validating))
+                                    enabled = !busy,
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(stringResource(R.string.action_pairing_scan)) }
+                                TextButton(
+                                    onClick = {
+                                        navigateToPage(SelfHostedPairingPage.PASTE, SelfHostedPairingOrigin.PASTE)
+                                    },
+                                    enabled = !busy,
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(stringResource(R.string.action_pairing_paste)) }
                             }
                         }
-                    }
-                    SelfHostedPairingPage.SCAN -> Unit
-                }
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .imePadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            when (step) {
-                SelfHostedPairingPage.MANUAL -> {
-                    Button(
-                        onClick = {
-                            when (val result = viewModel.prepareManualSelfHostedPairing(draft, tokenInput.text)) {
-                                is SelfHostedPairingResult.Failure -> {
-                                    if (result.error == SelfHostedPairingError.TOO_LARGE) {
-                                        fieldError = null
-                                        inputError = R.string.error_pairing_too_large
-                                    } else {
-                                        inputError = null
-                                        fieldError = result.error
+                        SelfHostedPairingPage.PASTE -> {
+                            val pasteLabel = stringResource(R.string.action_pairing_paste)
+                            val pasteFocusRequester = remember { FocusRequester() }
+                            val pasteError = inputError?.let { stringResource(it) }
+                            SettingsSection(title = stringResource(R.string.section_pairing_connection)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(stringResource(R.string.msg_pairing_paste_hint))
+                                    OutlinedTextField(
+                                        value = pasteInput,
+                                        onValueChange = {
+                                            if (it.text.length <= MAX_PAIRING_JSON_LENGTH) {
+                                                pasteInput = it
+                                                inputError = null
+                                            } else {
+                                                inputError = R.string.error_pairing_too_large
+                                            }
+                                        },
+                                        label = { Text(pasteLabel) },
+                                        supportingText = pasteError?.let { message ->
+                                            { Text(message, color = MaterialTheme.colorScheme.error) }
+                                        },
+                                        isError = inputError != null,
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        keyboardOptions = KeyboardOptions(
+                                            keyboardType = KeyboardType.Password,
+                                            autoCorrectEnabled = false,
+                                        ),
+                                        minLines = 4,
+                                        maxLines = 8,
+                                        enabled = !busy,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .focusRequester(pasteFocusRequester)
+                                            .clearAndSetSemantics {
+                                                contentDescription = pasteLabel
+                                                password()
+                                                isEditable = !busy
+                                                if (pasteError != null) error(pasteError)
+                                                if (!busy) {
+                                                    onClick {
+                                                        pasteFocusRequester.requestFocus()
+                                                        true
+                                                    }
+                                                } else {
+                                                    disabled()
+                                                }
+                                            },
+                                    )
+                                    OutlinedButton(
+                                        onClick = ::pasteFromClipboard,
+                                        enabled = !busy,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) { Text(stringResource(R.string.action_pairing_clipboard)) }
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        navigateToPage(SelfHostedPairingPage.SCAN, SelfHostedPairingOrigin.SCAN)
+                                    },
+                                    enabled = !busy,
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(stringResource(R.string.action_pairing_scan)) }
+                                TextButton(
+                                    onClick = {
+                                        navigateToPage(SelfHostedPairingPage.MANUAL, SelfHostedPairingOrigin.MANUAL)
+                                    },
+                                    enabled = !busy,
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(stringResource(R.string.action_pairing_manual)) }
+                            }
+                        }
+                        SelfHostedPairingPage.CONFIRM -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Text(stringResource(R.string.msg_pairing_confirm))
+                                val preview = candidate
+                                val tlsMode = preview?.tlsMode ?: draft.tlsMode
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            stringResource(
+                                                R.string.label_pairing_address,
+                                                preview?.baseUrl ?: draft.baseUrl,
+                                            ),
+                                        )
+                                        Text(
+                                            stringResource(
+                                                R.string.label_pairing_tls,
+                                                stringResource(
+                                                    if (tlsMode == SelfHostedTlsMode.SYSTEM) {
+                                                        R.string.tls_mode_system
+                                                    } else {
+                                                        R.string.tls_mode_spki_pin
+                                                    },
+                                                ),
+                                            ),
+                                        )
+                                        if (tlsMode == SelfHostedTlsMode.SPKI_PIN) {
+                                            Text(
+                                                stringResource(
+                                                    R.string.label_pairing_pin,
+                                                    preview?.spkiPin ?: draft.spkiPin,
+                                                ),
+                                            )
+                                        }
+                                        if (preview != null) {
+                                            Text(stringResource(R.string.label_pairing_token_hidden))
+                                        }
                                     }
                                 }
-                                is SelfHostedPairingResult.Success -> {
-                                    acceptCandidate(result, SelfHostedPairingOrigin.MANUAL)
+                                viewModel.selfHostedValidationError?.let {
+                                    Text(
+                                        stringResource(it.messageRes()),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                                if (retryRequired) {
+                                    Text(stringResource(R.string.msg_pairing_retry_token))
+                                    RetryTokenField(
+                                        value = tokenInput,
+                                        enabled = !busy,
+                                        errorMessage = viewModel.selfHostedValidationError
+                                            ?.messageRes()?.let { stringResource(it) },
+                                        onValueChange = {
+                                            tokenInput = it
+                                            viewModel.clearSelfHostedValidationError()
+                                        },
+                                    )
+                                }
+                                if (busy) {
+                                    CircularProgressIndicator()
+                                    Text(stringResource(R.string.msg_self_hosted_validating))
                                 }
                             }
-                        },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.action_pairing_next)) }
+                        }
+                        SelfHostedPairingPage.SCAN -> Unit
+                    }
                 }
-                SelfHostedPairingPage.PASTE -> {
-                    Button(
-                        onClick = { parseInput(pasteInput.text, SelfHostedPairingOrigin.PASTE) },
-                        enabled = !busy && pasteInput.text.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.action_pairing_next)) }
-                }
-                SelfHostedPairingPage.SCAN -> {
-                    scanError?.let {
-                        Text(stringResource(it), color = MaterialTheme.colorScheme.error)
-                        OutlinedButton(
-                            onClick = { scanError = null; scanSession++ },
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                when (displayedStep) {
+                    SelfHostedPairingPage.MANUAL -> {
+                        Button(
+                            onClick = {
+                                when (val result = viewModel.prepareManualSelfHostedPairing(draft, tokenInput.text)) {
+                                    is SelfHostedPairingResult.Failure -> {
+                                        if (result.error == SelfHostedPairingError.TOO_LARGE) {
+                                            fieldError = null
+                                            inputError = R.string.error_pairing_too_large
+                                        } else {
+                                            inputError = null
+                                            fieldError = result.error
+                                        }
+                                    }
+                                    is SelfHostedPairingResult.Success -> {
+                                        acceptCandidate(result, SelfHostedPairingOrigin.MANUAL)
+                                    }
+                                }
+                            },
+                            enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text(stringResource(R.string.action_pairing_retry_scan)) }
+                        ) { Text(stringResource(R.string.action_pairing_next)) }
                     }
-                    OutlinedButton(
-                        onClick = {
-                            navigateToPage(SelfHostedPairingPage.PASTE, SelfHostedPairingOrigin.PASTE)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.action_pairing_paste)) }
-                    TextButton(
-                        onClick = {
-                            navigateToPage(
-                                SelfHostedPairingPage.MANUAL,
-                                SelfHostedPairingOrigin.MANUAL,
+                    SelfHostedPairingPage.PASTE -> {
+                        Button(
+                            onClick = { parseInput(pasteInput.text, SelfHostedPairingOrigin.PASTE) },
+                            enabled = !busy && pasteInput.text.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.action_pairing_next)) }
+                    }
+                    SelfHostedPairingPage.SCAN -> {
+                        scanError?.let {
+                            Text(stringResource(it), color = MaterialTheme.colorScheme.error)
+                            OutlinedButton(
+                                onClick = { scanError = null; scanSession++ },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text(stringResource(R.string.action_pairing_retry_scan)) }
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                navigateToPage(SelfHostedPairingPage.PASTE, SelfHostedPairingOrigin.PASTE)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.action_pairing_paste)) }
+                        TextButton(
+                            onClick = {
+                                navigateToPage(
+                                    SelfHostedPairingPage.MANUAL,
+                                    SelfHostedPairingOrigin.MANUAL,
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.action_pairing_manual)) }
+                    }
+                    SelfHostedPairingPage.CONFIRM -> {
+                        Button(
+                            onClick = {
+                                val ready = candidate
+                                val submitted = ready?.token?.copyOf() ?: tokenInput.text.toCharArray()
+                                if (submitted.isNotEmpty()) {
+                                    ready?.close()
+                                    candidate = null
+                                    tokenInput = TextFieldValue()
+                                    viewModel.updateSelfHostedPairingDraft(draft)
+                                    viewModel.validateAndEnableSelfHosted(draft, submitted)
+                                }
+                            },
+                            enabled = !busy && (candidate != null || tokenInput.text.isNotEmpty()),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (retryRequired) R.string.action_revalidate_and_enable_self_hosted
+                                    else R.string.action_test_and_enable_self_hosted,
+                                ),
                             )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.action_pairing_manual)) }
-                }
-                SelfHostedPairingPage.CONFIRM -> {
-                    Button(
-                        onClick = {
-                            val ready = candidate
-                            val submitted = ready?.token?.copyOf() ?: tokenInput.text.toCharArray()
-                            if (submitted.isNotEmpty()) {
-                                ready?.close()
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                candidate?.let { ready ->
+                                    tokenInput = TextFieldValue(ready.token.concatToString())
+                                    ready.close()
+                                }
                                 candidate = null
-                                tokenInput = TextFieldValue()
+                                source = SelfHostedPairingOrigin.MANUAL
+                                fieldError = null
                                 viewModel.updateSelfHostedPairingDraft(draft)
-                                viewModel.validateAndEnableSelfHosted(draft, submitted)
-                            }
-                        },
-                        enabled = !busy && (candidate != null || tokenInput.text.isNotEmpty()),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            stringResource(
-                                if (retryRequired) R.string.action_revalidate_and_enable_self_hosted
-                                else R.string.action_test_and_enable_self_hosted,
-                            ),
-                        )
+                                viewModel.clearSelfHostedTokenRetryRequired()
+                                viewModel.clearSelfHostedValidationError()
+                                step = SelfHostedPairingPage.MANUAL
+                                viewModel.setSelfHostedPairingPage(step)
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(stringResource(R.string.action_modify_self_hosted)) }
                     }
-                    OutlinedButton(
-                        onClick = {
-                            candidate?.let { ready ->
-                                tokenInput = TextFieldValue(ready.token.concatToString())
-                                ready.close()
-                            }
-                            candidate = null
-                            source = SelfHostedPairingOrigin.MANUAL
-                            fieldError = null
-                            viewModel.updateSelfHostedPairingDraft(draft)
-                            viewModel.clearSelfHostedTokenRetryRequired()
-                            viewModel.clearSelfHostedValidationError()
-                            step = SelfHostedPairingPage.MANUAL
-                            viewModel.setSelfHostedPairingPage(step)
-                        },
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.action_modify_self_hosted)) }
                 }
             }
         }
