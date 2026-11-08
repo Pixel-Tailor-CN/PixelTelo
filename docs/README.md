@@ -18,7 +18,7 @@
 
 * GitHub Actions Release：
   [设计](plans/2026-02-27-github-actions-release-design.md) ·
-  [实施](plans/2026-02-27-github-actions-release.md)
+  [实施记录](plans/2026-02-27-github-actions-release.md)（现为本仓发布，旧跨仓方案已停用）
 * 用户黑白名单：
   [设计](plans/2026-03-07-user-blackwhitelist-design.md) ·
   [实施](plans/2026-03-07-user-blackwhitelist-impl.md)
@@ -57,6 +57,12 @@
 * 实时查询服务器配置与扫码交互：
   [设计](plans/2026-10-18-query-server-ui-design.md) ·
   [实施计划](plans/2026-10-18-query-server-ui-implementation.md)（已实现；验证边界见计划）
+
+* 全仓审查问题修复：
+  [实施计划](plans/2026-11-08-audit-cleanup.md)（来电响应预算、离线库安全更新、持久下载及遗留清理）
+
+早期黑白名单、source 反馈、记录信息增强、本地号码标签及国际号码的实施计划已精简为结果与决策索引。
+重复源码、固定设备编号、本机临时报告路径和一次性现场输出不再保留；完整历史仍可由 Git 追溯。
 
 ### 架构与技术 (`architecture/`)
 

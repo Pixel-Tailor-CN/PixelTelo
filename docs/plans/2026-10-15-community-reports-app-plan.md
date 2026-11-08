@@ -38,7 +38,7 @@
 - 现有查询复用窗口最多 60 秒；旧历史不能成为实时拦截依据，本机撤回应失效缓存并阻止迟到结果回灌。
 - 公开文档不包含私有仓库地址、内部结构、具体票数阈值或风控参数；日志不得包含号码、设备 ID、Token、请求／响应正文或不可信异常消息。
 - 中文文档、注释和 KDoc，英文日志；中英文 UI 资源齐全。不新增权限、不无关升级依赖。
-- 默认不创建 `src/test`，不运行 `test`、`testDebugUnitTest` 或包含单元测试的 `check`。构建使用 `D:\StudioProjects\PixelTelo` 下的 `.\gradlew.bat`。
+- 默认不创建 `src/test`，不运行 `test`、`testDebugUnitTest` 或包含单元测试的 `check`。Windows 构建使用仓库根目录的 `.\gradlew.bat`。
 - 无另行授权不卸载应用、不清数据、不修改正式服务器数据、不提交、不推送、不发布。
 
 ## Review Focus

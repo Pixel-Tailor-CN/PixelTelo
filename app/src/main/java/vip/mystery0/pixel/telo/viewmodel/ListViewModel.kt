@@ -441,11 +441,4 @@ class ListViewModel : ViewModel(), KoinComponent {
         }
     }
 
-    /**
-     * 从首页快捷添加，由 Repository 校验号码并处理重复。
-     * @return true 表示成功插入，false 表示输入无效或已存在
-     */
-    suspend fun quickAdd(phoneNumber: String, listType: ListType): Boolean {
-        return userListRepository.add(phoneNumber, false, listType, null)
-    }
 }

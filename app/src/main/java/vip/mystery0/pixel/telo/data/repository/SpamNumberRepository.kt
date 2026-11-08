@@ -10,11 +10,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
@@ -60,6 +63,7 @@ class SpamNumberRepository : KoinComponent {
     companion object {
         private const val TAG = "SpamNumberRepository"
         private const val HUB_IDENTITY_SOURCE = "pixel_text_hub"
+        private const val LOCAL_LOOKUP_TIMEOUT_MS = 3_000L
         private const val QUERY_REUSE_TTL_MS = 60_000L
         private const val QUERY_REUSE_MAX_ENTRIES = 32
     }
@@ -72,6 +76,8 @@ class SpamNumberRepository : KoinComponent {
     private val communityEpoch: CommunityQueryEpoch by inject()
     private val userListRepository: UserListRepository by inject()
     private val contactRepository: ContactRepository by inject()
+    // 独立等待可让调用方按时返回；最多四个本地任务，避免非协作 Binder/SQLite 占满线程。
+    private val localLookupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(4))
     private val queryReuseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val queryReuseMutex = Mutex()
     private val completedNetworkQueries = LinkedHashMap<QueryReuseKey, CachedNetworkAttempt>(
@@ -100,107 +106,22 @@ class SpamNumberRepository : KoinComponent {
     }
 
     suspend fun checkSpam(phoneNumber: String, forceNetworkQuery: Boolean = false): CheckResult {
-        val start = System.currentTimeMillis()
+        val startedAt = SystemClock.elapsedRealtime()
         val phone = PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
-        var localCost: Long
-        var networkCost: Long
-
-        // 通讯录优先于所有黑白名单及数据源，包括用户强制黑名单；姓名仍只在页面动态解析。
-        if (contactRepository.isContact(phoneNumber)) {
-            Log.i(TAG, "Contact found, allowing call")
-            return CheckResult(
-                shouldBlock = false,
-                label = "",
-                resultType = ResultType.PASS,
-                localCost = System.currentTimeMillis() - start,
-                networkCost = 0,
-            )
-        }
-
-        val whiteMatch = userListRepository.findWhiteListMatch(phoneNumber)
-        if (whiteMatch != null) {
-            Log.i(TAG, "White list hit")
-            return CheckResult(false, whiteMatch.remark ?: "", ResultType.WHITE_LIST, 0, 0)
-        }
-
-        val blackMatch = userListRepository.findBlackListMatch(phoneNumber)
-        if (blackMatch != null) {
-            Log.i(TAG, "Black list hit")
-            return CheckResult(
-                shouldBlock = true,
-                label = blackMatch.remark ?: "",
-                resultType = ResultType.BLACK_LIST,
-                localCost = 0,
-                networkCost = 0,
-                forceBlock = blackMatch.forceBlock
-            )
-        }
-
-        if (PhoneNumberRuleMatcher.isExplicitInternational(phoneNumber)) {
-            Log.i(TAG, "Explicit international number skipped")
-            return CheckResult(
-                shouldBlock = false,
-                label = "",
-                resultType = ResultType.PASS_BUT_NOTIFY,
-                localCost = System.currentTimeMillis() - start,
-                networkCost = 0,
-                locationLookupAttempted = false,
-            )
-        }
-
-        val db = syncRepository.getDb()
-        if (db != null) {
-            val spamNumber = withContext(Dispatchers.IO) {
-                try {
-                    db.spamNumberDao().search(phone)
-                } catch (_: Exception) {
-                    Log.w(TAG, "Local lookup failed")
-                    null
-                } finally {
-                    db.close()
-                }
+        val localAttempt = try {
+            runLocalStage(LOCAL_LOOKUP_TIMEOUT_MS - (SystemClock.elapsedRealtime() - startedAt)) {
+                checkLocalSpam(phoneNumber, phone)
             }
-            localCost = System.currentTimeMillis() - start
-            if (spamNumber != null) {
-                val tagBlackMatch = userListRepository.findBlackListTagMatch(spamNumber.tag)
-                if (tagBlackMatch != null) {
-                    Log.i(TAG, "Black list tag hit")
-                    return CheckResult(
-                        shouldBlock = true,
-                        label = spamNumber.tag,
-                        resultType = ResultType.BLACK_LIST,
-                        localCost = localCost,
-                        networkCost = 0,
-                        forceBlock = tagBlackMatch.forceBlock
-                    )
-                }
-
-                val tagWhiteMatch = userListRepository.findWhiteListTagMatch(spamNumber.tag)
-                if (tagWhiteMatch != null) {
-                    Log.i(TAG, "White list tag hit")
-                    return CheckResult(false, spamNumber.tag, ResultType.WHITE_LIST, localCost, 0)
-                }
-                Log.i(TAG, "Local hit: cost=${localCost}ms")
-                // Hub 机构资料不是骚扰标记；沿用离线命中即返回，并保留前面的用户名单优先级。
-                if (spamNumber.source == HUB_IDENTITY_SOURCE) {
-                    return CheckResult(
-                        shouldBlock = false,
-                        label = spamNumber.tag,
-                        resultType = ResultType.PASS_BUT_NOTIFY,
-                        localCost = localCost,
-                        networkCost = 0,
-                        isIdentityProfile = true,
-                    )
-                }
-                return CheckResult(true, spamNumber.tag, ResultType.INTERCEPT, localCost, 0)
-            }
-        } else {
-            localCost = System.currentTimeMillis() - start
+        } finally {
+            val cost = SystemClock.elapsedRealtime() - startedAt
+            if (cost > 100L) Log.w(TAG, "Local lookup too slow: ${cost}ms")
         }
-
-        if (localCost > 100) {
-            Log.w(TAG, "Local lookup too slow: ${localCost}ms")
+        val localCost = SystemClock.elapsedRealtime() - startedAt
+        if (localAttempt == null) {
+            Log.w(TAG, "Local lookup timed out: cost=${localCost}ms")
+            return CheckResult(false, "", ResultType.LOCAL_TIMEOUT, localCost, 0)
         }
+        localAttempt.value?.let { return it.copy(localCost = localCost) }
 
         val noNetworkQuery = prefs.getBoolean("no_network_query", false)
         if (noNetworkQuery && !forceNetworkQuery) {
@@ -208,6 +129,7 @@ class SpamNumberRepository : KoinComponent {
             return CheckResult(false, "", ResultType.PASS_BUT_NOTIFY, localCost, 0)
         }
 
+        var networkCost: Long
         var networkAttempt: NetworkAttempt? = null
         return withContext(Dispatchers.IO) {
             val backendResponse = try {
@@ -256,10 +178,96 @@ class SpamNumberRepository : KoinComponent {
                 )
             }
 
-            // 名单与结果组装属于本地后处理，不应被误记为服务端响应错误。
-            buildNetworkResult(backendResponse, localCost, networkCost)
+            // 联网后的归属地/标签规则仍是本地工作，共用剩余本地预算，不能无限等待。
+            val postStartedAt = SystemClock.elapsedRealtime()
+            val completed = try {
+                runLocalStage(LOCAL_LOOKUP_TIMEOUT_MS - localCost) {
+                    buildNetworkResult(backendResponse, localCost, networkCost)
+                }
+            } finally {
+                val cost = SystemClock.elapsedRealtime() - postStartedAt
+                if (localCost + cost > 100L) {
+                    Log.w(TAG, "Local lookup too slow: ${localCost + cost}ms")
+                }
+            }
+            val totalLocalCost = localCost + SystemClock.elapsedRealtime() - postStartedAt
+            completed?.value?.copy(localCost = totalLocalCost)
+                ?: CheckResult(false, "", ResultType.LOCAL_TIMEOUT, totalLocalCost, networkCost)
         }
     }
+
+    /** 本地阶段只返回已确定的结果；null 表示门禁均通过，调用方才可考虑联网。 */
+    private suspend fun checkLocalSpam(phoneNumber: String, phone: String): CheckResult? {
+        // 通讯录、号码白名单、号码黑名单和国际门禁沿用既有顺序。
+        if (contactRepository.isContact(phoneNumber)) {
+            Log.i(TAG, "Contact found, allowing call")
+            return CheckResult(false, "", ResultType.PASS, 0, 0)
+        }
+        currentCoroutineContext().ensureActive()
+        val whiteMatch = userListRepository.findWhiteListMatch(phoneNumber)
+        if (whiteMatch != null) {
+            Log.i(TAG, "White list hit")
+            return CheckResult(false, whiteMatch.remark.orEmpty(), ResultType.WHITE_LIST, 0, 0)
+        }
+        currentCoroutineContext().ensureActive()
+        val blackMatch = userListRepository.findBlackListMatch(phoneNumber)
+        if (blackMatch != null) {
+            Log.i(TAG, "Black list hit")
+            return CheckResult(true, blackMatch.remark.orEmpty(), ResultType.BLACK_LIST, 0, 0,
+                forceBlock = blackMatch.forceBlock)
+        }
+        currentCoroutineContext().ensureActive()
+        if (PhoneNumberRuleMatcher.isExplicitInternational(phoneNumber)) {
+            Log.i(TAG, "Explicit international number skipped")
+            return CheckResult(false, "", ResultType.PASS_BUT_NOTIFY, 0, 0)
+        }
+        val spamNumber = try {
+            syncRepository.lookupSpamNumber(phone)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            Log.w(TAG, "Local lookup failed")
+            null
+        } ?: return null
+        currentCoroutineContext().ensureActive()
+        val tagBlackMatch = userListRepository.findBlackListTagMatch(spamNumber.tag)
+        if (tagBlackMatch != null) {
+            Log.i(TAG, "Black list tag hit")
+            return CheckResult(true, spamNumber.tag, ResultType.BLACK_LIST, 0, 0,
+                forceBlock = tagBlackMatch.forceBlock)
+        }
+        currentCoroutineContext().ensureActive()
+        val tagWhiteMatch = userListRepository.findWhiteListTagMatch(spamNumber.tag)
+        if (tagWhiteMatch != null) {
+            Log.i(TAG, "White list tag hit")
+            return CheckResult(false, spamNumber.tag, ResultType.WHITE_LIST, 0, 0)
+        }
+        Log.i(TAG, "Local hit")
+        if (spamNumber.source == HUB_IDENTITY_SOURCE) {
+            return CheckResult(false, spamNumber.tag, ResultType.PASS_BUT_NOTIFY, 0, 0,
+                isIdentityProfile = true)
+        }
+        return CheckResult(true, spamNumber.tag, ResultType.INTERCEPT, 0, 0)
+    }
+
+    /** 超时只取消独立本地任务，不等待其同步调用结束，也不消费迟到结果。 */
+    private suspend fun <T> runLocalStage(
+        budgetMs: Long,
+        block: suspend () -> T,
+    ): LocalStageCompleted<T>? {
+        if (budgetMs <= 0L) return null
+        val startedAt = SystemClock.elapsedRealtime()
+        val lookup = localLookupScope.async { block() }
+        return try {
+            withTimeoutOrNull((budgetMs - (SystemClock.elapsedRealtime() - startedAt)).coerceAtLeast(0L)) {
+                LocalStageCompleted(lookup.await())
+            }
+        } finally {
+            lookup.cancel()
+        }
+    }
+
+    private data class LocalStageCompleted<T>(val value: T)
 
     /**
      * 复用同一来电窗口内的联网结果，并合并尚未完成的相同请求。

@@ -70,7 +70,9 @@ enum class FeedbackStatus {
 
 enum class ResultType {
     INTERCEPT, // 拦截
-    PASS_BUT_NOTIFY, // 提示但不拦截 (暂未实现完全逻辑，可用于白名单或低风险)
+    PASS_BUT_NOTIFY, // 仅提示、静音放行或身份资料展示，不拒接来电
+    LOCAL_TIMEOUT, // 本地门禁或离线查询超过预算，已放行
+    SCREENING_TIMEOUT, // 系统筛查响应预算耗尽，已放行
     NETWORK_TIMEOUT, // 联网查询超时
     NETWORK_RATE_LIMITED, // 远端接口限流
     NETWORK_SERVER_ERROR, // 服务端内部或未分类异常
@@ -103,3 +105,7 @@ fun ResultType.isNetworkFailure(): Boolean = when (this) {
 
     else -> false
 }
+
+/** 查询或系统响应预算失败都按已放行展示；仅网络失败提供原来的联网重试入口。 */
+fun ResultType.isQueryFailure(): Boolean = isNetworkFailure() ||
+    this == ResultType.LOCAL_TIMEOUT || this == ResultType.SCREENING_TIMEOUT

@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.ResultType
-import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
+import vip.mystery0.pixel.telo.data.entity.isQueryFailure
 import vip.mystery0.pixel.telo.util.queryFailureSummaryRes
 import vip.mystery0.pixel.telo.viewmodel.CurrentListState
 import java.time.Instant
@@ -62,7 +62,7 @@ fun BlockedCallItem(
     onRetry: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    val failed = call.resultType.isNetworkFailure()
+    val failed = call.resultType.isQueryFailure()
     val status = when {
         failed -> RecordStatus(
             Icons.Default.Warning,
@@ -218,7 +218,7 @@ fun CallResultSummary(
     resultType: ResultType,
     modifier: Modifier = Modifier,
 ) {
-    val failed = resultType.isNetworkFailure()
+    val failed = resultType.isQueryFailure()
     val status = when {
         failed -> RecordStatus(
             Icons.Default.Warning,

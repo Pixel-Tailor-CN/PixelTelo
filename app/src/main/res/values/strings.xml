@@ -518,8 +518,6 @@
     <string name="error_pairing_too_large">Pairing input is too long.</string>
     <string name="error_pairing_json">Not a pairing JSON object. Scan or paste the server’s pairing code.</string>
     <string name="error_pairing_fields">Pairing JSON must include a URL and token as text.</string>
-    <string name="msg_self_hosted_management_hint">This service is active. You can run the full validation again, modify its configuration, or switch back to the official service.</string>
-    <string name="msg_self_hosted_blocked_hint">This self-hosted service is still selected but is currently unavailable. Online identification has stopped until you test it again, modify its configuration, or switch to the official service.</string>
     <string name="msg_self_hosted_unconfigured">Validate the configuration before enabling it.</string>
     <string name="label_self_hosted_base_url">Base URL</string>
     <string name="hint_self_hosted_base_url">HTTPS URL of your self-hosted query service</string>
@@ -630,4 +628,5 @@
     <string name="label_tag_exact">Tag · Exact match</string>
     <string name="label_tag_contains">Tag · Contains</string>
     <string name="summary_tag_contains">Example: “Insurance” matches “Insurance sales”; case-sensitive. Recognized tags only, not local labels.</string>
+    <string name="msg_database_delete_failed">Unable to delete the offline database. Try again.</string>
 </resources>

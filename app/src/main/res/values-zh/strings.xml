@@ -516,8 +516,6 @@
     <string name="error_pairing_too_large">配对内容过长。</string>
     <string name="error_pairing_json">不是配对 JSON 对象，请扫描或粘贴服务端配对码。</string>
     <string name="error_pairing_fields">配对 JSON 须包含文本类型的地址和 Token。</string>
-    <string name="msg_self_hosted_management_hint">当前正在使用此服务。你可以重新执行完整验证、修改配置，或切换回官方服务。</string>
-    <string name="msg_self_hosted_blocked_hint">此自建服务仍被选择，但当前不可用，联网识别已停止。请重新测试、修改配置，或切换回官方服务。</string>
     <string name="msg_self_hosted_unconfigured">配置后需先验证，成功后才能启用。</string>
     <string name="label_self_hosted_base_url">服务器地址</string>
     <string name="hint_self_hosted_base_url">自建查询服务的 HTTPS 地址</string>
@@ -628,4 +626,5 @@
     <string name="label_tag_exact">标签·精确匹配</string>
     <string name="label_tag_contains">标签·包含匹配</string>
     <string name="summary_tag_contains">如“保险”匹配“保险推销”，区分大小写。仅匹配识别标签，不含本地标签。</string>
+    <string name="msg_database_delete_failed">离线号码库删除失败，请重试。</string>
 </resources>

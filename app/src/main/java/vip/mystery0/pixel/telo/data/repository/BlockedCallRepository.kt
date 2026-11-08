@@ -170,11 +170,6 @@ class BlockedCallRepository : KoinComponent {
         blockedCallDao.update(blockedCall.enforceFeedbackOwnership())
     }
 
-    suspend fun finalizeCommunityDecision(id: Long, blocked: Boolean) {
-        blockedCallDao.finalizeCommunityDecision(id, blocked)
-        SmartspacerIntegration.notifyChanged(context)
-    }
-
     suspend fun delete(blockedCall: BlockedCall) {
         blockedCallDao.delete(blockedCall)
     }
@@ -197,12 +192,6 @@ private fun BlockedCall.enforceFeedbackOwnership(): BlockedCall {
             feedbackPhone = null,
             feedbackTokenExpiresAt = null,
             reportTokenState = "unknown",
-        )
-    }
-    if (feedbackStatus == FeedbackStatus.PENDING && feedbackToken.isNullOrBlank()) {
-        return copy(
-            feedbackToken = null,
-            feedbackStatus = FeedbackStatus.UNAVAILABLE,
         )
     }
     return this

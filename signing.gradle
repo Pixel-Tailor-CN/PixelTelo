@@ -1,17 +1,21 @@
-def kFile = rootProject.file('local.properties')
+// 签名字段逐项优先读取 local.properties，未配置或空值时读取同名环境变量。
+// 未配置 keystore 路径时使用 debug 签名，正式发布由 CI 注入完整签名配置。
 def props = new Properties()
+def kFile = rootProject.file('local.properties')
 if (kFile.canRead()) {
-    props.load(new FileInputStream(kFile))
+    kFile.withInputStream { props.load(it) }
+}
 
-    if (props != null) {
-        android.signingConfigs.sign.storeFile file(props['SIGN_KEY_STORE_FILE'])
-        android.signingConfigs.sign.storePassword props['SIGN_KEY_STORE_PASSWORD']
-        android.signingConfigs.sign.keyAlias props['SIGN_KEY_ALIAS']
-        android.signingConfigs.sign.keyPassword props['SIGN_KEY_PASSWORD']
-    }
+def signValue = { String key -> props.getProperty(key) ?: System.getenv(key) }
+
+def storeFilePath = signValue('SIGN_KEY_STORE_FILE')
+if (storeFilePath) {
+    android.signingConfigs.sign.storeFile = file(storeFilePath)
+    android.signingConfigs.sign.storePassword = signValue('SIGN_KEY_STORE_PASSWORD')
+    android.signingConfigs.sign.keyAlias = signValue('SIGN_KEY_ALIAS')
+    android.signingConfigs.sign.keyPassword = signValue('SIGN_KEY_PASSWORD')
+    android.buildTypes.release.signingConfig = android.signingConfigs.sign
 } else {
-    android.signingConfigs.sign.storeFile file(System.getenv('SIGN_KEY_STORE_FILE'))
-    android.signingConfigs.sign.storePassword System.getenv('SIGN_KEY_STORE_PASSWORD')
-    android.signingConfigs.sign.keyAlias System.getenv('SIGN_KEY_ALIAS')
-    android.signingConfigs.sign.keyPassword System.getenv('SIGN_KEY_PASSWORD')
+    logger.warn('SIGN_KEY_STORE_FILE is not configured; release builds will use debug signing.')
+    android.buildTypes.release.signingConfig = android.signingConfigs.debug
 }

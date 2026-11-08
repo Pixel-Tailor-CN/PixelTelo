@@ -91,7 +91,6 @@ import vip.mystery0.pixel.telo.ui.screen.settings.SettingsCategory
 import vip.mystery0.pixel.telo.ui.screen.settings.SettingsGroup
 import vip.mystery0.pixel.telo.ui.screen.settings.SettingsItemRow
 import vip.mystery0.pixel.telo.ui.screen.settings.SettingsRowItem
-import vip.mystery0.pixel.telo.ui.screen.settings.SelfHostedQueryDialog
 import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 import vip.mystery0.pixel.telo.ui.util.backupDateTimeFormatter
 import vip.mystery0.pixel.telo.viewmodel.BackupRestoreState

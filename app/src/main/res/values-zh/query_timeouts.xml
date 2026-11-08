@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="query_failure_local_timeout">本地查询超时</string>
+    <string name="query_failure_screening_timeout">来电筛查响应超时</string>
+    <string name="query_advice_local_timeout">本地检查耗时过长，来电已放行。请检查离线号码库，并通过拦截测试重新查询。</string>
+    <string name="query_advice_screening_timeout">为满足系统响应期限，来电已放行。请检查查询服务，或使用离线号码库加快识别。</string>
+</resources>

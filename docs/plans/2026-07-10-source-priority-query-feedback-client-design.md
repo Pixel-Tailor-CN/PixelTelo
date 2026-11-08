@@ -1,7 +1,7 @@
 # 数据源优先级查询与质量反馈客户端设计
 
 **日期**: 2026-07-10  
-**状态**: 已批准，待实现
+**状态**: 已实现，保留接口与初始设计依据；source 配置已按 Backend 隔离，当前实现见[架构说明](../architecture/mvvm-structure.md)。
 
 ## 一、目标与范围
 
@@ -90,7 +90,8 @@ source 配置使用现有 `SharedPreferences`，以 JSON 保存以下信息：
 5. 客户端解析 `source`、`feedback_token`、`query_mode`、`requested_sources`、`effective_sources` 与 `warnings`。
 6. 服务端返回 invalid source warning 时，同步更新本地不可用提示状态，但不在来电主链路内请求 source 清单。
 
-联网号码查询的有效超时必须限制在 1 至 3 秒，默认 3 秒，满足项目 3 秒硬上限。source 清单和反馈接口不参与来电实时决策，失败不得影响来电放行。
+原设计的网络 1–3 秒限制已由 2026-07-11 的产品决定替代：网络有效超时为 1–10 秒、默认 5 秒。
+本地查询保留独立的 3 秒硬上限，系统筛查另设总响应预算。source 清单和反馈接口不参与来电实时决策，失败不得影响来电放行。
 
 ## 七、反馈持久化
 

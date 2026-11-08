@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,6 +52,7 @@ import vip.mystery0.pixel.telo.data.repository.SpamNumberRepository
 import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.receiver.CallStateVibrationController
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
+import vip.mystery0.pixel.telo.worker.OfflineDatabaseDownloadScheduler
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -466,9 +468,27 @@ class SettingViewModel : ViewModel(), KoinComponent {
                 }
             }
         }
+        viewModelScope.launch {
+            OfflineDatabaseDownloadScheduler.observe(context).collect { workInfos ->
+                val work = OfflineDatabaseDownloadScheduler.latestWork(workInfos)
+                isDownloading = work != null && !work.state.isFinished
+                downloadProgress = if (work?.state == WorkInfo.State.SUCCEEDED) 1f else {
+                    (work?.progress?.getInt(OfflineDatabaseDownloadScheduler.KEY_PROGRESS, 0) ?: 0) / 100f
+                }
+                when (work?.state) {
+                    WorkInfo.State.SUCCEEDED -> syncStatusMessage = context.getString(R.string.msg_update_success)
+                    WorkInfo.State.FAILED, WorkInfo.State.CANCELLED ->
+                        syncStatusMessage = context.getString(R.string.msg_update_failed)
+                    WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING, WorkInfo.State.BLOCKED ->
+                        syncStatusMessage = null
+                    null -> Unit
+                }
+            }
+        }
     }
 
     fun checkUpdate() {
+        if (isDownloading) return
         viewModelScope.launch {
             syncStatusMessage = context.getString(R.string.msg_checking_update)
             try {
@@ -495,26 +515,21 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     fun confirmUpdate() {
         val updateInfo = showUpdateDialog ?: return
+        if (isDownloading) return
+        // 先收起确认页；下载由持久化任务执行，页面仅观察状态。
+        isDownloading = true
+        showUpdateDialog = null
+        downloadProgress = 0f
+        syncStatusMessage = null
         viewModelScope.launch {
-            // 在同一帧内完成状态切换，避免 BottomSheet 短暂关闭后重开
-            isDownloading = true
-            showUpdateDialog = null
-            downloadProgress = 0f
-            syncStatusMessage = null
-
-            val success = syncRepository.downloadAndInstallWithProgress(
-                updateInfo.downloadUrl,
-                updateInfo.checksum,
-                updateInfo.sizeBytes
-            ) { progress ->
-                downloadProgress = progress / 100f
-            }
-
-            isDownloading = false
-            syncStatusMessage = if (success) {
-                context.getString(R.string.msg_update_success)
-            } else {
-                context.getString(R.string.msg_update_failed)
+            try {
+                OfflineDatabaseDownloadScheduler.enqueue(context, updateInfo)
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                isDownloading = false
+                syncStatusMessage = context.getString(R.string.msg_update_failed)
+                Log.w(TAG, "Unable to enqueue database download")
             }
         }
     }
@@ -656,17 +671,6 @@ class SettingViewModel : ViewModel(), KoinComponent {
         selfHostedPairingOrigin = SelfHostedPairingOrigin.MANUAL
     }
 
-    /** 从管理视图进入配置编辑，Token 始终重新输入，不从凭据存储回填。 */
-    fun editSelfHostedConfig() {
-        if (!showSelfHostedSettings || selfHostedValidationInProgress) return
-        selfHostedDraft = currentSelfHostedConfig()?.toDraftUiState() ?: SelfHostedDraftUiState()
-        selfHostedPairingInitialDraft = selfHostedDraft
-        selfHostedConfigEditing = true
-        selfHostedValidationError = null
-        selfHostedTokenRetryRequired = false
-        setSelfHostedPairingPage(SelfHostedPairingPage.MANUAL)
-    }
-
     /** 更新不含凭据的表单值；Token 和原始 JSON 始终留在页面临时状态。 */
     fun updateSelfHostedPairingDraft(draft: SelfHostedDraftUiState) {
         if (selfHostedConfigEditing && !selfHostedValidationInProgress) {
@@ -707,10 +711,6 @@ class SettingViewModel : ViewModel(), KoinComponent {
         if (selfHostedValidationInProgress) return
         clearSelfHostedSettingsState()
     }
-
-    /** 配对材料同步交回输入控件，不进入 ViewModel 状态或持久化存储。 */
-    fun parseSelfHostedPairing(raw: String) =
-        vip.mystery0.pixel.telo.data.query.parseSelfHostedPairingJson(raw)
 
     /** 手动输入也先检查字段，确认后才允许发起网络验证。 */
     fun prepareManualSelfHostedPairing(draft: SelfHostedDraftUiState, token: String):
@@ -1143,8 +1143,16 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     fun deleteDatabase() {
         viewModelScope.launch {
-            syncRepository.deleteDatabase()
-            syncStatusMessage = context.getString(R.string.msg_database_deleted)
+            try {
+                OfflineDatabaseDownloadScheduler.cancel(context)
+                syncRepository.deleteDatabase()
+                syncStatusMessage = context.getString(R.string.msg_database_deleted)
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                syncStatusMessage = context.getString(R.string.msg_database_delete_failed)
+                Log.w(TAG, "Database deletion failed")
+            }
         }
     }
 

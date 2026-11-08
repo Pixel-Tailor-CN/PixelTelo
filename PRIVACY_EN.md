@@ -1,198 +1,80 @@
 # Pixel Telo Privacy Policy
 
-**Effective date: May 21, 2026**
+**Updated: November 8, 2026**
 
-This Privacy Policy applies to the Pixel Telo app ("the app"). Please read this policy carefully
-before using the app.
+This policy describes the current Pixel Telo client. Number identification starts locally. Real-time lookup, official offline synchronization, quality feedback, and community reports have separate purposes.
 
----
+## 1. Permissions and local access
 
-## 1. App Overview
+| Permission | Purpose |
+| --- | --- |
+| `READ_CONTACTS` | Check whether a number is a local contact and allow it first; resolve contact names for loaded call records; support Directory integration |
+| `WRITE_CONTACTS` | Meet the system permission requirement for forwarding Directory queries; the app does not directly create, edit, or delete contacts |
+| `READ_CALL_LOG` | Meet the Directory lookup forwarding requirement when targeting Android API 37 or later; the app does not batch-read the system call log |
+| `READ_PHONE_STATE` | Observe call connection and end for optional vibration, overlay dismissal, and post-call feedback reminders |
+| `VIBRATE` | Provide optional connection and hang-up vibration |
+| `INTERNET` | Real-time lookup, offline database checks and downloads, user-submitted quality feedback, and community report management |
+| `POST_NOTIFICATIONS` | Notify about offline updates and post-call quality feedback; automatic update checks require notification permission |
+| `SYSTEM_ALERT_WINDOW` | Show an optional call overlay only after explicit enablement and permission; disabled by default |
+| `CAMERA` | Decode a self-hosted pairing QR code locally when requested; release the camera when the scanner is paused or closed |
 
-Pixel Telo is a caller ID and call blocking app designed for Google Pixel and AOSP-like Android
-devices. The app is built around a
-**privacy-first** design: incoming call analysis is performed locally whenever possible, and network
-requests are minimized.
+Contact lookups use the current number or numbers in the loaded page window. The app does not enumerate or upload the address book. Names are used for local display and a bounded memory cache, and are not stored in the app database or manual backups. Saving a contact opens a system screen at the user's request.
 
----
+System screening and Directory callbacks supply numbers. Outgoing calls can also enter the existing identification flow. The app does not actively batch-read, export, or upload the system `CallLog`. The permission requirements are documented in the [Android Directory reference](https://developer.android.com/reference/android/provider/ContactsContract.Directory).
 
-## 2. Permissions We Request
+## 2. Data stored on the device
 
-| Permission       | Purpose                                                                                                                                                         |
-|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `READ_CONTACTS`  | Used for Android Directory Provider integration so the system Dialer can display number labels. The app does not read or upload contact contents.               |
-| `WRITE_CONTACTS` | Required for Android Directory Provider compatibility. The app does not create, modify, or delete contacts.                                                     |
-| `READ_CALL_LOG`  | Required for Android SDK 37+ Directory Provider phone lookup compatibility, so the app can receive incoming-call `phone_lookup` queries from the system Dialer. |
-| `INTERNET`       | Used to query number information when the local database has no match, and to update the local spam number database.                                            |
-| `POST_NOTIFICATIONS` | Used to notify the user when an offline database update is available after the user enables automatic update checks. Denying this permission prevents automatic update checks from being enabled, but does not affect manual updates, caller ID, or call blocking. |
+- **Processing records:** Depending on settings and results, numbers, times, result types, remarks, source labels, province/city information, query durations, and query backend. Online records may also contain official feedback credentials, expiry information, use states, and historical community snapshots.
+- **User rules and labels:** Numbers, prefixes, source-label or location rules, remarks, matching and force-block options, and separate local number labels.
+- **Offline database:** Identification data and version information downloaded through the official synchronization channel. Offline lookups do not send the queried number to a server.
+- **Preferences:** Multiple blocking, timeout, source-order, display, notification, vibration, and update-interval settings.
+- **Self-hosted configuration:** Service address, TLS mode, SPKI pin, instance identity, and verification state. Tokens are encrypted using Android Keystore AES-GCM, stored separately, and excluded from system backup and device transfer.
+- **Community management identity:** A randomly generated 32-byte installation identity stored in a no-backup directory. This is not an IMEI, Android ID, or hardware identifier. Possession grants management access to its reports, so it must be protected as a credential.
 
-Contact and call log related permissions are used so Android can forward incoming-call or phone
-number lookup requests to the app. Pixel Telo
-does not scan, export, or upload contacts or the system call log. `WRITE_CONTACTS` is only used to
-satisfy Android Directory Provider
-permission requirements and is not used to write to the contacts database.
+Temporary downloads are stored in app-private storage for verification and database replacement. Logs do not include complete phone numbers, tokens, complete self-hosted addresses, pins, or request/response bodies.
 
-### 2.1 Why `READ_CALL_LOG` Is Required
+## 3. Network transmissions
 
-Pixel Telo's core feature is to show caller ID and spam labels in the system Dialer when the user
-receives a phone call. The app receives
-number lookup requests through an Android `ContactsContract.Directory` Provider, for example:
+### Real-time lookup
 
-```text
-content://vip.mystery0.pixel.telo.provider/phone_lookup/{phoneNumber}?account_name=TeloLocal&account_type=vip.mystery0.pixel.telo&callerPackage=com.google.android.dialer
-```
+When permitted by contact checks, user rules, international-number gating, local-first lookup, and network settings, `POST /api/v2/query` sends a normalized number and source list. `GET /api/v2/sources` obtains available sources. A manual retry is a user-requested action.
 
-According to the official Android documentation, when an app targets
-`Build.VERSION_CODES.CINNAMON_BUN` (API level 37) or later, a Directory
-Provider must hold `READ_CALL_LOG` in order to respond to `PhoneLookup.CONTENT_FILTER_URI` or
-`CommonDataKinds.Phone.CONTENT_FILTER_URI`
-queries. Without this permission, the system Contacts Provider will not forward these phone lookup
-queries to the app, and caller ID / spam
-label display cannot work correctly.
+The default address is `https://pixeltelo.api.mystery0.vip/`. Users may explicitly pair and enable their own HTTPS service. Self-hosted requests include that service's Bearer token. A self-hosted failure does not automatically forward the number to official real-time lookup. The selected service operator controls its own data handling; users should assess that operator before enabling it.
 
-References:
+Requests do not include contacts, contact names, recordings, device location, or hardware identifiers. Number location information comes from the lookup service, not device positioning.
 
--
-`ContactsContract.Directory`: <https://developer.android.com/reference/android/provider/ContactsContract.Directory>
--
-`Build.VERSION_CODES.CINNAMON_BUN`: <https://developer.android.com/reference/android/os/Build.VERSION_CODES#CINNAMON_BUN>
+### Official offline synchronization
 
-Pixel Telo uses `READ_CALL_LOG` only to receive and handle the system phone lookup callbacks
-described above. The app does not actively read,
-scan, upload, or analyze the user's full system call history.
+`GET /api/v1/sync/check` sends the current offline database version and returns update information. Data downloads require user confirmation. This channel always uses official synchronization and does not read self-hosted tokens or configuration.
 
----
+Automatic checks are disabled by default. When enabled, WorkManager checks at the selected interval, which defaults to 24 hours. Checks only notify about updates; they do not start downloads. Confirmed downloads run as separate WorkManager tasks.
 
-## 3. Data We Collect
+### Lookup quality feedback
 
-### 3.1 Data Stored Locally
+Selecting an accurate or inaccurate result sends an existing feedback token and the feedback direction to official `POST /api/v2/query/feedback`. Self-hosted responses do not grant official feedback capability. The app does not automatically perform another lookup to obtain a token.
 
-**Blocked call records (stored in the device-local database)**
+### Community reports and management
 
-After an incoming call is processed by the app, the following information may be stored locally:
+After confirmation, `POST /api/v2/community/reports` sends the random installation identity and an existing official feedback token. The server associates the number through that token. The `list`, `withdraw`, and `delete` operations under that endpoint send the identity and the necessary cursor or report ID.
 
-- Incoming phone number
-- Call timestamp
-- Processing result (blocked / notify only / allowed after timeout)
-- Local lookup duration in milliseconds
-- Network lookup duration in milliseconds, if any
-- Remark, such as an automatically generated label or a user-entered note
+Quality feedback and community reports are independent and do not automatically add a number to the blocklist. Report history is obtained from the official service. Deleting a local call record does not delete a server report. Active reports can be withdrawn; withdrawn history can be deleted when its state allows it. Administrative invalidation is separate from withdrawal, and deleting history does not remove a server restriction against reporting that number again.
 
-**Spam number database (stored in the device-local database)**
+These network operations use HTTPS. Service operators receive the requests and connection metadata needed to serve them. This client policy does not promise retention periods for official or user-selected services that the client does not control.
 
-The app downloads a spam number database to the device. It contains:
+## 4. Backup, migration, and deletion
 
-- Spam numbers and their category labels, such as "spam call" or "fraud call"
-- Database version information
+System backup and device transfer exclude the runtime `app-database` and encrypted self-hosted tokens. The random community identity is also excluded. Other preferences retain the existing system backup behavior.
 
-After the database is downloaded and stored locally, number lookup does **not require network access
-**.
+Manual ZIP backups can include processing records, block/allow lists, and local number labels. Records may include historical community display snapshots. Backups do not include contact names, self-hosted tokens, the community identity, feedback tokens, or reporting eligibility. They contain complete numbers and user remarks; users should select trusted storage and protect their archives.
 
-**App settings**
+Users can disable network lookup and optional display/notification features, and delete local records, rules, labels, or the offline database. Uninstalling or clearing app data removes local data but does not automatically delete submitted server reports. Losing the old installation identity removes access to its report history. Creating a replacement identity requires confirmation and does not restore that access.
 
-The app stores one setting in Android SharedPreferences: whether to notify only instead of directly
-blocking calls (`notify_only`).
+## 5. Data collection the app does not perform
 
-### 3.2 Data Transmitted Over the Network
+The app does not read hardware identifiers, record calls, obtain device location, upload the address book or complete system call history, collect usage analytics, or automatically upload crash diagnostics. The random community identity and user-requested feedback/reports are the separate data processing described above.
 
-**Cloud number lookup**
+## 6. Children, changes, and contact
 
-When the local spam database has no matching result, the app may send a lookup request to:
+The app is not directed to children under 13 and does not knowingly collect their personal information. Changes to this policy will be reflected here and in its date.
 
-```text
-Server: https://pixeltelo.api.mystery0.vip/
-Endpoint: GET /api/v1/query?number={phoneNumber}
-```
-
-Only the phone number after removing the country code is sent, for example `+8613800138000` becomes
-`13800138000`.
-The app does **not send** device identifiers (IMEI, Android ID, etc.), account information, location
-information, or any other personal data.
-
-Each lookup request is **stateless**. The server does not set cookies or persistent sessions.
-
-**Database update check**
-
-When the user manually checks for updates, the app sends the current local database version to the
-server so the server can determine whether a
-new version is available. This request does not contain phone numbers or personal information.
-
-The user can also enable **automatic update checks** in Settings. This feature is disabled by
-default. When enabled, the app uses WorkManager to check the offline database version in the
-background at the user-configured interval, which defaults to 24 hours. Automatic checks only send
-the current local database version and do not include phone numbers or personal information. When a
-new version is found, the app only sends a reminder notification and does not automatically download
-or install the database update.
-
----
-
-## 4. Data We Do Not Collect
-
-The app does **not collect, process, or transmit** the following information:
-
-- Device identifiers, such as IMEI, Android ID, or serial number
-- User account or identity information
-- Location
-- Call recordings or call contents
-- Full system call log or call history not processed by the app
-- Call details batch-read from the system `CallLog` database
-- Contact names, email addresses, or other contact personal information
-- App usage analytics
-- Crash logs or diagnostic data uploaded to a server
-
----
-
-## 5. How We Use Data
-
-The data we collect is used only for the following purposes:
-
-1. **Real-time caller identification**: determine whether an incoming call is spam
-2. **Blocked call history**: show local blocked call records inside the app
-3. **System Dialer integration**: display number labels in the system Dialer through Directory
-   Provider
-4. **Spam database maintenance**: keep the local spam number database accurate through updates
-
----
-
-## 6. Data Storage and Security
-
-- All local data is stored in the app's private Android storage directory and protected by Android
-  filesystem permissions
-- Network requests are encrypted with HTTPS
-- Downloaded spam databases are verified with SHA-256 before installation to prevent tampering
-- The app does not share user data with any third party
-
----
-
-## 7. User Control
-
-You have full control over the data stored by the app:
-
-- **View records**: view all blocked call records on the main screen
-- **Delete records**: delete blocked call records individually or in batches
-- **Backup and restore**: export blocked call records as a ZIP file and restore them when needed
-- **Delete number database**: delete the local spam number database in settings
-- **Uninstall the app**: all local data is removed when the app is uninstalled
-
----
-
-## 8. Children's Privacy
-
-The app is not directed to children under the age of 13 and does not knowingly collect personal
-information from children.
-
----
-
-## 9. Changes to This Privacy Policy
-
-If this policy changes, we will update this page and revise the effective date. We recommend
-reviewing this policy periodically.
-
----
-
-## 10. Contact Us
-
-If you have any privacy-related questions or concerns, please contact us through:
-
-- **GitHub Issue
-  **: [https://github.com/Pixel-Tailor-CN/PixelTelo/issues](https://github.com/Pixel-Tailor-CN/PixelTelo/issues)
+For privacy questions, use [GitHub Issues](https://github.com/Pixel-Tailor-CN/PixelTelo/issues). Do not include raw phone numbers, tokens, or installation identities in public reports.

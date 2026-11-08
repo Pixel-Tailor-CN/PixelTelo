@@ -83,7 +83,7 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
 
 ### 目的
 
-拦截来电，并根据本地数据库决定是允许、静音还是拒绝通话。
+识别系统提供的来电与去电，并根据既有规则决定来电是允许、静音还是拒绝。去电继续进入识别链路，不将其过滤掉；系统只对来电消费筛查响应。
 
 ### 逻辑流程
 
@@ -103,7 +103,8 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
       明确非中国国际号码直接放行，不打开 `MastDatabase`，也不获取 Backend Snapshot 或调用官方/
       Self-hosted 实时 Backend；`forceNetworkQuery` 不能绕过门禁。
 3. **性能约束 (CRITICAL)**:
-    * **本地查询**: 必须在 **100ms** 内完成。
+    * **本地查询**: 目标 **50ms**，超过 **100ms** 无论命中与否记录 warning；联系人、名单、离线库及联网后的本地规则共用累计 **3 秒**硬预算。
+      调用方独立等待有界任务，超时不等待非协作 Binder/SQLite 返回，不再消费迟到结果；返回 `LOCAL_TIMEOUT` 并放行，不伪装成网络超时。
     * **网络回退**: 若本地无结果，通过 `QueryRepository.queryNumber()` 发起 v2 联网查询，
       有效超时可在设置中配置（**1 至 10 秒**，默认 5 秒，`withTimeout` 强制执行）。
       所有联网失败均 Fail Open，并按原因分别记录：`NETWORK_TIMEOUT`（超时）、
@@ -128,25 +129,36 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
       不再强制联网，因此与 `CallScreeningService` 使用相同的名单优先级、国际号码门禁和查询设置。
     * **社区拦截**：仅官方 ACTIVE 且独立开关开启时作为新增候选；不设置 forceBlock，仍遵守前置规则、全局仅提示和重复来电策略。
       使用 `INTERCEPT` 保持既有计数。最终 `respondToCall` 前再次校验社区代次和开关，旧增强不能重新拒接。
-5. **动作**: 调用 `respondToCall`。
+5. **动作**: `onScreenCall` 立即返回，由后台执行识别；来电进入回调时即注册 **4.5 秒**截止保护，在系统要求的 5 秒以内预留余量。
+    * 查询完成、截止回调和服务销毁通过同一个一次响应门禁调用 `respondToCall`；截止不依赖数据库、偏好或 DI 初始化。
+    * 系统响应预算耗尽时立即放行并记为 `SCREENING_TIMEOUT`，与 `NETWORK_TIMEOUT`、`LOCAL_TIMEOUT` 分开呈现。
+    * 网络查询本身仍保留 1–10 秒设置；独立筛查预算不修改用户设置或共享查询结果复用规则。
     * 如果被拦截，设置 `skipCallLog` 为 `false`（确保拦截记录出现在历史记录中）并设置 `disallowCall` 为
       `true`。
-6. **落库**: 按现有记录策略写入 `BlockedCall` 时，一并保存 v2 响应中的 `querySource` 与
+6. **落库**: 系统响应之后，按现有记录策略异步写入 `BlockedCall`，一并保存 v2 响应中的 `querySource` 与
    `feedbackToken`（状态 `PENDING`）；本地命中、黑白名单命中与所有联网失败没有 token，状态保持
    `UNAVAILABLE`。不为反馈或上报扩大记录范围。本地标签不得写入或覆盖 `BlockedCall.label`。
-   官方凭据同时保存原响应号码及到期提示；社区查询结论仅作为历史快照。`communityBlockApplied` 在系统响应发出后
-   才确认真实社区拒接；仅提示、重复放行和手动测试均为 false。撤回不改写已完成的历史处置。
-7. **通话结束反馈提醒**: 放行且记录带 token 的来电，筛查时把记录 id 写入 `SharedPreferences`
-   标记；`receiver/CallStateReceiver`（需 `READ_PHONE_STATE`）监听 `PHONE_STATE` 回到 IDLE 后，
-   经 `QueryFeedbackNotifier` 弹出通知，内容含号码、标签与数据源，提供“结果准确/结果不准确”
+   官方凭据同时保存原响应号码及到期提示；社区查询结论仅作为历史快照。`communityBlockApplied` 按已发送的最终响应写入，
+   仅提示、重复放行和手动测试均为 false；响应失败不将拟拒接决定记为实际拒接。撤回不改写已完成的历史处置。
+7. **通话结束反馈提醒**: 回调进入时由 `CallPostProcessingCoordinator` 登记不含号码与凭据的通话代次。
+   放行记录异步落库后，若所属代次尚未结束则登记记录 ID 和兼容进程重建的持久标记；若 IDLE 已先到达，立即兑现该记录，不把它留到下一通。
+   `receiver/CallStateReceiver`（需 `READ_PHONE_STATE`）收到 IDLE 时先封闭窗口，再收集并去重已登记记录与旧持久标记，
+   经 `QueryFeedbackNotifier` 复核当前开关、权限、官方归属、Token 和待反馈状态后弹出通知，内容含号码、标签与数据源，提供“结果准确/结果不准确”
    两个按钮；`receiver/FeedbackActionReceiver` 直接提交反馈并把终态写回 Room。被拒接的来电
    不响铃、不提醒。设置项 `feedback_notification`（默认开启）可关闭；标记有效期 2 小时，
    通知或权限缺失时静默跳过，不影响来电链路。
 
 ### 服务隔离
 
-`CallScreeningService` 必须保持极度精简。**严禁**在此处执行网络请求或繁重的数据库写入操作。
-本地标签读取失败必须 Fail Open：只影响展示，不得阻止或改写 `respondToCall()`。
+`CallScreeningService` 的系统回调只安排异步识别和截止保护，网络与本地查询由 Repository 执行。
+数据库写入、本地展示标签读取和 Overlay 展示均位于响应后的后处理链路，不能延迟 `respondToCall()`。
+本地标签读取失败只影响展示，不改变已发送的系统响应。
+
+去电查询使用进程级作用域继续识别与后处理，不受 Service 自动解绑取消，也不重复发送框架已自动处理的筛查响应。
+来电 Overlay 请求绑定所属通话代次，在请求时、主线程队列执行时和真正添加窗口前复核；已结束或被新通话替代的旧任务不能重新显示。
+IDLE 仅移除已过时的来电窗口，迟到的移除操作不能关闭新通话窗口。设置页的手动预览保留原有行为。
+
+系统响应期限依据 [Android CallScreeningService 文档](https://developer.android.com/reference/android/telecom/CallScreeningService)。Pixel 真机时序与 Provider 缓存刷新仍须设备确认。
 
 ## 3. Smartspacer 插件（静默拦截数量 Complication）
 

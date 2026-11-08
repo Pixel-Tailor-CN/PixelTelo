@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="query_failure_local_timeout">Local lookup timed out</string>
+    <string name="query_failure_screening_timeout">Call screening response timed out</string>
+    <string name="query_advice_local_timeout">The call was allowed because local checks took too long. Check the offline database and try again from the interception test.</string>
+    <string name="query_advice_screening_timeout">The call was allowed to meet the system response deadline. Check the query service or use the offline database for faster identification.</string>
+</resources>

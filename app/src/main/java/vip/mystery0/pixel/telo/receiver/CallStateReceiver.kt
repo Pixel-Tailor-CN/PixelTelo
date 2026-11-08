@@ -13,14 +13,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.service.IncomingCallOverlay
+import vip.mystery0.pixel.telo.service.CallPostProcessingCoordinator
 
 /**
  * 监听通话状态变化。
  * 通话结束（回到 IDLE）时先移除来电归属地悬浮窗，再处理查询结果反馈提醒。
- * 来电筛查阶段写入的“待反馈提醒”标记，在通话结束（回到 IDLE）时兑现为反馈询问通知。
+ * 已落库的记录在 IDLE 时兑现反馈；晚于 IDLE 才落库的记录由同一通话代次立即兑现。
  * 需要 READ_PHONE_STATE 权限；未授权时收不到广播，功能自动失效，不影响拦截链路。
  */
 class CallStateReceiver : BroadcastReceiver(), KoinComponent {
@@ -47,18 +47,18 @@ class CallStateReceiver : BroadcastReceiver(), KoinComponent {
         }
         if (state != TelephonyManager.EXTRA_STATE_IDLE) return
 
-        incomingCallOverlay.hide()
-
-        // 读取即清除标记，重复到达的 IDLE 广播不会二次提醒
-        val recordId = QueryFeedbackNotifier.consumePendingFeedback(context, prefs) ?: return
+        // 先封闭通话代次，确保稍后才落库的任务立即兑现且不能再添加 Overlay。
+        val recordIds = CallPostProcessingCoordinator.endCalls(context, prefs)
+        incomingCallOverlay.hideEndedCall()
+        if (recordIds.isEmpty()) return
 
         val pendingResult = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val call = blockedCallRepository.findById(recordId)
-                if (call != null && call.feedbackStatus == FeedbackStatus.PENDING) {
-                    QueryFeedbackNotifier.showFeedbackPrompt(context, call)
-                    Log.i(TAG, "Feedback prompt shown: recordId=$recordId")
+                recordIds.forEach { recordId ->
+                    blockedCallRepository.findById(recordId)?.let { call ->
+                        QueryFeedbackNotifier.showFeedbackPromptIfEligible(context, prefs, call)
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to show feedback prompt", e)

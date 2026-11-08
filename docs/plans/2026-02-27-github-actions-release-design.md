@@ -1,45 +1,22 @@
-# GitHub Actions 跨仓库发布设计文档
+# GitHub Actions 发布设计
 
-## 概述
+状态：2026-11-08 对照当前 workflow 更新。最初的私有仓库跨仓发布与独立 AppRelease README 更新方案已被本仓发布替代，不再要求跨仓 PAT。
 
-在私有仓库 `PixelTelo/PixelTelo` 中配置 GitHub Actions 工作流，构建 Android Release APK 后自动发布到公开仓库 `PixelTelo/AppRelease` 的 Release。同时更新 AppRelease 仓库的 README.md。
+## 触发与产物
 
-## 触发条件
+以 [.github/workflows/release.yml](../../.github/workflows/release.yml) 为事实来源：推送 `v*` tag 后，在本仓构建并发布 Release。Checkout 读取完整历史以计算 versionCode，构建环境为 JDK 21 和 Gradle Wrapper。
 
-推送 `v*` 格式的 git tag（如 `v1.0`、`v1.2.3`）时自动触发。
+发布产物为 Release AAB 与从同一 AAB 提取、使用正式密钥签名的 Universal APK，正文来自 `CHANGELOG.md`。当前产物路径为：
 
-```bash
-git tag v1.0
-git push origin v1.0
-```
+- AAB：`app/build/outputs/bundle/release/app-release.aab`。
+- 归档产物：`apk-output/PixelTelo-<tag>.aab`、`apk-output/PixelTelo-<tag>.apk`。
 
-## 工作流步骤
+## 签名与临时文件
 
-1. Checkout 代码
-2. 配置 JDK 21（与项目 JVM Target 21 对齐）
-3. 将 Base64 编码的 keystore 解码到临时文件
-4. 设置签名环境变量（`SIGN_KEY_STORE_FILE` 等），`signing.gradle` 会自动读取
-5. 执行 `./gradlew bundleRelease`，生成 AAB
-6. 下载 `bundletool.jar`，从 AAB 提取 Universal APK
-7. 使用 `gh` CLI + PAT 在 `PixelTelo/AppRelease` 创建 Release，同时上传 AAB 和 Universal APK
+CI 从以下 Secrets 注入签名：`SIGN_KEY_STORE_BASE64`、`SIGN_KEY_STORE_PASSWORD`、`SIGN_KEY_ALIAS`、`SIGN_KEY_PASSWORD`。解码后的 keystore 仅保存在 runner 临时目录，任务结束时清理，不提交仓库。
 
-## 必要 Secrets（私有仓库）
+本地签名字段逐项优先读取 `local.properties`，缺失或空值再读环境变量；未配置 keystore 路径时可用 debug 签名验证 Release。正式发布必须提供完整的正式签名配置，细节见 [README](../../README.md#签名配置)。
 
-| Secret 名称 | 说明 |
-|---|---|
-| `SIGN_KEY_STORE_BASE64` | keystore 文件的 Base64 编码 |
-| `SIGN_KEY_STORE_PASSWORD` | keystore 密码 |
-| `SIGN_KEY_ALIAS` | 密钥别名 |
-| `SIGN_KEY_PASSWORD` | 密钥密码 |
-| `APP_RELEASE_TOKEN` | Fine-grained PAT，对 AppRelease 仓库有 `contents: write` 权限 |
+## 发布边界
 
-## 产物路径
-
-- AAB: `app/build/outputs/bundle/release/app-release.aab`
-- Universal APK（bundletool 提取）: `apk-output/universal.apk`
-
-## AppRelease README
-
-- 中文为主，简介仓库用途
-- 下载链接：`https://github.com/PixelTelo/AppRelease/releases/latest`
-- 反馈链接：`https://github.com/PixelTelo/AppRelease/issues`
+当前使用 `softprops/action-gh-release` 在本仓发布，不读取旧 `APP_RELEASE_TOKEN`。本地文件和 YAML 检查不能证明远程发布成功，也不授权创建 tag 或推送。历史实施摘要见[实施记录](2026-02-27-github-actions-release.md)。

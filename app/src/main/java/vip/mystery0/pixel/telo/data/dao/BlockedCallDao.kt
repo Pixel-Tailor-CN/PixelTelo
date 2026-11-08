@@ -128,14 +128,6 @@ interface BlockedCallDao {
         phone: String?, expiresAt: Long?, province: String?, city: String?,
     ): Int
 
-    /** 系统响应已发出后确认社区处置，不覆盖查询凭据或历史查询快照。 */
-    @Query("""
-        UPDATE blocked_calls SET communityBlockApplied = :blocked,
-            resultType = CASE WHEN :blocked THEN 'INTERCEPT' ELSE 'PASS' END
-        WHERE id = :id AND communityStatus = 'active'
-    """)
-    suspend fun finalizeCommunityDecision(id: Long, blocked: Boolean)
-
     @Delete
     suspend fun delete(blockedCall: BlockedCall)
 

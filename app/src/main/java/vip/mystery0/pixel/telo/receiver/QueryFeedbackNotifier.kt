@@ -18,6 +18,7 @@ import vip.mystery0.pixel.telo.MainActivity
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
 import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
+import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 
 /**
@@ -34,17 +35,16 @@ object QueryFeedbackNotifier {
     private const val KEY_PENDING_MARKED_AT = "pending_feedback_marked_at"
 
     /** 标记有效窗口：超过该时长的陈旧标记不再提醒 */
-    private const val MARKER_VALID_MILLIS = 2 * 60 * 60 * 1000L
+    internal const val MARKER_VALID_MILLIS = 2 * 60 * 60 * 1000L
 
     /** 通知 id 偏移，避开其他通知（离线更新使用 1001） */
     private const val NOTIFICATION_ID_OFFSET = 20000L
 
     /**
-     * 来电放行且记录持有反馈 token 时写入待提醒标记。
-     * 开关关闭时不写入；后写入的标记覆盖旧标记。
+     * 协调器已在锁外校验开关、权限后，原子登记当前通话窗口的持久提醒标记。
+     * 后写入的标记覆盖旧标记，进程内的各通话记录另由协调器分别持有。
      */
-    fun markPendingFeedback(context: Context, prefs: SharedPreferences, recordId: Long) {
-        if (!isFeedbackEnabled(context, prefs)) return
+    internal fun markPendingFeedback(prefs: SharedPreferences, recordId: Long) {
         prefs.edit {
             putLong(KEY_PENDING_RECORD_ID, recordId)
             putLong(KEY_PENDING_MARKED_AT, System.currentTimeMillis())
@@ -76,7 +76,7 @@ object QueryFeedbackNotifier {
     }
 
     /** 开关与运行时权限均满足时才启用提醒；缺权时同步纠正持久化开关。 */
-    private fun isFeedbackEnabled(context: Context, prefs: SharedPreferences): Boolean {
+    internal fun isFeedbackEnabled(context: Context, prefs: SharedPreferences): Boolean {
         if (!prefs.getBoolean(SettingViewModel.KEY_FEEDBACK_NOTIFICATION, true)) return false
         val phoneStateGranted = ContextCompat.checkSelfPermission(
             context,
@@ -87,6 +87,14 @@ object QueryFeedbackNotifier {
             prefs.edit { putBoolean(SettingViewModel.KEY_FEEDBACK_NOTIFICATION, false) }
         }
         return enabled
+    }
+
+    /** 结束事件和迟到落库共用门禁，重新核对开关、权限及记录最新反馈资格。 */
+    fun showFeedbackPromptIfEligible(context: Context, prefs: SharedPreferences, call: BlockedCall) {
+        if (!isFeedbackEnabled(context, prefs) || call.queryBackendId != OFFICIAL_BACKEND_ID ||
+            call.feedbackStatus != FeedbackStatus.PENDING || call.feedbackToken.isNullOrBlank()
+        ) return
+        showFeedbackPrompt(context, call)
     }
 
     /** 展示反馈询问通知：查询结果概要 + 数据源 + “结果准确/结果不准确”按钮 */

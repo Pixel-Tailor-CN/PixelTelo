@@ -1,23 +1,28 @@
 package vip.mystery0.pixel.telo.service
 
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.util.Log
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
-import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
+import vip.mystery0.pixel.telo.data.entity.isQueryFailure
+import vip.mystery0.pixel.telo.data.model.CommunityStatus
 import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
@@ -31,10 +36,12 @@ import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     companion object {
         private const val TAG = "TeloCallScreeningService"
+        private const val SCREENING_RESPONSE_BUDGET_MS = 4_500L
+        private const val LOCAL_LABEL_LOOKUP_TIMEOUT_MS = 100L
         private val recentMarkedCalls = mutableMapOf<String, Long>()
 
-        /** 本地标签并行查询的有界超时，超时按无标签处理，不得拖慢 checkSpam。 */
-        private const val LOCAL_LABEL_LOOKUP_TIMEOUT_MS = 100L
+        // 系统响应之后的记录和展示不依赖筛查 Service 的存活，避免解绑时取消落库。
+        private val postResponseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 
     private val blockedCallRepository: BlockedCallRepository by inject()
@@ -43,290 +50,230 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     private val localNumberLabelPreferences: LocalNumberLabelPreferences by inject()
     private val prefs: SharedPreferences by inject()
     private val incomingCallOverlay: IncomingCallOverlay by inject()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val queryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // 系统回调、截止回调和最终响应均串行在主线程执行，只允许取得一次响应权。
+    private val pendingCalls = linkedSetOf<PendingCall>()
 
     override fun onScreenCall(callDetails: Call.Details) {
-        val phoneNumber = callDetails.handle?.schemeSpecificPart ?: return
+        val startedAt = SystemClock.elapsedRealtime()
+        val pending = PendingCall(callDetails, startedAt)
+        pendingCalls.add(pending)
+        if (pending.hasResponseDeadline) {
+            mainHandler.postDelayed(pending.deadlineAction, remainingBudget(pending))
+        }
 
-        Log.d(TAG, "Incoming call detected")
-
-        val response = CallResponse.Builder()
-        val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, true)
-        val callTime = callDetails.creationTimeMillis.takeIf { it > 0 }
-            ?: System.currentTimeMillis()
-        var callRejected = false
-        var communityDecision: CheckResult? = null
-        var communityRecordId: Long? = null
-
-        runBlocking(Dispatchers.IO) {
+        // 截止回调先注册，再在 IO 线程初始化依赖和查询，首次冷启动也计入系统预算。
+        // 框架在去电回调返回后立即解绑；去电识别必须独立于 Service 生命周期。
+        val scope = if (pending.hasResponseDeadline) queryScope else postResponseScope
+        pending.queryJob = scope.launch {
             try {
-                coroutineScope {
-                    val shouldLoadOverlayLabel =
-                        localNumberLabelPreferences.enabled.value &&
-                            prefs.getBoolean(SettingViewModel.KEY_SHOW_LOCATION_OVERLAY, false) &&
-                            !prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false) &&
-                            Settings.canDrawOverlays(applicationContext)
-                    val localLabelDeferred = if (shouldLoadOverlayLabel) {
-                        async {
-                            withTimeoutOrNull(LOCAL_LABEL_LOOKUP_TIMEOUT_MS) {
-                                loadOverlayLocalLabel(phoneNumber)
-                            }
-                        }
-                    } else {
-                        null
-                    }
-                    val result = spamNumberRepository.currentCommunityResult(spamNumberRepository.checkSpam(phoneNumber))
-                    val displayLabel = result.label.ifBlank {
-                        if (result.communityStatus == vip.mystery0.pixel.telo.data.model.CommunityStatus.ACTIVE)
-                            getString(R.string.community_label) else ""
-                    }
-                    Log.i(
-                        TAG,
-                        "Screen result: shouldBlock=${result.shouldBlock}, " +
-                            "notifyOnly=$notifyOnly, resultType=${result.resultType}, " +
-                            "forceBlock=${result.forceBlock}, " +
-                            "localCost=${result.localCost}ms, networkCost=${result.networkCost}ms"
-                    )
-                    val repeatStrategy = repeatCallStrategy(phoneNumber, callTime, result)
-
-                    if (result.shouldBlock && result.forceBlock) {
-                        callRejected = true
-                        response.setDisallowCall(true)
-                        response.setRejectCall(true)
-                        response.setSkipCallLog(false)
-
-                        blockedCallRepository.insert(
-                            phoneNumber,
-                            remark = displayLabel,
-                            ResultType.BLACK_LIST,
-                            result.localCost,
-                            result.networkCost,
-                            label = result.label.takeIf { it.isNotBlank() },
-                            province = result.locationInfo?.province,
-                            city = result.locationInfo?.city,
-                            querySource = result.querySource,
-                            queryBackendId = result.queryBackendId,
-                            feedbackToken = result.feedbackToken,
-                            feedbackPhone = result.feedbackPhone,
-                            feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
-                            communityStatus = result.communityStatus,
-                            communityBlockApplied = false,
-                        )
-                    } else if (repeatStrategy != null) {
-                        val repeatLabel = displayLabel.ifBlank {
-                            getString(R.string.call_label_spam_default)
-                        }
-                        response.setDisallowCall(false)
-                        response.setRejectCall(false)
-                        response.setSilenceCall(repeatStrategy == RepeatCallStrategy.SILENCE)
-                        response.setSkipCallLog(false)
-
-                        val recordId = blockedCallRepository.insert(
-                            phoneNumber,
-                            remark = when (repeatStrategy) {
-                                RepeatCallStrategy.SILENCE -> getString(
-                                    R.string.call_remark_repeat_silence,
-                                    repeatLabel,
-                                )
-                                RepeatCallStrategy.ALLOW -> getString(
-                                    R.string.call_remark_repeat_allow,
-                                    repeatLabel,
-                                )
-                                RepeatCallStrategy.UNCHANGED -> error("Unreachable strategy")
-                            },
-                            if (repeatStrategy == RepeatCallStrategy.ALLOW) {
-                                ResultType.PASS
-                            } else {
-                                ResultType.PASS_BUT_NOTIFY
-                            },
-                            result.localCost,
-                            result.networkCost,
-                            label = result.label.takeIf { it.isNotBlank() },
-                            province = result.locationInfo?.province,
-                            city = result.locationInfo?.city,
-                            querySource = result.querySource,
-                            queryBackendId = result.queryBackendId,
-                            feedbackToken = result.feedbackToken,
-                            feedbackPhone = result.feedbackPhone,
-                            feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
-                            communityStatus = result.communityStatus,
-                            communityBlockApplied = false,
-                        )
-                        markFeedbackPromptIfEligible(recordId, result)
-                    } else if (result.shouldBlock) {
-                        if (notifyOnly) {
-                            response.setDisallowCall(false)
-                            response.setRejectCall(false)
-                            response.setSkipCallLog(false)
-
-                            val recordId = blockedCallRepository.insert(
-                                phoneNumber,
-                                remark = getString(
-                                    R.string.call_remark_notify_only,
-                                    displayLabel,
-                                ),
-                                ResultType.PASS_BUT_NOTIFY,
-                                result.localCost,
-                                result.networkCost,
-                                label = result.label.takeIf { it.isNotBlank() },
-                                province = result.locationInfo?.province,
-                                city = result.locationInfo?.city,
-                                querySource = result.querySource,
-                                queryBackendId = result.queryBackendId,
-                                feedbackToken = result.feedbackToken,
-                                feedbackPhone = result.feedbackPhone,
-                                feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
-                                communityStatus = result.communityStatus,
-                                communityBlockApplied = false,
-                            )
-                            markFeedbackPromptIfEligible(recordId, result)
-                        } else {
-                            callRejected = true
-                            response.setDisallowCall(true)
-                            response.setRejectCall(true)
-                            response.setSkipCallLog(false)
-
-                            // 最终系统响应前还会再次检查社区代次，历史原因随后确认。
-                            if (result.communityBlockCandidate) communityDecision = result
-                            val recordId = blockedCallRepository.insert(
-                                phoneNumber,
-                                remark = displayLabel,
-                                result.resultType,
-                                result.localCost,
-                                result.networkCost,
-                                label = result.label.takeIf { it.isNotBlank() },
-                                province = result.locationInfo?.province,
-                                city = result.locationInfo?.city,
-                                querySource = result.querySource,
-                                queryBackendId = result.queryBackendId,
-                                feedbackToken = result.feedbackToken,
-                                feedbackPhone = result.feedbackPhone,
-                                feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
-                                communityStatus = result.communityStatus,
-                                communityBlockApplied = false,
-                            )
-                            if (result.communityBlockCandidate) communityRecordId = recordId
-                        }
-                    } else {
-                        response.setDisallowCall(false)
-                        response.setRejectCall(false)
-                        response.setSkipCallLog(false)
-
-                        if (result.resultType.isNetworkFailure()) {
-                            blockedCallRepository.insert(
-                                phoneNumber,
-                                remark = networkFailureRemark(result.resultType),
-                                result.resultType,
-                                result.localCost,
-                                result.networkCost,
-                                label = null,
-                                queryBackendId = result.queryBackendId,
-                            )
-                        } else if (prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false)) {
-                            val recordId = blockedCallRepository.insert(
-                                phoneNumber,
-                                remark = displayLabel.takeIf { it.isNotBlank() }
-                                    ?: getString(R.string.call_remark_normal),
-                                ResultType.PASS,
-                                result.localCost,
-                                result.networkCost,
-                                label = result.label.takeIf { it.isNotBlank() },
-                                province = result.locationInfo?.province,
-                                city = result.locationInfo?.city,
-                                querySource = result.querySource,
-                                queryBackendId = result.queryBackendId,
-                                feedbackToken = result.feedbackToken,
-                                feedbackPhone = result.feedbackPhone,
-                                feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
-                                communityStatus = result.communityStatus,
-                                communityBlockApplied = false,
-                            )
-                            markFeedbackPromptIfEligible(recordId, result)
-                        }
-                    }
-                    showLocationOverlayIfNeeded(
-                        phoneNumber = phoneNumber,
-                        result = result,
-                        localLabel = awaitLocalLabelOrNull(localLabelDeferred),
-                        callRejected = callRejected,
-                    )
-                }
+                val number = pending.phoneNumber ?: return@launch
+                val result = spamNumberRepository.checkSpam(number)
+                mainHandler.post { finishCall(pending, result) }
+            } catch (exception: CancellationException) {
+                throw exception
             } catch (_: Exception) {
-                Log.e(TAG, "Error checking spam, allowing call")
-                callRejected = false
-                response.setDisallowCall(false)
-                response.setRejectCall(false)
-                response.setSkipCallLog(false)
-            } finally {
-                if (communityDecision?.let { !spamNumberRepository.currentCommunityResult(it).shouldBlock } == true) {
-                    callRejected = false
-                    response.setDisallowCall(false).setRejectCall(false).setSkipCallLog(false)
-                }
-                respondToCall(callDetails, response.build())
-                communityRecordId?.let { id ->
-                    try {
-                        blockedCallRepository.finalizeCommunityDecision(id, callRejected)
-                    } catch (_: Exception) {
-                        Log.w(TAG, "Community decision history update failed")
-                    }
-                }
+                Log.e(TAG, "Screening lookup failed, allowing call")
+                mainHandler.post { finishCall(pending, null) }
             }
+        }.also { job ->
+            // 覆盖协程尚未进入查询便被取消、以及没有可用号码的路径。
+            job.invokeOnCompletion { mainHandler.post { finishCall(pending, null) } }
         }
     }
 
-    /**
-     * 放行且记录持有反馈 token 时写入待提醒标记，
-     * 通话结束（回到 IDLE）后由 CallStateReceiver 兑现为反馈询问通知。
-     * 被拒接的来电不响铃，不进入此路径。
-     */
-    private fun markFeedbackPromptIfEligible(recordId: Long, result: CheckResult) {
-        if (result.queryBackendId != OFFICIAL_BACKEND_ID) return
-        if (result.feedbackToken.isNullOrBlank()) return
-        QueryFeedbackNotifier.markPendingFeedback(this, prefs, recordId)
+    override fun onDestroy() {
+        // 先响应尚未完成的来电，再取消查询；不等待非协作的 Binder 或 SQLite 返回。
+        pendingCalls.filter { it.hasResponseDeadline }.forEach { finishCall(it, null) }
+        queryScope.cancel()
+        super.onDestroy()
     }
 
-    /** 有界等待本地标签，超时返回 null，不进入外层拦截错误路径。 */
-    private suspend fun awaitLocalLabelOrNull(deferred: Deferred<String?>?): String? {
-        if (deferred == null) return null
-        return try {
-            withTimeoutOrNull(LOCAL_LABEL_LOOKUP_TIMEOUT_MS) {
-                deferred.await()
-            }
-        } catch (exception: CancellationException) {
-            throw exception
-        } finally {
-            if (deferred.isActive) {
-                deferred.cancel()
-            }
-        }
-    }
+    private fun remainingBudget(pending: PendingCall): Long =
+        (pending.deadlineAtElapsedMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
 
-    /** 本地标签查询失败只隐藏 Overlay 标签，不得进入外层 catch 改变来电响应。 */
-    private suspend fun loadOverlayLocalLabel(phoneNumber: String): String? {
-        return try {
-            localNumberLabelRepository.find(phoneNumber)?.label
-        } catch (exception: CancellationException) {
-            throw exception
+    private fun finishCall(pending: PendingCall, checked: CheckResult?) {
+        if (!pendingCalls.remove(pending)) return
+        mainHandler.removeCallbacks(pending.deadlineAction)
+        pending.queryJob?.cancel()
+        val expired = pending.hasResponseDeadline && remainingBudget(pending) == 0L
+        var decision = try {
+            when {
+                expired -> timeoutDecision()
+                checked != null -> buildDecision(pending, spamNumberRepository.currentCommunityResult(checked))
+                else -> failOpenDecision()
+            }
         } catch (_: Exception) {
-            Log.w(TAG, "Local label lookup failed")
-            null
+            Log.e(TAG, "Screening decision failed, allowing call")
+            failOpenDecision()
+        }
+        if (decision.rejected && decision.result.communityBlockCandidate) {
+            val current = spamNumberRepository.currentCommunityResult(decision.result)
+            if (!current.shouldBlock) {
+                decision = decision.copy(
+                    result = current,
+                    response = failOpenDecision().response,
+                    rejected = false,
+                    historyType = ResultType.PASS,
+                    remark = getString(R.string.call_remark_normal),
+                )
+            }
+        }
+        // 依赖冷初始化或本地规则也计入预算；截止兜底不读取 DI、偏好或数据库。
+        if (pending.hasResponseDeadline && remainingBudget(pending) == 0L &&
+            decision.historyType != ResultType.SCREENING_TIMEOUT
+        ) {
+            decision = timeoutDecision()
+        }
+        try {
+            // 去电由框架在 onScreenCall 返回时自动应答；其后只保留识别与后处理。
+            if (pending.hasResponseDeadline) respondToCall(pending.details, decision.response)
+        } catch (_: Exception) {
+            // 无法确认系统接收到响应时，不把拟拒接决定写成已拒接历史。
+            Log.e(TAG, "Screening response failed, skipping decision history")
+            return
+        }
+        Log.i(TAG, "Screening processed: incoming=${pending.hasResponseDeadline}, rejected=${decision.rejected}, " +
+            "resultType=${decision.historyType}, localCost=${decision.result.localCost}ms, " +
+            "networkCost=${decision.result.networkCost}ms")
+        val number = pending.phoneNumber ?: return
+        postResponseScope.launch {
+            try {
+                persistDecision(number, decision, pending)
+            } catch (_: Exception) {
+                Log.w(TAG, "Screening decision history update failed")
+            }
+            try {
+                showLocationOverlayIfNeeded(number, decision, pending.session)
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                Log.w(TAG, "Screening overlay update failed")
+            }
         }
     }
 
-    private fun showLocationOverlayIfNeeded(
-        phoneNumber: String,
-        result: CheckResult,
-        localLabel: String?,
-        callRejected: Boolean
+    private fun failOpenDecision(): ScreeningDecision = ScreeningDecision(
+        result = CheckResult(false, "", ResultType.PASS, 0, 0),
+        response = CallResponse.Builder().setDisallowCall(false).setRejectCall(false)
+            .setSkipCallLog(false).build(),
+        rejected = false,
+        historyType = ResultType.PASS,
+        remark = "Screening Failed (Allowed)",
+        shouldRecord = false,
+    )
+
+    private fun timeoutDecision(): ScreeningDecision {
+        Log.w(TAG, "Screening response budget exceeded, allowing call")
+        return failOpenDecision().copy(
+            result = CheckResult(false, "", ResultType.SCREENING_TIMEOUT, 0, 0),
+            historyType = ResultType.SCREENING_TIMEOUT,
+            remark = "Screening Response Timeout (Allowed)",
+            shouldRecord = true,
+        )
+    }
+
+    private fun buildDecision(pending: PendingCall, result: CheckResult): ScreeningDecision {
+        val response = CallResponse.Builder().setDisallowCall(false)
+            .setRejectCall(false).setSkipCallLog(false)
+        val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, true)
+        val displayLabel = result.label.ifBlank {
+            if (result.communityStatus == CommunityStatus.ACTIVE) getString(R.string.community_label)
+            else ""
+        }
+        val repeated = pending.phoneNumber?.let {
+            repeatCallStrategy(it, pending.callTime, result)
+        }
+        val rejected = result.shouldBlock && (result.forceBlock || (!notifyOnly && repeated == null))
+        response.setDisallowCall(rejected).setRejectCall(rejected)
+        if (repeated != null) response.setSilenceCall(repeated == RepeatCallStrategy.SILENCE)
+        val historyType = when {
+            rejected -> result.resultType
+            repeated == RepeatCallStrategy.SILENCE -> ResultType.PASS_BUT_NOTIFY
+            repeated == RepeatCallStrategy.ALLOW -> ResultType.PASS
+            result.shouldBlock -> ResultType.PASS_BUT_NOTIFY
+            result.resultType.isQueryFailure() -> result.resultType
+            else -> ResultType.PASS
+        }
+        val remark = when {
+            repeated != null -> getString(
+                if (repeated == RepeatCallStrategy.SILENCE) R.string.call_remark_repeat_silence
+                else R.string.call_remark_repeat_allow,
+                displayLabel.ifBlank { getString(R.string.call_label_spam_default) },
+            )
+            rejected -> displayLabel
+            result.shouldBlock -> getString(R.string.call_remark_notify_only, displayLabel)
+            result.resultType.isQueryFailure() -> queryFailureRemark(result.resultType)
+            else -> displayLabel.ifBlank { getString(R.string.call_remark_normal) }
+        }
+        return ScreeningDecision(
+            result = result,
+            response = response.build(),
+            rejected = rejected,
+            historyType = historyType,
+            remark = remark,
+            shouldRecord = result.shouldBlock || result.resultType.isQueryFailure() ||
+                prefs.getBoolean(SettingViewModel.KEY_ALWAYS_RECORD, false),
+        )
+    }
+
+    private suspend fun persistDecision(number: String, decision: ScreeningDecision, pending: PendingCall) {
+        if (!decision.shouldRecord) return
+        val result = decision.result
+        val recordId = blockedCallRepository.insert(
+            phoneNumber = number,
+            remark = decision.remark,
+            resultType = decision.historyType,
+            localDuration = result.localCost,
+            networkDuration = result.networkCost,
+            label = result.label.takeIf(String::isNotBlank),
+            province = result.locationInfo?.province,
+            city = result.locationInfo?.city,
+            querySource = result.querySource,
+            queryBackendId = result.queryBackendId,
+            feedbackToken = result.feedbackToken,
+            feedbackPhone = result.feedbackPhone,
+            feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
+            communityStatus = result.communityStatus,
+            communityBlockApplied = pending.hasResponseDeadline && decision.rejected && result.communityBlockCandidate,
+        )
+        if (!decision.rejected && result.queryBackendId == OFFICIAL_BACKEND_ID &&
+            !result.feedbackToken.isNullOrBlank()
+        ) {
+            val alreadyEnded = CallPostProcessingCoordinator.registerFeedback(
+                pending.session, applicationContext, prefs, recordId,
+            )
+            if (alreadyEnded) {
+                blockedCallRepository.findById(recordId)?.let { call ->
+                    QueryFeedbackNotifier.showFeedbackPromptIfEligible(applicationContext, prefs, call)
+                }
+            }
+        }
+    }
+
+    private suspend fun showLocationOverlayIfNeeded(
+        number: String,
+        decision: ScreeningDecision,
+        session: CallPostProcessingCoordinator.Session,
     ) {
-        val enabled = prefs.getBoolean(SettingViewModel.KEY_SHOW_LOCATION_OVERLAY, false)
-        val noNetworkQuery = prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false)
-        if (enabled && !noNetworkQuery && !callRejected) {
-            incomingCallOverlay.show(phoneNumber, result, localLabel)
-        }
+        if (!CallPostProcessingCoordinator.mayShowOverlay(session) || decision.rejected ||
+            !prefs.getBoolean(SettingViewModel.KEY_SHOW_LOCATION_OVERLAY, false) ||
+            prefs.getBoolean(SettingViewModel.KEY_NO_NETWORK_QUERY, false) ||
+            !Settings.canDrawOverlays(applicationContext)
+        ) return
+        val label = if (localNumberLabelPreferences.enabled.value) {
+            withTimeoutOrNull(LOCAL_LABEL_LOOKUP_TIMEOUT_MS) {
+                localNumberLabelRepository.find(number)?.label
+            }
+        } else null
+        incomingCallOverlay.show(number, decision.result, label, session)
     }
 
-    /** 联网失败落库使用稳定英文分类，不记录异常正文或服务端响应。 */
-    private fun networkFailureRemark(resultType: ResultType): String = when (resultType) {
+    /** 所有失败历史使用稳定英文分类，不落库异常正文或服务端响应。 */
+    private fun queryFailureRemark(resultType: ResultType): String = when (resultType) {
+        ResultType.LOCAL_TIMEOUT -> "Local Lookup Timeout (Allowed)"
+        ResultType.SCREENING_TIMEOUT -> "Screening Response Timeout (Allowed)"
         ResultType.NETWORK_TIMEOUT -> "Network Timeout (Allowed)"
         ResultType.NETWORK_RATE_LIMITED -> "Query Rate Limited (Allowed)"
         ResultType.NETWORK_SERVER_ERROR -> "Query Server Error (Allowed)"
@@ -341,12 +288,33 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         else -> "Query Failed (Allowed)"
     }
 
+    private inner class PendingCall(val details: Call.Details, startedAt: Long) {
+        val phoneNumber: String? = details.handle?.schemeSpecificPart
+        // 去电仍执行原有查询和记录，不套用只适用于来电的系统响应期限。
+        val hasResponseDeadline = details.callDirection != Call.Details.DIRECTION_OUTGOING
+        val deadlineAtElapsedMs = if (hasResponseDeadline) startedAt + SCREENING_RESPONSE_BUDGET_MS
+            else Long.MAX_VALUE
+        val callTime = details.creationTimeMillis.takeIf { it > 0 } ?: System.currentTimeMillis()
+        val session = CallPostProcessingCoordinator.beginCall()
+        val deadlineAction = Runnable { finishCall(this, null) }
+        var queryJob: Job? = null
+    }
+
+    private data class ScreeningDecision(
+        val result: CheckResult,
+        val response: CallResponse,
+        val rejected: Boolean,
+        val historyType: ResultType,
+        val remark: String,
+        val shouldRecord: Boolean,
+    )
+
     private fun repeatCallStrategy(
         phoneNumber: String,
         callTime: Long,
         result: CheckResult
     ): RepeatCallStrategy? {
-        if (!result.shouldBlock || result.forceBlock || result.resultType == ResultType.BLACK_LIST) {
+        if (!result.shouldBlock || result.forceBlock) {
             return null
         }
 

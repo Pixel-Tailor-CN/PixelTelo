@@ -1,169 +1,18 @@
-# GitHub Actions 跨仓库发布 Implementation Plan
+# GitHub Actions 发布实施记录
 
-> **使用说明：** 本文保留设计与实施记录。继续执行前核对当前代码与用户目标，流程及验证以 [AGENTS.md](../../AGENTS.md) 为准；不要求绑定特定技能。
+状态：已实施，2026-11-08 按当前 workflow 归档。最初的私有仓库跨仓发布方案已停用；现状以 [release.yml](../../.github/workflows/release.yml) 为准，设计概览见[发布设计](2026-02-27-github-actions-release-design.md)。
 
-**Goal:** 在私有仓库推送 `v*` tag 时，自动构建 Release AAB + Universal APK 并发布到公开仓库 `PixelTelo/AppRelease`。
+## 当前链路
 
-**Architecture:** GitHub Actions 工作流在私有仓库运行，使用 bundletool 从 AAB 提取 Universal APK，通过存储在私有仓库 Secrets 中的 PAT 调用 `gh` CLI 跨仓库创建 Release 并上传产物。
+1. 推送 `v*` tag 触发本仓库发布工作流。
+2. Checkout 完整 Git 历史，使用 JDK 21 和项目 Gradle Wrapper。
+3. 从仓库 Secrets 解码签名到 runner 临时目录，以环境变量注入构建。
+4. 构建 Release AAB，经 bundletool 生成同一签名的 Universal APK。
+5. 使用 `softprops/action-gh-release` 在本仓库创建 Release，附加 AAB、APK 和 `CHANGELOG.md` 内容。
+6. 无论成功失败均清理 runner 的临时 keystore。
 
-**Tech Stack:** GitHub Actions, Gradle (Kotlin DSL), bundletool, gh CLI
+本仓库当前流程不使用旧 `APP_RELEASE_TOKEN` 或跨仓 README 更新脚本。
 
----
+## 验证边界
 
-### Task 1: 创建 GitHub Actions 工作流文件
-
-**Files:**
-- Create: `.github/workflows/release.yml`
-
-**Step 1: 创建目录**
-
-```bash
-mkdir -p .github/workflows
-```
-
-**Step 2: 写入工作流文件**
-
-```yaml
-name: Release
-
-on:
-  push:
-    tags:
-      - 'v*'
-
-jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # 需要完整 commit 历史以正确生成 versionCode
-
-      - name: Setup JDK 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Decode Keystore
-        run: |
-          echo "${{ secrets.SIGN_KEY_STORE_BASE64 }}" | base64 -d > $RUNNER_TEMP/release.jks
-
-      - name: Build Release Bundle
-        env:
-          SIGN_KEY_STORE_FILE: ${{ runner.temp }}/release.jks
-          SIGN_KEY_STORE_PASSWORD: ${{ secrets.SIGN_KEY_STORE_PASSWORD }}
-          SIGN_KEY_ALIAS: ${{ secrets.SIGN_KEY_ALIAS }}
-          SIGN_KEY_PASSWORD: ${{ secrets.SIGN_KEY_PASSWORD }}
-        run: ./gradlew bundleRelease
-
-      - name: Download bundletool
-        run: |
-          BUNDLETOOL_VERSION=1.17.2
-          curl -L "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar" \
-            -o bundletool.jar
-
-      - name: Extract Universal APK
-        run: |
-          mkdir -p apk-output
-          java -jar bundletool.jar build-apks \
-            --bundle=app/build/outputs/bundle/release/app-release.aab \
-            --output=apk-output/app.apks \
-            --mode=universal \
-            --ks=$RUNNER_TEMP/release.jks \
-            --ks-pass=pass:${{ secrets.SIGN_KEY_STORE_PASSWORD }} \
-            --ks-key-alias=${{ secrets.SIGN_KEY_ALIAS }} \
-            --key-pass=pass:${{ secrets.SIGN_KEY_PASSWORD }}
-          unzip apk-output/app.apks universal.apk -d apk-output/
-          # 重命名为有意义的文件名
-          VERSION_NAME=$(./gradlew -q printVersionName 2>/dev/null || echo "${{ github.ref_name }}")
-          mv apk-output/universal.apk "apk-output/PixelTelo-${GITHUB_REF_NAME}.apk"
-          cp app/build/outputs/bundle/release/app-release.aab "apk-output/PixelTelo-${GITHUB_REF_NAME}.aab"
-
-      - name: Create Release in AppRelease
-        env:
-          GH_TOKEN: ${{ secrets.APP_RELEASE_TOKEN }}
-        run: |
-          gh release create "${{ github.ref_name }}" \
-            --repo PixelTelo/AppRelease \
-            --title "PixelTelo ${{ github.ref_name }}" \
-            --notes "详见 [更新日志](https://github.com/PixelTelo/PixelTelo/releases/tag/${{ github.ref_name }})" \
-            "apk-output/PixelTelo-${GITHUB_REF_NAME}.apk" \
-            "apk-output/PixelTelo-${GITHUB_REF_NAME}.aab"
-
-      - name: Cleanup Keystore
-        if: always()
-        run: rm -f $RUNNER_TEMP/release.jks
-```
-
-**Step 3: Commit**
-
-```bash
-git add .github/workflows/release.yml
-git commit -m "ci: add GitHub Actions release workflow"
-```
-
----
-
-### Task 2: 更新 AppRelease 仓库 README.md
-
-**通过 gh CLI 直接更新远程仓库文件。**
-
-**Step 1: 获取当前 README SHA（gh API 需要）**
-
-```bash
-gh api repos/PixelTelo/AppRelease/contents/README.md --jq '.sha'
-```
-
-**Step 2: 写入新的 README 内容并推送**
-
-```bash
-gh api repos/PixelTelo/AppRelease/contents/README.md \
-  --method PUT \
-  --field message="docs: update README" \
-  --field sha="<上一步的SHA>" \
-  --field content="$(cat <<'EOF' | base64 -w0
-<README内容>
-EOF
-)"
-```
-
-（具体内容见 Task 3）
-
----
-
-### Task 3: README 内容
-
-AppRelease README.md 内容：
-
-```markdown
-# Pixel Telo - 应用发布
-
-> 专为 Google Pixel 设备设计的来电识别与拦截应用
-
-## 下载安装包
-
-前往 [Releases 页面](https://github.com/PixelTelo/AppRelease/releases/latest) 下载最新版本的 `.apk` 文件安装到设备。
-
-每个 Release 包含：
-- `.apk` — Universal APK，直接安装到手机
-- `.aab` — Android App Bundle，供开发者使用
-
-## 反馈问题
-
-如遇到 Bug 或有功能建议，欢迎在 [Issues](https://github.com/PixelTelo/AppRelease/issues) 提交反馈。
-
-## 隐私说明
-
-Pixel Telo 隐私优先：不收集任何个人数据，本地处理所有来电信息。
-```
-
----
-
-### Task 4: 告知用户需要配置的 Secrets
-
-用户需要在私有仓库 `Settings → Secrets → Actions` 中添加以下 5 个 Secrets，以及创建 PAT。
+本地 YAML 和产物路径检查不代表远程工作流已成功执行。只有对应 tag 的 Actions 和 Release 结果才能证明发布成功；历史计划中的示例 tag 或发布命令不是当前任务授权。

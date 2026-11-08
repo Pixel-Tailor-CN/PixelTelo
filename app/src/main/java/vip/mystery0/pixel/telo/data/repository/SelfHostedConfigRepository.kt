@@ -222,16 +222,6 @@ class SelfHostedConfigRepository(
         }
     }
 
-    /**
-     * 仅允许完整重验证路径解除阻止。签名要求调用方同时提供重新验证后的配置和 Token，
-     * 从类型边界避免无证据调用将 Blocked 直接恢复为 Ready。
-     */
-    @Synchronized
-    internal fun clearBlockedState(
-        config: VerifiedSelfHostedConfig,
-        token: CharArray,
-    ): Result<Unit> = commitVerified(config, token)
-
     /** 供后续构建已验证 Client 的内部调用读取 Token，调用方必须清空成功结果。 */
     @Synchronized
     internal fun loadToken(): Result<CharArray> {

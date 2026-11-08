@@ -57,7 +57,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import vip.mystery0.pixel.telo.R
-import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
+import vip.mystery0.pixel.telo.data.entity.isQueryFailure
 import vip.mystery0.pixel.telo.data.repository.CheckResult
 import vip.mystery0.pixel.telo.ui.theme.PixelTeloTheme
 import vip.mystery0.pixel.telo.viewmodel.LocationOverlayDisplayMode
@@ -84,9 +84,17 @@ class IncomingCallOverlay(
     private var currentParams: WindowManager.LayoutParams? = null
     private var currentLifecycleOwner: OverlayLifecycleOwner? = null
     private var dismissRunnable: Runnable? = null
+    private var currentCallSession: CallPostProcessingCoordinator.Session? = null
 
-    fun show(phoneNumber: String, result: CheckResult, localLabel: String?) {
-        if (!Settings.canDrawOverlays(appContext) || !result.locationLookupAttempted) return
+    fun show(
+        phoneNumber: String,
+        result: CheckResult,
+        localLabel: String?,
+        session: CallPostProcessingCoordinator.Session,
+    ) {
+        if (!CallPostProcessingCoordinator.mayShowOverlay(session) ||
+            !Settings.canDrawOverlays(appContext) || !result.locationLookupAttempted
+        ) return
 
         val locationText = IncomingCallOverlayFormatter.formatLocation(
             appContext,
@@ -98,7 +106,7 @@ class IncomingCallOverlay(
             locationText = locationText,
             localLabel = localLabel,
             sourceLabel = result.label.takeUnless {
-                result.resultType.isNetworkFailure()
+                result.resultType.isQueryFailure()
             },
             communityLabel = if (result.communityStatus == CommunityStatus.ACTIVE)
                 appContext.getString(R.string.community_label) else null,
@@ -121,6 +129,7 @@ class IncomingCallOverlay(
             offsetDp = offsetDp,
             draggable = false,
             dismissDelayMillis = dismissDelayMillis,
+            callSession = session,
             onOffsetChanged = {}
         )
     }
@@ -147,14 +156,27 @@ class IncomingCallOverlay(
         mainHandler.post { removeCurrentView() }
     }
 
+    /** 迟到的结束回调不移除后来已经显示的新通话；预览沿用原有结束清理行为。 */
+    fun hideEndedCall() {
+        mainHandler.post {
+            val session = currentCallSession
+            if (session == null || !CallPostProcessingCoordinator.mayShowOverlay(session)) {
+                removeCurrentView()
+            }
+        }
+    }
+
     private fun showOverlay(
         content: IncomingCallOverlayContent,
         offsetDp: Int,
         draggable: Boolean,
         dismissDelayMillis: Long?,
+        callSession: CallPostProcessingCoordinator.Session? = null,
         onOffsetChanged: (Int) -> Unit
     ) {
         mainHandler.post {
+            // 请求可能在主线程队列中等待过，旧通话不能先移除新通话的视图。
+            if (callSession != null && !CallPostProcessingCoordinator.mayShowOverlay(callSession)) return@post
             removeCurrentView()
             val params = createLayoutParams(offsetDp, draggable)
             val style = readStyle()
@@ -186,7 +208,14 @@ class IncomingCallOverlay(
                 }
                 view.setViewTreeLifecycleOwner(lifecycleOwner)
                 view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+                // 最终 addView 前再次检查；IDLE 或新代次已使旧请求失效时不添加窗口。
+                if (callSession != null && !CallPostProcessingCoordinator.mayShowOverlay(callSession)) {
+                    lifecycleOwner.moveToDestroyed()
+                    (view as? ComposeView)?.disposeComposition()
+                    return@runCatching
+                }
                 windowManager.addView(view, params)
+                currentCallSession = callSession
                 currentView = view
                 currentParams = params
                 currentLifecycleOwner = lifecycleOwner
@@ -469,6 +498,7 @@ class IncomingCallOverlay(
             Log.w(TAG, "Failed to remove incoming call overlay", it)
         }
         currentView = null
+        currentCallSession = null
         currentParams = null
         currentLifecycleOwner?.moveToDestroyed()
         currentLifecycleOwner = null

@@ -7,6 +7,8 @@ import vip.mystery0.pixel.telo.data.entity.ResultType
 /** 历史记录、悬浮窗与手动测试共享稳定分类，禁止展示服务端原始异常。 */
 @StringRes
 fun ResultType.queryFailureSummaryRes(): Int? = when (this) {
+    ResultType.LOCAL_TIMEOUT -> R.string.query_failure_local_timeout
+    ResultType.SCREENING_TIMEOUT -> R.string.query_failure_screening_timeout
     ResultType.NETWORK_TIMEOUT -> R.string.query_failure_timeout
     ResultType.NETWORK_RATE_LIMITED -> R.string.overlay_query_rate_limited
     ResultType.NETWORK_SERVER_ERROR -> R.string.overlay_query_server_error
@@ -23,6 +25,8 @@ fun ResultType.queryFailureSummaryRes(): Int? = when (this) {
 
 @StringRes
 fun ResultType.queryFailureAdviceRes(): Int = when (this) {
+    ResultType.LOCAL_TIMEOUT -> R.string.query_advice_local_timeout
+    ResultType.SCREENING_TIMEOUT -> R.string.query_advice_screening_timeout
     ResultType.NETWORK_TIMEOUT -> R.string.retry_error_network_timeout
     ResultType.NETWORK_RATE_LIMITED -> R.string.retry_error_rate_limited
     ResultType.NETWORK_SERVER_ERROR -> R.string.retry_error_server

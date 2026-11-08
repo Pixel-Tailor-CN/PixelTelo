@@ -201,13 +201,7 @@ class HomeViewModel() : ViewModel(), KoinComponent {
 
     private var contactLookupJob: Job? = null
 
-    val isDatabaseReady: StateFlow<Boolean> = syncRepository.versionFlow
-        .map { it.isNotBlank() }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = true
-        )
+    val isDatabaseReady: StateFlow<Boolean> = syncRepository.isDatabaseReady
 
     private val _missingPermissions = MutableStateFlow<List<String>>(emptyList())
     val missingPermissions: StateFlow<List<String>> = _missingPermissions.asStateFlow()
