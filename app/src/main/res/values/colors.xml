@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Compose 首帧之前的窗口底色，动态取色就绪后由主题同步。 -->
+    <color name="window_background">#FFFBFE</color>
     <!-- 启动页背景色：日间沿用图标背景，夜间由 values-night 覆盖 -->
     <color name="splash_background">#FFF8E1</color>
 </resources>

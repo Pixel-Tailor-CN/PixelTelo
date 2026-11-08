@@ -10,7 +10,8 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import vip.mystery0.pixel.telo.ui.components.NavigationContent
+import vip.mystery0.pixel.telo.ui.components.LocalNavigationActive
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -110,6 +111,8 @@ fun SettingsScreen(
     onNavigateToLocalNumberLabels: () -> Unit,
     onNavigateToMyReports: () -> Unit,
 ) {
+    val active = LocalNavigationActive.current
+    val latestActive by rememberUpdatedState(active)
     val context = LocalContext.current
     val queryBackendState by viewModel.queryBackendState.collectAsState()
     val selfHostedConnectionState by viewModel.selfHostedConnectionState.collectAsState()
@@ -283,16 +286,22 @@ fun SettingsScreen(
     DisposableEffect(Unit) {
         onDispose {
             previewOverlay.hide()
-            viewModel.hideLocationOverlayAdjuster()
+            if (latestActive) viewModel.hideLocationOverlayAdjuster()
         }
+    }
+    var wasActive by remember { mutableStateOf(active) }
+    LaunchedEffect(active) {
+        if (wasActive && !active) viewModel.hideLocationOverlayAdjuster()
+        wasActive = active
     }
 
     val permissionOverlayDesc = stringResource(R.string.permission_overlay_desc)
     LaunchedEffect(
+        active,
         viewModel.showLocationOverlayAdjuster,
         viewModel.locationOverlayStyle
     ) {
-        if (viewModel.showLocationOverlayAdjuster) {
+        if (active && viewModel.showLocationOverlayAdjuster) {
             val shown = previewOverlay.showPreview(
                 viewModel.locationOverlayOffsetDp,
                 viewModel::updateLocationOverlayOffset
@@ -312,280 +321,455 @@ fun SettingsScreen(
 
     val msgDebugModeEnabled = stringResource(R.string.msg_debug_mode_enabled)
     LaunchedEffect(viewModel.debugUnlocked) {
-        if (viewModel.debugUnlocked) {
+        if (active && viewModel.debugUnlocked) {
             Toast.makeText(context, msgDebugModeEnabled, Toast.LENGTH_SHORT).show()
         }
     }
 
     // 同步状态属于一次性 UI 事件，必须在副作用中消费，避免重组时重复显示或写状态。
     val syncStatusMessage = viewModel.syncStatusMessage
-    LaunchedEffect(syncStatusMessage) {
-        if (syncStatusMessage != null) {
+    LaunchedEffect(syncStatusMessage, active) {
+        if (active && syncStatusMessage != null) {
             Toast.makeText(context, syncStatusMessage, Toast.LENGTH_SHORT).show()
             viewModel.clearStatusMessage()
         }
     }
 
-    // 备份/恢复结果 Bottom Sheet
-    val backupState = viewModel.backupRestoreState
-    val backupResultSheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
-    val backupOptionsSheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
-    val restoreOptionsSheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
-    if (backupState is BackupRestoreState.Success) {
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.dismissBackupRestoreResult() },
-            sheetState = backupResultSheetState,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+    // 动画保留的离场页面不再创建弹窗，避免同一 ViewModel 同时显示两份 Sheet。
+    if (active) {
+        // 备份/恢复结果 Bottom Sheet
+        val backupState = viewModel.backupRestoreState
+        val backupResultSheetState = rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        )
+        val backupOptionsSheetState = rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        )
+        val restoreOptionsSheetState = rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        )
+        if (backupState is BackupRestoreState.Success) {
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.dismissBackupRestoreResult() },
+                sheetState = backupResultSheetState,
             ) {
-                Text(
-                    stringResource(R.string.title_operation_success),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    backupState.message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Button(
-                    onClick = { viewModel.dismissBackupRestoreResult() },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.action_ok)) }
-            }
-        }
-    } else if (backupState is BackupRestoreState.Failure) {
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.dismissBackupRestoreResult() },
-            sheetState = backupResultSheetState,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    stringResource(R.string.title_operation_failed),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    backupState.message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Button(
-                    onClick = { viewModel.dismissBackupRestoreResult() },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.action_ok)) }
-            }
-        }
-    }
-
-    // 备份内容选择 Sheet
-    if (viewModel.showBackupOptionsSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.closeBackupOptionsSheet() },
-            sheetState = backupOptionsSheetState,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    stringResource(R.string.title_backup_select),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    stringResource(R.string.msg_backup_select_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    stringResource(R.string.community_backup_notice),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                BackupCheckboxRow(
-                    checked = viewModel.backupOptions.includeBlockedCalls,
-                    label = stringResource(R.string.label_backup_blocked_calls),
-                    onCheckedChange = {
-                        viewModel.backupOptions =
-                            viewModel.backupOptions.copy(includeBlockedCalls = it)
-                    }
-                )
-                BackupCheckboxRow(
-                    checked = viewModel.backupOptions.includeBlackList,
-                    label = stringResource(R.string.label_backup_blacklist),
-                    onCheckedChange = {
-                        viewModel.backupOptions =
-                            viewModel.backupOptions.copy(includeBlackList = it)
-                    }
-                )
-                BackupCheckboxRow(
-                    checked = viewModel.backupOptions.includeWhiteList,
-                    label = stringResource(R.string.label_backup_whitelist),
-                    onCheckedChange = {
-                        viewModel.backupOptions =
-                            viewModel.backupOptions.copy(includeWhiteList = it)
-                    }
-                )
-                BackupCheckboxRow(
-                    checked = viewModel.backupOptions.includeLocalNumberLabels,
-                    label = stringResource(R.string.label_backup_local_number_labels),
-                    onCheckedChange = {
-                        viewModel.backupOptions =
-                            viewModel.backupOptions.copy(includeLocalNumberLabels = it)
-                    }
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = { viewModel.closeBackupOptionsSheet() },
-                        modifier = Modifier.weight(1f)
-                    ) { Text(stringResource(R.string.action_cancel)) }
-                    val opts = viewModel.backupOptions
-                    val date = LocalDateTime.now().format(backupDateTimeFormatter)
+                    Text(
+                        stringResource(R.string.title_operation_success),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        backupState.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Button(
-                        onClick = { backupLauncher.launch("pixeltelo_backup_$date.zip") },
-                        enabled = opts.includeBlockedCalls || opts.includeBlackList ||
-                            opts.includeWhiteList || opts.includeLocalNumberLabels,
-                        modifier = Modifier.weight(1f)
-                    ) { Text(stringResource(R.string.action_backup)) }
+                        onClick = { viewModel.dismissBackupRestoreResult() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.action_ok)) }
+                }
+            }
+        } else if (backupState is BackupRestoreState.Failure) {
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.dismissBackupRestoreResult() },
+                sheetState = backupResultSheetState,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.title_operation_failed),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        backupState.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = { viewModel.dismissBackupRestoreResult() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(stringResource(R.string.action_ok)) }
                 }
             }
         }
-    }
 
-    // 恢复内容选择 Sheet
-    val preview = viewModel.backupPreview
-    if (preview != null) {
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.closeRestoreOptionsSheet() },
-            sheetState = restoreOptionsSheetState,
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        // 备份内容选择 Sheet
+        if (viewModel.showBackupOptionsSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.closeBackupOptionsSheet() },
+                sheetState = backupOptionsSheetState,
             ) {
-                Text(
-                    stringResource(R.string.title_restore_select),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    stringResource(R.string.msg_restore_scope),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                BackupCheckboxRow(
-                    checked = viewModel.restoreOptions.includeBlockedCalls,
-                    label = stringResource(
-                        R.string.label_restore_blocked_calls,
-                        preview.blockedCallCount
-                    ),
-                    enabled = preview.blockedCallCount > 0,
-                    onCheckedChange = {
-                        viewModel.restoreOptions =
-                            viewModel.restoreOptions.copy(includeBlockedCalls = it)
-                    }
-                )
-                BackupCheckboxRow(
-                    checked = viewModel.restoreOptions.includeBlackList,
-                    label = stringResource(
-                        R.string.label_restore_blacklist,
-                        preview.blackListCount
-                    ),
-                    enabled = preview.blackListCount > 0,
-                    onCheckedChange = {
-                        viewModel.restoreOptions =
-                            viewModel.restoreOptions.copy(includeBlackList = it)
-                    }
-                )
-                BackupCheckboxRow(
-                    checked = viewModel.restoreOptions.includeWhiteList,
-                    label = stringResource(
-                        R.string.label_restore_whitelist,
-                        preview.whiteListCount
-                    ),
-                    enabled = preview.whiteListCount > 0,
-                    onCheckedChange = {
-                        viewModel.restoreOptions =
-                            viewModel.restoreOptions.copy(includeWhiteList = it)
-                    }
-                )
-                BackupCheckboxRow(
-                    checked = viewModel.restoreOptions.includeLocalNumberLabels,
-                    label = stringResource(
-                        R.string.label_restore_local_number_labels,
-                        preview.localNumberLabelCount,
-                    ),
-                    enabled = preview.localNumberLabelCount > 0,
-                    onCheckedChange = {
-                        viewModel.restoreOptions = viewModel.restoreOptions.copy(
-                            includeLocalNumberLabels = it,
-                        )
-                    },
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = { viewModel.closeRestoreOptionsSheet() },
-                        modifier = Modifier.weight(1f)
-                    ) { Text(stringResource(R.string.action_cancel)) }
-                    val opts = viewModel.restoreOptions
-                    val canRestore =
-                        (opts.includeBlockedCalls && preview.blockedCallCount > 0) ||
-                            (opts.includeBlackList && preview.blackListCount > 0) ||
-                            (opts.includeWhiteList && preview.whiteListCount > 0) ||
-                            (opts.includeLocalNumberLabels && preview.localNumberLabelCount > 0)
-                    Button(
-                        onClick = { viewModel.performRestoreWithOptions() },
-                        enabled = canRestore,
-                        modifier = Modifier.weight(1f)
-                    ) { Text(stringResource(R.string.action_restore)) }
+                    Text(
+                        stringResource(R.string.title_backup_select),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        stringResource(R.string.msg_backup_select_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        stringResource(R.string.community_backup_notice),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    BackupCheckboxRow(
+                        checked = viewModel.backupOptions.includeBlockedCalls,
+                        label = stringResource(R.string.label_backup_blocked_calls),
+                        onCheckedChange = {
+                            viewModel.backupOptions =
+                                viewModel.backupOptions.copy(includeBlockedCalls = it)
+                        }
+                    )
+                    BackupCheckboxRow(
+                        checked = viewModel.backupOptions.includeBlackList,
+                        label = stringResource(R.string.label_backup_blacklist),
+                        onCheckedChange = {
+                            viewModel.backupOptions =
+                                viewModel.backupOptions.copy(includeBlackList = it)
+                        }
+                    )
+                    BackupCheckboxRow(
+                        checked = viewModel.backupOptions.includeWhiteList,
+                        label = stringResource(R.string.label_backup_whitelist),
+                        onCheckedChange = {
+                            viewModel.backupOptions =
+                                viewModel.backupOptions.copy(includeWhiteList = it)
+                        }
+                    )
+                    BackupCheckboxRow(
+                        checked = viewModel.backupOptions.includeLocalNumberLabels,
+                        label = stringResource(R.string.label_backup_local_number_labels),
+                        onCheckedChange = {
+                            viewModel.backupOptions =
+                                viewModel.backupOptions.copy(includeLocalNumberLabels = it)
+                        }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { viewModel.closeBackupOptionsSheet() },
+                            modifier = Modifier.weight(1f)
+                        ) { Text(stringResource(R.string.action_cancel)) }
+                        val opts = viewModel.backupOptions
+                        val date = LocalDateTime.now().format(backupDateTimeFormatter)
+                        Button(
+                            onClick = { backupLauncher.launch("pixeltelo_backup_$date.zip") },
+                            enabled = opts.includeBlockedCalls || opts.includeBlackList ||
+                                opts.includeWhiteList || opts.includeLocalNumberLabels,
+                            modifier = Modifier.weight(1f)
+                        ) { Text(stringResource(R.string.action_backup)) }
+                    }
                 }
             }
         }
-    }
 
-    // 更新离线数据 Bottom Sheet：确认与下载进度共用同一个 Sheet，用 AnimatedContent 切换
-    if (viewModel.showUpdateDialog != null || viewModel.isDownloading) {
-        ModalBottomSheet(
-            onDismissRequest = { if (!viewModel.isDownloading) viewModel.cancelUpdate() }
-        ) {
-            AnimatedContent(
-                targetState = viewModel.isDownloading,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "UpdateContent"
-            ) { isDownloading ->
+        // 恢复内容选择 Sheet
+        val preview = viewModel.backupPreview
+        if (preview != null) {
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.closeRestoreOptionsSheet() },
+                sheetState = restoreOptionsSheetState,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.title_restore_select),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        stringResource(R.string.msg_restore_scope),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    BackupCheckboxRow(
+                        checked = viewModel.restoreOptions.includeBlockedCalls,
+                        label = stringResource(
+                            R.string.label_restore_blocked_calls,
+                            preview.blockedCallCount
+                        ),
+                        enabled = preview.blockedCallCount > 0,
+                        onCheckedChange = {
+                            viewModel.restoreOptions =
+                                viewModel.restoreOptions.copy(includeBlockedCalls = it)
+                        }
+                    )
+                    BackupCheckboxRow(
+                        checked = viewModel.restoreOptions.includeBlackList,
+                        label = stringResource(
+                            R.string.label_restore_blacklist,
+                            preview.blackListCount
+                        ),
+                        enabled = preview.blackListCount > 0,
+                        onCheckedChange = {
+                            viewModel.restoreOptions =
+                                viewModel.restoreOptions.copy(includeBlackList = it)
+                        }
+                    )
+                    BackupCheckboxRow(
+                        checked = viewModel.restoreOptions.includeWhiteList,
+                        label = stringResource(
+                            R.string.label_restore_whitelist,
+                            preview.whiteListCount
+                        ),
+                        enabled = preview.whiteListCount > 0,
+                        onCheckedChange = {
+                            viewModel.restoreOptions =
+                                viewModel.restoreOptions.copy(includeWhiteList = it)
+                        }
+                    )
+                    BackupCheckboxRow(
+                        checked = viewModel.restoreOptions.includeLocalNumberLabels,
+                        label = stringResource(
+                            R.string.label_restore_local_number_labels,
+                            preview.localNumberLabelCount,
+                        ),
+                        enabled = preview.localNumberLabelCount > 0,
+                        onCheckedChange = {
+                            viewModel.restoreOptions = viewModel.restoreOptions.copy(
+                                includeLocalNumberLabels = it,
+                            )
+                        },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { viewModel.closeRestoreOptionsSheet() },
+                            modifier = Modifier.weight(1f)
+                        ) { Text(stringResource(R.string.action_cancel)) }
+                        val opts = viewModel.restoreOptions
+                        val canRestore =
+                            (opts.includeBlockedCalls && preview.blockedCallCount > 0) ||
+                                (opts.includeBlackList && preview.blackListCount > 0) ||
+                                (opts.includeWhiteList && preview.whiteListCount > 0) ||
+                                (opts.includeLocalNumberLabels && preview.localNumberLabelCount > 0)
+                        Button(
+                            onClick = { viewModel.performRestoreWithOptions() },
+                            enabled = canRestore,
+                            modifier = Modifier.weight(1f)
+                        ) { Text(stringResource(R.string.action_restore)) }
+                    }
+                }
+            }
+        }
+
+        // 更新离线数据 Bottom Sheet：确认与下载进度共用同一个 Sheet，用 AnimatedContent 切换
+        if (viewModel.showUpdateDialog != null || viewModel.isDownloading) {
+            ModalBottomSheet(
+                onDismissRequest = { if (!viewModel.isDownloading) viewModel.cancelUpdate() }
+            ) {
+                AnimatedContent(
+                    targetState = viewModel.isDownloading,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "UpdateContent"
+                ) { isDownloading ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 32.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (isDownloading) {
+                            Text(
+                                stringResource(R.string.title_downloading_offline_data),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                "${(viewModel.downloadProgress * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            LinearWavyProgressIndicator(
+                                progress = { viewModel.downloadProgress },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            Text(
+                                stringResource(R.string.title_new_version_detected),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.label_new_version,
+                                    viewModel.showUpdateDialog?.latestVersion ?: ""
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            val rowCount = viewModel.showUpdateDialog?.rowCount ?: 0
+                            if (rowCount > 0) {
+                                Text(
+                                    stringResource(R.string.label_row_count, rowCount),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (viewModel.localRowCount > 0) {
+                                Text(
+                                    stringResource(
+                                        R.string.label_local_row_count,
+                                        viewModel.localRowCount
+                                    ),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.cancelUpdate() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_cancel)) }
+                                Button(
+                                    onClick = { viewModel.confirmUpdate() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_download_update)) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 测试拦截 Bottom Sheet：输入与结果两态，用 AnimatedContent 切换
+        if (viewModel.showTestDialog) {
+            ModalBottomSheet(onDismissRequest = { viewModel.hideTestDialog() }) {
+                AnimatedContent(
+                    targetState = viewModel.testResult,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "TestContent"
+                ) { result ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 32.dp)
+                            .imePadding(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (result == null) {
+                            Text(
+                                stringResource(R.string.title_test_intercept),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                stringResource(R.string.msg_input_phone_number),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            OutlinedTextField(
+                                value = viewModel.testPhoneNumber,
+                                onValueChange = { viewModel.updateTestPhoneNumber(it) },
+                                label = { Text(stringResource(R.string.label_phone_number)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.hideTestDialog() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_cancel)) }
+                                Button(
+                                    onClick = { viewModel.testBlock() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_check)) }
+                            }
+                        } else {
+                            Text(
+                                stringResource(R.string.title_test_intercept),
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                viewModel.testPhoneNumber,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(stringResource(if (result.shouldBlock) R.string.label_should_block_yes else R.string.label_should_block_no))
+                            Text(stringResource(R.string.label_tag_info) + result.label.ifEmpty {
+                                stringResource(
+                                    R.string.label_none
+                                )
+                            })
+                            if (result.communityStatus != CommunityStatus.UNKNOWN) {
+                                Text(stringResource(R.string.community_query_snapshot,
+                                    stringResource(R.string.community_status_prefixed, stringResource(result.communityStatus.textRes()))))
+                            }
+                            val failureSummary = result.resultType.queryFailureSummaryRes()
+                            Text(stringResource(R.string.label_result_type) +
+                                (failureSummary?.let { stringResource(it) } ?: result.resultType.name))
+                            if (failureSummary != null) {
+                                Text(
+                                    stringResource(result.resultType.queryFailureAdviceRes()),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                            Text(stringResource(R.string.label_local_cost) + "${result.localCost}ms")
+                            Text(stringResource(R.string.label_network_cost) + "${result.networkCost}ms")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.hideTestDialog() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_close)) }
+                                Button(
+                                    onClick = { viewModel.saveTestResult() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_record)) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 联网查询数据源设置 BottomSheet：有草稿时可编辑，无缓存时展示加载/失败与重试
+        if (viewModel.showQuerySourceSheet) {
+            val sourceState by viewModel.querySourceState.collectAsState()
+            val draft = viewModel.querySourceDraft
+            ModalBottomSheet(onDismissRequest = { viewModel.closeQuerySourceSettings() }) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -593,251 +777,79 @@ fun SettingsScreen(
                         .padding(bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (isDownloading) {
-                        Text(
-                            stringResource(R.string.title_downloading_offline_data),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            "${(viewModel.downloadProgress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        LinearWavyProgressIndicator(
-                            progress = { viewModel.downloadProgress },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Text(
-                            stringResource(R.string.title_new_version_detected),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            stringResource(
-                                R.string.label_new_version,
-                                viewModel.showUpdateDialog?.latestVersion ?: ""
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        val rowCount = viewModel.showUpdateDialog?.rowCount ?: 0
-                        if (rowCount > 0) {
+                    Text(
+                        stringResource(R.string.title_query_sources),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    when {
+                        draft.isNotEmpty() -> {
                             Text(
-                                stringResource(R.string.label_row_count, rowCount),
+                                stringResource(R.string.msg_query_sources_hint),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            draft.forEachIndexed { index, item ->
+                                QuerySourceRow(
+                                    item = item,
+                                    quality = viewModel.querySourceQuality[item.id],
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index < draft.lastIndex,
+                                    onMoveUp = { viewModel.moveQuerySource(item.id, -1) },
+                                    onMoveDown = { viewModel.moveQuerySource(item.id, 1) },
+                                    onToggle = { viewModel.toggleQuerySource(item.id, it) },
+                                )
+                            }
+                            TextButton(onClick = { viewModel.restoreDefaultQuerySources() }) {
+                                Text(stringResource(R.string.action_restore_default_sources))
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.closeQuerySourceSettings() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_cancel)) }
+                                Button(
+                                    onClick = { viewModel.saveQuerySources() },
+                                    enabled = draft.any { it.enabled && it.available },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_save)) }
+                            }
                         }
-                        if (viewModel.localRowCount > 0) {
+
+                        sourceState.refreshing -> {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                Text(
+                                    stringResource(R.string.msg_query_sources_loading),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                        }
+
+                        else -> {
                             Text(
-                                stringResource(
-                                    R.string.label_local_row_count,
-                                    viewModel.localRowCount
-                                ),
+                                stringResource(R.string.msg_query_sources_load_failed),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.cancelUpdate() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_cancel)) }
-                            Button(
-                                onClick = { viewModel.confirmUpdate() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_download_update)) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 测试拦截 Bottom Sheet：输入与结果两态，用 AnimatedContent 切换
-    if (viewModel.showTestDialog) {
-        ModalBottomSheet(onDismissRequest = { viewModel.hideTestDialog() }) {
-            AnimatedContent(
-                targetState = viewModel.testResult,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "TestContent"
-            ) { result ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
-                        .imePadding(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (result == null) {
-                        Text(
-                            stringResource(R.string.title_test_intercept),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            stringResource(R.string.msg_input_phone_number),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        OutlinedTextField(
-                            value = viewModel.testPhoneNumber,
-                            onValueChange = { viewModel.updateTestPhoneNumber(it) },
-                            label = { Text(stringResource(R.string.label_phone_number)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.hideTestDialog() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_cancel)) }
-                            Button(
-                                onClick = { viewModel.testBlock() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_check)) }
-                        }
-                    } else {
-                        Text(
-                            stringResource(R.string.title_test_intercept),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            viewModel.testPhoneNumber,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(stringResource(if (result.shouldBlock) R.string.label_should_block_yes else R.string.label_should_block_no))
-                        Text(stringResource(R.string.label_tag_info) + result.label.ifEmpty {
-                            stringResource(
-                                R.string.label_none
-                            )
-                        })
-                        if (result.communityStatus != CommunityStatus.UNKNOWN) {
-                            Text(stringResource(R.string.community_query_snapshot,
-                                stringResource(R.string.community_status_prefixed, stringResource(result.communityStatus.textRes()))))
-                        }
-                        val failureSummary = result.resultType.queryFailureSummaryRes()
-                        Text(stringResource(R.string.label_result_type) +
-                            (failureSummary?.let { stringResource(it) } ?: result.resultType.name))
-                        if (failureSummary != null) {
-                            Text(
-                                stringResource(result.resultType.queryFailureAdviceRes()),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                        Text(stringResource(R.string.label_local_cost) + "${result.localCost}ms")
-                        Text(stringResource(R.string.label_network_cost) + "${result.networkCost}ms")
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.hideTestDialog() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_close)) }
-                            Button(
-                                onClick = { viewModel.saveTestResult() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_record)) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 联网查询数据源设置 BottomSheet：有草稿时可编辑，无缓存时展示加载/失败与重试
-    if (viewModel.showQuerySourceSheet) {
-        val sourceState by viewModel.querySourceState.collectAsState()
-        val draft = viewModel.querySourceDraft
-        ModalBottomSheet(onDismissRequest = { viewModel.closeQuerySourceSettings() }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    stringResource(R.string.title_query_sources),
-                    style = MaterialTheme.typography.titleLarge
-                )
-                when {
-                    draft.isNotEmpty() -> {
-                        Text(
-                            stringResource(R.string.msg_query_sources_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        draft.forEachIndexed { index, item ->
-                            QuerySourceRow(
-                                item = item,
-                                quality = viewModel.querySourceQuality[item.id],
-                                canMoveUp = index > 0,
-                                canMoveDown = index < draft.lastIndex,
-                                onMoveUp = { viewModel.moveQuerySource(item.id, -1) },
-                                onMoveDown = { viewModel.moveQuerySource(item.id, 1) },
-                                onToggle = { viewModel.toggleQuerySource(item.id, it) },
-                            )
-                        }
-                        TextButton(onClick = { viewModel.restoreDefaultQuerySources() }) {
-                            Text(stringResource(R.string.action_restore_default_sources))
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.closeQuerySourceSettings() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_cancel)) }
-                            Button(
-                                onClick = { viewModel.saveQuerySources() },
-                                enabled = draft.any { it.enabled && it.available },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_save)) }
-                        }
-                    }
-
-                    sourceState.refreshing -> {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            Text(
-                                stringResource(R.string.msg_query_sources_loading),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-
-                    else -> {
-                        Text(
-                            stringResource(R.string.msg_query_sources_load_failed),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.closeQuerySourceSettings() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_cancel)) }
-                            Button(
-                                onClick = { viewModel.retryQuerySourceRefresh() },
-                                modifier = Modifier.weight(1f)
-                            ) { Text(stringResource(R.string.action_retry)) }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.closeQuerySourceSettings() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_cancel)) }
+                                Button(
+                                    onClick = { viewModel.retryQuerySourceRefresh() },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text(stringResource(R.string.action_retry)) }
+                            }
                         }
                     }
                 }
@@ -922,178 +934,173 @@ fun SettingsScreen(
         optionalPermissionCount,
     )
 
-    NavigationContent(
-        targetState = settingsCategory,
-        depth = { if (it == null) 0 else 1 },
-    ) { displayedCategory ->
-        saveableStateHolder.SaveableStateProvider(displayedCategory?.name ?: "settings-home") {
-            if (displayedCategory == null) {
-                val categoryGroups = listOf(
-                    listOf(
-                        Triple(
-                            SettingsCategory.CALL_RECOGNITION,
-                            stringResource(
-                                if (viewModel.notifyOnly) {
-                                    R.string.setting_category_call_notify_summary
-                                } else {
-                                    R.string.setting_category_call_block_summary
-                                }
-                            ),
-                            Icons.Default.NotificationsNone,
+    saveableStateHolder.SaveableStateProvider(settingsCategory?.name ?: "settings-home") {
+        if (settingsCategory == null) {
+            val categoryGroups = listOf(
+                listOf(
+                    Triple(
+                        SettingsCategory.CALL_RECOGNITION,
+                        stringResource(
+                            if (viewModel.notifyOnly) {
+                                R.string.setting_category_call_notify_summary
+                            } else {
+                                R.string.setting_category_call_block_summary
+                            }
                         ),
-                        Triple(
-                            SettingsCategory.ONLINE_QUERY,
-                            onlineSummary,
-                            Icons.Default.Cloud,
-                        ),
-                        Triple(
-                            SettingsCategory.OFFLINE_DATABASE,
-                            offlineSummary,
-                            Icons.Default.Update,
-                        ),
+                        Icons.Default.NotificationsNone,
                     ),
-                    listOf(
-                        Triple(
-                            SettingsCategory.DISPLAY_ALERTS,
-                            overlaySummary,
-                            Icons.Default.Visibility,
-                        ),
-                        Triple(
-                            SettingsCategory.RECORDS_BACKUP,
-                            stringResource(R.string.setting_category_records_summary),
-                            Icons.AutoMirrored.Outlined.Assignment,
-                        ),
+                    Triple(
+                        SettingsCategory.ONLINE_QUERY,
+                        onlineSummary,
+                        Icons.Default.Cloud,
                     ),
-                    listOf(
-                        Triple(
-                            SettingsCategory.PERMISSIONS,
-                            permissionsSummary,
-                            Icons.Default.Security,
-                        ),
-                        Triple(
-                            SettingsCategory.ABOUT,
-                            stringResource(
-                                R.string.setting_app_version_summary,
-                                viewModel.versionName,
-                                viewModel.versionCode,
-                            ),
-                            Icons.Default.Info,
-                        ),
+                    Triple(
+                        SettingsCategory.OFFLINE_DATABASE,
+                        offlineSummary,
+                        Icons.Default.Update,
                     ),
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    categoryGroups.forEach { group ->
-                        SettingsGroup(
-                            rows = group.map { (category, summary, icon) ->
-                                SettingsRowItem(category.name) { modifier ->
-                                    SettingsItemRow(
-                                        modifier = modifier,
-                                        title = stringResource(category.titleResId),
-                                        summary = summary,
-                                        icon = icon,
-                                        onClick = { onNavigateToCategory(category) },
-                                    )
-                                }
-                            },
-                        )
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
-                    when (displayedCategory) {
-                        SettingsCategory.CALL_RECOGNITION ->
-                            InterceptBehaviorPreferences(
-                                viewModel = viewModel,
-                                backendState = queryBackendState,
-                            )
-
-                        SettingsCategory.ONLINE_QUERY ->
-                            OnlineQueryPreferences(
-                                viewModel = viewModel,
-                                backendState = queryBackendState,
-                                selfHostedConnectionState = selfHostedConnectionState,
-                            )
-
-                        SettingsCategory.OFFLINE_DATABASE ->
-                            OfflineDatabasePreferences(
-                                viewModel = viewModel,
-                                onRequestNotificationPermission = {
-                                    notificationPermissionLauncher.launch(
-                                        Manifest.permission.POST_NOTIFICATIONS
-                                    )
-                                },
-                            )
-
-                        SettingsCategory.DISPLAY_ALERTS -> {
-                            DisplayPreferences(
-                                viewModel = viewModel,
-                                backendState = queryBackendState,
-                                feedbackPermissions = feedbackPermissions,
-                                onRequestFeedbackPermissions = feedbackPermissionLauncher::launch,
-                                onRequestPhoneStatePermission = {
-                                    callStateVibrationPermissionLauncher.launch(
-                                        Manifest.permission.READ_PHONE_STATE
-                                    )
-                                },
-                            )
-                            LocationOverlayPreferences(viewModel)
-                        }
-
-                        SettingsCategory.RECORDS_BACKUP ->
-                            BackupRestorePreferences(
-                                viewModel = viewModel,
-                                onNavigateToMyReports = onNavigateToMyReports,
-                                onNavigateToLocalNumberLabels = onNavigateToLocalNumberLabels,
-                                onRestore = {
-                                    restoreLauncher.launch(arrayOf("application/zip", "*/*"))
-                                },
-                            )
-
-                        SettingsCategory.PERMISSIONS ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                            ) {
-                                PermissionsPreferences(
-                                    overlayPermissionGranted = overlayPermissionGranted,
-                                    permissionsState = permissionsState,
-                                    onRequestOverlayPermission = {
-                                        val intent = Intent(
-                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                            "package:${context.packageName}".toUri()
-                                        )
-                                        overlayPermissionLauncher.launch(intent)
-                                    },
-                                    onRequestPermission = { permission ->
-                                        launcher.launch(arrayOf(permission))
-                                    },
+                ),
+                listOf(
+                    Triple(
+                        SettingsCategory.DISPLAY_ALERTS,
+                        overlaySummary,
+                        Icons.Default.Visibility,
+                    ),
+                    Triple(
+                        SettingsCategory.RECORDS_BACKUP,
+                        stringResource(R.string.setting_category_records_summary),
+                        Icons.AutoMirrored.Outlined.Assignment,
+                    ),
+                ),
+                listOf(
+                    Triple(
+                        SettingsCategory.PERMISSIONS,
+                        permissionsSummary,
+                        Icons.Default.Security,
+                    ),
+                    Triple(
+                        SettingsCategory.ABOUT,
+                        stringResource(
+                            R.string.setting_app_version_summary,
+                            viewModel.versionName,
+                            viewModel.versionCode,
+                        ),
+                        Icons.Default.Info,
+                    ),
+                ),
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                categoryGroups.forEach { group ->
+                    SettingsGroup(
+                        rows = group.map { (category, summary, icon) ->
+                            SettingsRowItem(category.name) { modifier ->
+                                SettingsItemRow(
+                                    modifier = modifier,
+                                    title = stringResource(category.titleResId),
+                                    summary = summary,
+                                    icon = icon,
+                                    onClick = { onNavigateToCategory(category) },
                                 )
                             }
+                        },
+                    )
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                when (settingsCategory) {
+                    SettingsCategory.CALL_RECOGNITION ->
+                        InterceptBehaviorPreferences(
+                            viewModel = viewModel,
+                            backendState = queryBackendState,
+                        )
 
-                        SettingsCategory.ABOUT -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                            ) {
-                                AboutPreferences(viewModel)
-                            }
-                            if (viewModel.debugUnlocked) {
-                                SettingsSection(title = stringResource(R.string.category_debug_mode)) {
-                                    DebugPreferences(viewModel)
-                                }
+                    SettingsCategory.ONLINE_QUERY ->
+                        OnlineQueryPreferences(
+                            viewModel = viewModel,
+                            backendState = queryBackendState,
+                            selfHostedConnectionState = selfHostedConnectionState,
+                        )
+
+                    SettingsCategory.OFFLINE_DATABASE ->
+                        OfflineDatabasePreferences(
+                            viewModel = viewModel,
+                            onRequestNotificationPermission = {
+                                notificationPermissionLauncher.launch(
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                )
+                            },
+                        )
+
+                    SettingsCategory.DISPLAY_ALERTS -> {
+                        DisplayPreferences(
+                            viewModel = viewModel,
+                            backendState = queryBackendState,
+                            feedbackPermissions = feedbackPermissions,
+                            onRequestFeedbackPermissions = feedbackPermissionLauncher::launch,
+                            onRequestPhoneStatePermission = {
+                                callStateVibrationPermissionLauncher.launch(
+                                    Manifest.permission.READ_PHONE_STATE
+                                )
+                            },
+                        )
+                        LocationOverlayPreferences(viewModel)
+                    }
+
+                    SettingsCategory.RECORDS_BACKUP ->
+                        BackupRestorePreferences(
+                            viewModel = viewModel,
+                            onNavigateToMyReports = onNavigateToMyReports,
+                            onNavigateToLocalNumberLabels = onNavigateToLocalNumberLabels,
+                            onRestore = {
+                                restoreLauncher.launch(arrayOf("application/zip", "*/*"))
+                            },
+                        )
+
+                    SettingsCategory.PERMISSIONS ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        ) {
+                            PermissionsPreferences(
+                                overlayPermissionGranted = overlayPermissionGranted,
+                                permissionsState = permissionsState,
+                                onRequestOverlayPermission = {
+                                    val intent = Intent(
+                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        "package:${context.packageName}".toUri()
+                                    )
+                                    overlayPermissionLauncher.launch(intent)
+                                },
+                                onRequestPermission = { permission ->
+                                    launcher.launch(arrayOf(permission))
+                                },
+                            )
+                        }
+
+                    SettingsCategory.ABOUT -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        ) {
+                            AboutPreferences(viewModel)
+                        }
+                        if (viewModel.debugUnlocked) {
+                            SettingsSection(title = stringResource(R.string.category_debug_mode)) {
+                                DebugPreferences(viewModel)
                             }
                         }
                     }

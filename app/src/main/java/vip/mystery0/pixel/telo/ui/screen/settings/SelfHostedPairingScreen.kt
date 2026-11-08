@@ -70,6 +70,7 @@ fun SelfHostedPairingScreen(
     backRequest: Int,
     onBackToManagement: () -> Unit,
     onTitleChange: (Int) -> Unit,
+    onBackPreviewChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val active = LocalNavigationActive.current
@@ -297,10 +298,22 @@ fun SelfHostedPairingScreen(
         }
     }
 
+    val canPreviewManagement = !busy && step != SelfHostedPairingPage.CONFIRM && !isDirty() && !showDiscard
+    LaunchedEffect(active, canPreviewManagement) {
+        if (active) onBackPreviewChange(canPreviewManagement)
+    }
+    val sourcePage = when (source) {
+        SelfHostedPairingOrigin.MANUAL -> SelfHostedPairingPage.MANUAL
+        SelfHostedPairingOrigin.PASTE -> SelfHostedPairingPage.PASTE
+        SelfHostedPairingOrigin.SCAN -> SelfHostedPairingPage.SCAN
+    }
+
     NavigationContent(
         targetState = step,
         depth = { if (it == SelfHostedPairingPage.CONFIRM) 1 else 0 },
         modifier = modifier,
+        backTarget = sourcePage.takeIf { step == SelfHostedPairingPage.CONFIRM && !busy && !showDiscard },
+        onBack = if (step == SelfHostedPairingPage.CONFIRM) ::requestBack else null,
     ) { displayedStep ->
         Column(modifier = Modifier.fillMaxSize()) {
             if (displayedStep == SelfHostedPairingPage.SCAN) {

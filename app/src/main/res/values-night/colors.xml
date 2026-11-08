@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="window_background">#1C1B1F</color>
     <!-- 启动页背景色：夜间模式使用深色，避免强光刺眼 -->
     <color name="splash_background">#1C1B1F</color>
 </resources>

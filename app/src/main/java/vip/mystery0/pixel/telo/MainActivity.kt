@@ -1,18 +1,15 @@
 package vip.mystery0.pixel.telo
 
 import android.os.Bundle
+import android.graphics.drawable.ColorDrawable
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.toArgb
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.tween
-import vip.mystery0.pixel.telo.ui.components.NavigationContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -64,6 +61,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import vip.mystery0.pixel.telo.smartspacer.SmartspacerInterceptRepository
+import vip.mystery0.pixel.telo.ui.components.NavigationContent
 import vip.mystery0.pixel.telo.ui.screen.HomeScreen
 import vip.mystery0.pixel.telo.ui.screen.ListScreen
 import vip.mystery0.pixel.telo.ui.screen.LocalNumberLabelsScreen
@@ -106,6 +104,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PixelTeloTheme {
+                val windowBackground = MaterialTheme.colorScheme.background
+                // 固定底层只属于主窗口，不能放到与来电悬浮窗共用的主题中。
+                SideEffect {
+                    window.setBackgroundDrawable(ColorDrawable(windowBackground.toArgb()))
+                }
                 val settingsSaveableStateHolder = rememberSaveableStateHolder()
                 val pagerState = rememberPagerState(pageCount = { AppDestinations.entries.size })
                 val currentDestination = AppDestinations.entries[pagerState.currentPage]
@@ -124,13 +127,13 @@ class MainActivity : ComponentActivity() {
                     showLocalNumberLabelsScreen = false
                     showMyReportsScreen = true
                 }
-                BackHandler(enabled = showMyReportsScreen) { showMyReportsScreen = false }
                 val showSelfHostedSettings = settingViewModel.showSelfHostedSettings
                 val showPairingScreen = showSelfHostedSettings &&
                     settingViewModel.selfHostedConfigEditing
                 var pairingEntry by remember { mutableStateOf(SelfHostedPairingEntry.MANUAL) }
                 var pairingBackRequest by remember { mutableStateOf(0) }
                 var pairingTitle by remember { mutableStateOf(R.string.title_pairing_manual) }
+                var pairingBackPreviewAllowed by remember { mutableStateOf(false) }
 
                 LaunchedEffect(showSelfHostedSettings) {
                     if (showSelfHostedSettings) {
@@ -146,26 +149,10 @@ class MainActivity : ComponentActivity() {
                         settingViewModel.closeSelfHostedConfig()
                     }
                 }
-                BackHandler(enabled = showSelfHostedSettings) {
-                    requestSelfHostedBack()
-                }
 
                 fun closeLocalNumberLabelsScreen() {
                     showLocalNumberLabelsScreen = false
                     localNumberLabelEditorViewModel.clearTarget()
-                }
-
-                BackHandler(enabled = showLocalNumberLabelsScreen) {
-                    closeLocalNumberLabelsScreen()
-                }
-                BackHandler(
-                    enabled = settingsCategory != null &&
-                        currentDestination == AppDestinations.SETTINGS &&
-                        !showSelfHostedSettings &&
-                        !showMyReportsScreen &&
-                        !showLocalNumberLabelsScreen,
-                ) {
-                    settingsCategory = null
                 }
 
                 val page = when {
@@ -175,279 +162,316 @@ class MainActivity : ComponentActivity() {
                     showLocalNumberLabelsScreen -> AppPage.LOCAL_LABELS
                     else -> AppPage.MAIN
                 }
+                val destination = NavigationPage(
+                    page = page,
+                    category = settingsCategory.takeIf {
+                        page == AppPage.MAIN && currentDestination == AppDestinations.SETTINGS
+                    },
+                )
+                val returnCategory = settingsCategory.takeIf {
+                    currentDestination == AppDestinations.SETTINGS
+                }
+                val backTarget = when (page) {
+                    AppPage.MAIN -> if (destination.category != null) NavigationPage(AppPage.MAIN, null) else null
+                    AppPage.MY_REPORTS, AppPage.LOCAL_LABELS -> NavigationPage(AppPage.MAIN, returnCategory)
+                    AppPage.SELF_HOSTED -> if (!settingViewModel.selfHostedValidationInProgress) {
+                        NavigationPage(AppPage.MAIN, SettingsCategory.ONLINE_QUERY)
+                    } else null
+                    AppPage.PAIRING -> if (pairingBackPreviewAllowed) NavigationPage(AppPage.SELF_HOSTED, null) else null
+                }
+                val backAction: (() -> Unit)? = when (page) {
+                    AppPage.MAIN -> if (destination.category != null) ({ settingsCategory = null }) else null
+                    AppPage.MY_REPORTS -> ({ showMyReportsScreen = false })
+                    AppPage.LOCAL_LABELS -> ::closeLocalNumberLabelsScreen
+                    AppPage.SELF_HOSTED -> settingViewModel::closeSelfHostedConfig
+                    AppPage.PAIRING -> ({
+                        if (pairingBackPreviewAllowed) settingViewModel.returnToSelfHostedManagement()
+                        else requestSelfHostedBack()
+                    })
+                }
                 val pageStateHolder = rememberSaveableStateHolder()
 
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Text(
-                                    stringResource(
-                                        if (showSelfHostedSettings) {
-                                            if (showPairingScreen) pairingTitle
-                                            else R.string.title_self_hosted_management
-                                        } else if (showMyReportsScreen) {
-                                            R.string.community_my_reports
-                                        } else if (showLocalNumberLabelsScreen) {
-                                            R.string.title_local_number_labels
-                                        } else if (currentDestination == AppDestinations.SETTINGS &&
-                                            settingsCategory != null
-                                        ) {
-                                            settingsCategory!!.titleResId
-                                        } else {
-                                            currentDestination.titleResId
-                                        }
-                                    )
-                                )
-                            },
-                            navigationIcon = {
-                                if (showSelfHostedSettings) {
-                                    IconButton(
-                                        onClick = ::requestSelfHostedBack,
-                                        enabled = !settingViewModel.selfHostedValidationInProgress,
-                                    ) {
-                                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = stringResource(R.string.action_back))
-                                    }
-                                } else if (showMyReportsScreen) {
-                                    IconButton(onClick = { showMyReportsScreen = false }) {
-                                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = stringResource(R.string.action_back))
-                                    }
-                                } else if (showLocalNumberLabelsScreen) {
-                                    IconButton(onClick = { closeLocalNumberLabelsScreen() }) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = stringResource(R.string.action_back),
-                                        )
-                                    }
-                                } else if (
-                                    currentDestination == AppDestinations.SETTINGS &&
-                                    settingsCategory != null
-                                ) {
-                                    IconButton(onClick = { settingsCategory = null }) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = stringResource(R.string.action_back),
-                                        )
-                                    }
-                                }
-                            },
-                            actions = {
-                                if (!showMyReportsScreen && !showLocalNumberLabelsScreen && !showSelfHostedSettings &&
-                                    currentDestination == AppDestinations.HOME) {
-                                    TooltipBox(
-                                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                                            TooltipAnchorPosition.Above,
-                                        ),
-                                        tooltip = {
-                                            PlainTooltip {
-                                                Text(stringResource(R.string.community_my_reports))
+                Box(modifier = Modifier.fillMaxSize().background(windowBackground)) {
+                    NavigationContent(
+                        targetState = destination,
+                        depth = { it.depth },
+                        backTarget = backTarget,
+                        onBack = backAction,
+                    ) { displayed ->
+                        val displayedPage = displayed.page
+                        val displayedCategory = displayed.category
+                        val mainPage = displayedPage == AppPage.MAIN && displayedCategory == null
+                        var displayedTab by remember { mutableStateOf(currentDestination) }
+                        if (displayed == destination) displayedTab = currentDestination
+                        pageStateHolder.SaveableStateProvider(displayed.stateKey) {
+                            Scaffold(
+                                modifier = Modifier.fillMaxSize(),
+                                topBar = {
+                                    TopAppBar(
+                                        title = {
+                                            Text(
+                                                stringResource(
+                                                    if (displayedPage == AppPage.SELF_HOSTED || displayedPage == AppPage.PAIRING) {
+                                                        if (displayedPage == AppPage.PAIRING) pairingTitle
+                                                        else R.string.title_self_hosted_management
+                                                    } else if (displayedPage == AppPage.MY_REPORTS) {
+                                                        R.string.community_my_reports
+                                                    } else if (displayedPage == AppPage.LOCAL_LABELS) {
+                                                        R.string.title_local_number_labels
+                                                    } else if (displayedCategory != null) {
+                                                        displayedCategory.titleResId
+                                                    } else {
+                                                        displayedTab.titleResId
+                                                    }
+                                                )
+                                            )
+                                        },
+                                        navigationIcon = {
+                                            if (displayedPage == AppPage.SELF_HOSTED || displayedPage == AppPage.PAIRING) {
+                                                IconButton(
+                                                    onClick = ::requestSelfHostedBack,
+                                                    enabled = !settingViewModel.selfHostedValidationInProgress,
+                                                ) {
+                                                    Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                                                        contentDescription = stringResource(R.string.action_back))
+                                                }
+                                            } else if (displayedPage == AppPage.MY_REPORTS) {
+                                                IconButton(onClick = { showMyReportsScreen = false }) {
+                                                    Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                                                        contentDescription = stringResource(R.string.action_back))
+                                                }
+                                            } else if (displayedPage == AppPage.LOCAL_LABELS) {
+                                                IconButton(onClick = { closeLocalNumberLabelsScreen() }) {
+                                                    Icon(
+                                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                                        contentDescription = stringResource(R.string.action_back),
+                                                    )
+                                                }
+                                            } else if (displayedCategory != null) {
+                                                IconButton(onClick = { settingsCategory = null }) {
+                                                    Icon(
+                                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                                        contentDescription = stringResource(R.string.action_back),
+                                                    )
+                                                }
                                             }
                                         },
-                                        state = rememberTooltipState(),
-                                    ) {
-                                        IconButton(onClick = ::openMyReports) {
-                                            Icon(
-                                                Icons.AutoMirrored.Outlined.Assignment,
-                                                contentDescription = stringResource(R.string.community_my_reports),
-                                            )
-                                        }
-                                    }
-                                }
-                                if (
-                                    !showMyReportsScreen && !showLocalNumberLabelsScreen && !showSelfHostedSettings &&
-                                    currentDestination == AppDestinations.HOME &&
-                                    hasBlockedCallRecords
-                                ) {
-                                    Box {
-                                        IconButton(onClick = { showRecordsMenu = true }) {
-                                            Icon(Icons.Default.MoreVert,
-                                                contentDescription = stringResource(R.string.action_more))
-                                        }
-                                        DropdownMenu(
-                                            expanded = showRecordsMenu,
-                                            onDismissRequest = { showRecordsMenu = false },
+                                        actions = {
+                                            if (mainPage && displayedTab == AppDestinations.HOME) {
+                                                TooltipBox(
+                                                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                                        TooltipAnchorPosition.Above,
+                                                    ),
+                                                    tooltip = {
+                                                        PlainTooltip {
+                                                            Text(stringResource(R.string.community_my_reports))
+                                                        }
+                                                    },
+                                                    state = rememberTooltipState(),
+                                                ) {
+                                                    IconButton(onClick = ::openMyReports) {
+                                                        Icon(
+                                                            Icons.AutoMirrored.Outlined.Assignment,
+                                                            contentDescription = stringResource(R.string.community_my_reports),
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            if (
+                                                mainPage && displayedTab == AppDestinations.HOME &&
+                                                hasBlockedCallRecords
+                                            ) {
+                                                Box {
+                                                    IconButton(onClick = { showRecordsMenu = true }) {
+                                                        Icon(Icons.Default.MoreVert,
+                                                            contentDescription = stringResource(R.string.action_more))
+                                                    }
+                                                    DropdownMenu(
+                                                        expanded = showRecordsMenu,
+                                                        onDismissRequest = { showRecordsMenu = false },
+                                                    ) {
+                                                        DropdownMenuItem(
+                                                            text = { Text(stringResource(R.string.action_clear_all_records)) },
+                                                            onClick = {
+                                                                showRecordsMenu = false
+                                                                showClearRecordsDialog = true
+                                                            },
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        },
+                                    )
+                                },
+                                bottomBar = {
+                                    if (mainPage) {
+                                        val largeNavigationText = LocalDensity.current.fontScale > 1.3f
+                                        NavigationBar(
+                                            modifier = Modifier.heightIn(min = if (largeNavigationText) 104.dp else 80.dp),
                                         ) {
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(R.string.action_clear_all_records)) },
-                                                onClick = {
-                                                    showRecordsMenu = false
-                                                    showClearRecordsDialog = true
-                                                },
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                        )
-                    },
-                    bottomBar = {
-                        AnimatedVisibility(
-                            visible = page == AppPage.MAIN && settingsCategory == null,
-                            enter = expandVertically(tween(300)) + fadeIn(tween(210)),
-                            exit = shrinkVertically(tween(300)) + fadeOut(tween(150)),
-                        ) {
-                            val largeNavigationText = LocalDensity.current.fontScale > 1.3f
-                            NavigationBar(
-                                modifier = Modifier.heightIn(min = if (largeNavigationText) 104.dp else 80.dp),
-                            ) {
-                                AppDestinations.entries.forEach { destination ->
-                                    NavigationBarItem(
-                                        selected = currentDestination == destination,
-                                        enabled = page == AppPage.MAIN && settingsCategory == null,
-                                        onClick = {
-                                            settingsCategory = null
-                                            coroutineScope.launch {
-                                                pagerState.animateScrollToPage(
-                                                    destination.ordinal
+                                            AppDestinations.entries.forEach { destination ->
+                                                NavigationBarItem(
+                                                    selected = displayedTab == destination,
+                                                    enabled = page == AppPage.MAIN && settingsCategory == null,
+                                                    onClick = {
+                                                        settingsCategory = null
+                                                        coroutineScope.launch {
+                                                            pagerState.animateScrollToPage(
+                                                                destination.ordinal
+                                                            )
+                                                        }
+                                                    },
+                                                    icon = {
+                                                        Icon(
+                                                            destination.icon,
+                                                            contentDescription = null,
+                                                        )
+                                                    },
+                                                    label = {
+                                                        Text(
+                                                            text = stringResource(destination.labelResId),
+                                                            textAlign = TextAlign.Center,
+                                                            maxLines = 2,
+                                                        )
+                                                    },
                                                 )
                                             }
-                                        },
-                                        icon = {
-                                            Icon(
-                                                destination.icon,
-                                                contentDescription = null,
-                                            )
-                                        },
-                                        label = {
-                                            Text(
-                                                text = stringResource(destination.labelResId),
-                                                textAlign = TextAlign.Center,
-                                                maxLines = 2,
-                                            )
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    },
-                ) { innerPadding ->
-                    NavigationContent(
-                        targetState = page,
-                        depth = { it.depth },
-                        modifier = Modifier.padding(innerPadding),
-                    ) { displayedPage ->
-                        pageStateHolder.SaveableStateProvider(displayedPage.name) {
-                            if (displayedPage == AppPage.PAIRING) {
-                                SelfHostedPairingScreen(
-                                    viewModel = settingViewModel,
-                                    initialEntry = pairingEntry,
-                                    backRequest = pairingBackRequest,
-                                    onBackToManagement = settingViewModel::returnToSelfHostedManagement,
-                                    onTitleChange = { pairingTitle = it },
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            } else if (displayedPage == AppPage.SELF_HOSTED) {
-                                SelfHostedManagementScreen(
-                                    viewModel = settingViewModel,
-                                    onPairing = { entry ->
-                                        pairingEntry = entry
-                                        pairingTitle = when (entry) {
-                                            SelfHostedPairingEntry.SCAN -> R.string.title_pairing_scan
-                                            SelfHostedPairingEntry.PASTE -> R.string.title_pairing_paste
-                                            SelfHostedPairingEntry.MANUAL -> R.string.title_pairing_manual
                                         }
-                                        settingViewModel.beginSelfHostedPairing(
-                                            when (entry) {
-                                                SelfHostedPairingEntry.SCAN -> SelfHostedPairingPage.SCAN
-                                                SelfHostedPairingEntry.PASTE -> SelfHostedPairingPage.PASTE
-                                                SelfHostedPairingEntry.MANUAL -> SelfHostedPairingPage.MANUAL
-                                            },
+                                    }
+                                },
+                            ) { innerPadding ->
+                                Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                                    if (displayedPage == AppPage.PAIRING) {
+                                        SelfHostedPairingScreen(
+                                            viewModel = settingViewModel,
+                                            initialEntry = pairingEntry,
+                                            backRequest = pairingBackRequest,
+                                            onBackToManagement = settingViewModel::returnToSelfHostedManagement,
+                                            onTitleChange = { pairingTitle = it },
+                                            onBackPreviewChange = { pairingBackPreviewAllowed = it },
+                                            modifier = Modifier.fillMaxSize(),
                                         )
-                                    },
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            } else if (displayedPage == AppPage.MY_REPORTS) {
-                                MyReportsScreen(myReportsViewModel, Modifier.fillMaxSize())
-                            } else if (displayedPage == AppPage.LOCAL_LABELS) {
-                                LocalNumberLabelsScreen(
-                                    viewModel = localNumberLabelsViewModel,
-                                    editorViewModel = localNumberLabelEditorViewModel,
-                                    onNavigateToCallHistory = {
-                                        settingsCategory = null
-                                        closeLocalNumberLabelsScreen()
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(AppDestinations.HOME.ordinal)
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            } else {
-                                HorizontalPager(
-                                    state = pagerState,
-                                    userScrollEnabled = settingsCategory == null,
-                                    modifier = Modifier.fillMaxSize(),
-                                    pageNestedScrollConnection = EmptyPagerNestedScrollConnection
-                                ) { page ->
-                                    when (AppDestinations.entries[page]) {
-                                        AppDestinations.HOME -> {
-                                            HomeScreen(
-                                                viewModel = homeViewModel,
-                                                listViewModel = listViewModel,
-                                                localLabelEditorViewModel = localNumberLabelEditorViewModel,
-                                                callReportViewModel = callReportViewModel,
-                                                onNavigateToMyReports = ::openMyReports,
-                                                onNavigateToListRule = { entry: UserListEntry ->
-                                                    homeViewModel.closeQuickAdd()
-                                                    listViewModel.navigateToEntry(entry)
-                                                    coroutineScope.launch {
-                                                        pagerState.animateScrollToPage(
-                                                            AppDestinations.LIST.ordinal,
-                                                        )
-                                                    }
-                                                },
-                                                onNavigateToSettings = {
-                                                    settingsCategory = null
-                                                    coroutineScope.launch {
-                                                        pagerState.animateScrollToPage(
-                                                            AppDestinations.SETTINGS.ordinal
-                                                        )
-                                                    }
-                                                },
-                                                onNavigateToSourceSettings = {
-                                                    // 先打开 source 设置 BottomSheet，再切换到设置页，
-                                                    // 保证用户到达设置页时直接看到 source 配置
-                                                    settingsCategory = SettingsCategory.ONLINE_QUERY
-                                                    settingViewModel.openQuerySourceSettings()
-                                                    coroutineScope.launch {
-                                                        pagerState.animateScrollToPage(
-                                                            AppDestinations.SETTINGS.ordinal
-                                                        )
-                                                    }
-                                                },
-                                                onNavigateToSelfHostedSettings = {
-                                                    // 打开自建服务管理入口后再切换页面，避免用户在设置中二次查找。
-                                                    settingsCategory = SettingsCategory.ONLINE_QUERY
-                                                    settingViewModel.openSelfHostedConfig()
-                                                    coroutineScope.launch {
-                                                        pagerState.animateScrollToPage(
-                                                            AppDestinations.SETTINGS.ordinal
-                                                        )
-                                                    }
-                                                },
-                                            )
-                                        }
+                                    } else if (displayedPage == AppPage.SELF_HOSTED) {
+                                        SelfHostedManagementScreen(
+                                            viewModel = settingViewModel,
+                                            onPairing = { entry ->
+                                                pairingBackPreviewAllowed = false
+                                                pairingEntry = entry
+                                                pairingTitle = when (entry) {
+                                                    SelfHostedPairingEntry.SCAN -> R.string.title_pairing_scan
+                                                    SelfHostedPairingEntry.PASTE -> R.string.title_pairing_paste
+                                                    SelfHostedPairingEntry.MANUAL -> R.string.title_pairing_manual
+                                                }
+                                                settingViewModel.beginSelfHostedPairing(
+                                                    when (entry) {
+                                                        SelfHostedPairingEntry.SCAN -> SelfHostedPairingPage.SCAN
+                                                        SelfHostedPairingEntry.PASTE -> SelfHostedPairingPage.PASTE
+                                                        SelfHostedPairingEntry.MANUAL -> SelfHostedPairingPage.MANUAL
+                                                    },
+                                                )
+                                            },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    } else if (displayedPage == AppPage.MY_REPORTS) {
+                                        MyReportsScreen(myReportsViewModel, Modifier.fillMaxSize())
+                                    } else if (displayedPage == AppPage.LOCAL_LABELS) {
+                                        LocalNumberLabelsScreen(
+                                            viewModel = localNumberLabelsViewModel,
+                                            editorViewModel = localNumberLabelEditorViewModel,
+                                            onNavigateToCallHistory = {
+                                                settingsCategory = null
+                                                closeLocalNumberLabelsScreen()
+                                                coroutineScope.launch {
+                                                    pagerState.animateScrollToPage(AppDestinations.HOME.ordinal)
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    } else if (displayedCategory != null) {
+                                        SettingsScreen(
+                                            viewModel = settingViewModel,
+                                            saveableStateHolder = settingsSaveableStateHolder,
+                                            settingsCategory = displayedCategory,
+                                            onNavigateToCategory = { settingsCategory = it },
+                                            onNavigateToMyReports = ::openMyReports,
+                                            onNavigateToLocalNumberLabels = { showLocalNumberLabelsScreen = true },
+                                        )
+                                    } else {
+                                        HorizontalPager(
+                                            state = pagerState,
+                                            userScrollEnabled = settingsCategory == null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            pageNestedScrollConnection = EmptyPagerNestedScrollConnection
+                                        ) { page ->
+                                            when (AppDestinations.entries[page]) {
+                                                AppDestinations.HOME -> {
+                                                    HomeScreen(
+                                                        viewModel = homeViewModel,
+                                                        listViewModel = listViewModel,
+                                                        localLabelEditorViewModel = localNumberLabelEditorViewModel,
+                                                        callReportViewModel = callReportViewModel,
+                                                        onNavigateToMyReports = ::openMyReports,
+                                                        onNavigateToListRule = { entry: UserListEntry ->
+                                                            homeViewModel.closeQuickAdd()
+                                                            listViewModel.navigateToEntry(entry)
+                                                            coroutineScope.launch {
+                                                                pagerState.animateScrollToPage(
+                                                                    AppDestinations.LIST.ordinal,
+                                                                )
+                                                            }
+                                                        },
+                                                        onNavigateToSettings = {
+                                                            settingsCategory = null
+                                                            coroutineScope.launch {
+                                                                pagerState.animateScrollToPage(
+                                                                    AppDestinations.SETTINGS.ordinal
+                                                                )
+                                                            }
+                                                        },
+                                                        onNavigateToSourceSettings = {
+                                                            // 先打开 source 设置 BottomSheet，再切换到设置页，
+                                                            // 保证用户到达设置页时直接看到 source 配置
+                                                            settingsCategory = SettingsCategory.ONLINE_QUERY
+                                                            settingViewModel.openQuerySourceSettings()
+                                                            coroutineScope.launch {
+                                                                pagerState.animateScrollToPage(
+                                                                    AppDestinations.SETTINGS.ordinal
+                                                                )
+                                                            }
+                                                        },
+                                                        onNavigateToSelfHostedSettings = {
+                                                            // 打开自建服务管理入口后再切换页面，避免用户在设置中二次查找。
+                                                            settingsCategory = SettingsCategory.ONLINE_QUERY
+                                                            settingViewModel.openSelfHostedConfig()
+                                                            coroutineScope.launch {
+                                                                pagerState.animateScrollToPage(
+                                                                    AppDestinations.SETTINGS.ordinal
+                                                                )
+                                                            }
+                                                        },
+                                                    )
+                                                }
 
-                                        AppDestinations.LIST -> {
-                                            ListScreen(
-                                                viewModel = listViewModel,
-                                                parentPagerState = pagerState
-                                            )
-                                        }
+                                                AppDestinations.LIST -> {
+                                                    ListScreen(
+                                                        viewModel = listViewModel,
+                                                        parentPagerState = pagerState
+                                                    )
+                                                }
 
-                                        AppDestinations.SETTINGS -> {
-                                            SettingsScreen(
-                                                viewModel = settingViewModel,
-                                                saveableStateHolder = settingsSaveableStateHolder,
-                                                settingsCategory = settingsCategory,
-                                                onNavigateToCategory = { category -> settingsCategory = category },
-                                                onNavigateToMyReports = ::openMyReports,
-                                                onNavigateToLocalNumberLabels = {
-                                                    showLocalNumberLabelsScreen = true
-                                                },
-                                            )
+                                                AppDestinations.SETTINGS -> {
+                                                    SettingsScreen(
+                                                        viewModel = settingViewModel,
+                                                        saveableStateHolder = settingsSaveableStateHolder,
+                                                        settingsCategory = null,
+                                                        onNavigateToCategory = { category -> settingsCategory = category },
+                                                        onNavigateToMyReports = ::openMyReports,
+                                                        onNavigateToLocalNumberLabels = {
+                                                            showLocalNumberLabelsScreen = true
+                                                        },
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -492,8 +516,17 @@ enum class AppDestinations(val titleResId: Int, val labelResId: Int, val icon: I
 /** 底部 Tab 的切换交给 Pager；这里只描述覆盖其上的二级页面层级。 */
 private enum class AppPage(val depth: Int) {
     MAIN(0),
-    MY_REPORTS(1),
-    LOCAL_LABELS(1),
+    MY_REPORTS(2),
+    LOCAL_LABELS(2),
     SELF_HOSTED(2),
     PAIRING(3),
+}
+
+/** 设置分类独立于底部 Pager 转场，旧页面使用自身快照保留标题和布局。 */
+private data class NavigationPage(
+    val page: AppPage,
+    val category: SettingsCategory?,
+) {
+    val depth: Int get() = if (page == AppPage.MAIN && category != null) 1 else page.depth
+    val stateKey: String get() = "${page.name}:${category?.name.orEmpty()}"
 }
