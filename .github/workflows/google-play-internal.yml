@@ -1,0 +1,122 @@
+name: Google Play internal testing
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    # 与 PixelText 一致，仅检查本次推送最后一个提交，按子串匹配且不区分大小写。
+    if: github.event.deleted == false && contains(github.event.head_commit.message, 'ci')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # 共用发布队列，避免并发提交 Play 编辑事务；不取消进行中的上传。
+    concurrency:
+      group: google-play-internal
+      cancel-in-progress: false
+      queue: max
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # versionCode 使用完整 Git 历史的提交数。
+          persist-credentials: false
+
+      - name: Validate publishing secrets
+        env:
+          SIGN_KEY_STORE_BASE64: ${{ secrets.SIGN_KEY_STORE_BASE64 }}
+          SIGN_KEY_STORE_PASSWORD: ${{ secrets.SIGN_KEY_STORE_PASSWORD }}
+          SIGN_KEY_ALIAS: ${{ secrets.SIGN_KEY_ALIAS }}
+          SIGN_KEY_PASSWORD: ${{ secrets.SIGN_KEY_PASSWORD }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        shell: python3 {0}
+        run: |
+          import json
+          import os
+          import sys
+
+          names = (
+              "SIGN_KEY_STORE_BASE64", "SIGN_KEY_STORE_PASSWORD", "SIGN_KEY_ALIAS",
+              "SIGN_KEY_PASSWORD", "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON",
+          )
+          for name in names:
+              if not os.environ.get(name):
+                  print(f"::error::missing required secret name={name}")
+                  sys.exit(1)
+          try:
+              account = json.loads(os.environ["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"])
+              valid = (
+                  isinstance(account, dict)
+                  and account.get("type") == "service_account"
+                  and all(isinstance(account.get(key), str) and account[key].strip()
+                          for key in ("client_email", "private_key"))
+              )
+          except (ValueError, TypeError):
+              valid = False
+          if not valid:
+              print("::error::invalid service account json")
+              sys.exit(1)
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode Keystore
+        env:
+          SIGN_KEY_STORE_BASE64: ${{ secrets.SIGN_KEY_STORE_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$SIGN_KEY_STORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          test -s "$RUNNER_TEMP/release.jks"
+
+      - name: Prepare release name
+        id: release-metadata
+        shell: python3 {0}
+        run: |
+          import os
+          import subprocess
+          import tomllib
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          versions = tomllib.loads(Path("gradle/libs.versions.toml").read_text(encoding="utf-8"))
+          version = versions["versions"]["app-version"]
+          version_code = subprocess.check_output(["git", "rev-list", "HEAD", "--count"], text=True).strip()
+          ci_time = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+          release_name = f"{version} ({version_code}) · CI {ci_time}"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"name={release_name}\n")
+
+      - name: Build Release Bundle
+        env:
+          SIGN_KEY_STORE_FILE: ${{ runner.temp }}/release.jks
+          SIGN_KEY_STORE_PASSWORD: ${{ secrets.SIGN_KEY_STORE_PASSWORD }}
+          SIGN_KEY_ALIAS: ${{ secrets.SIGN_KEY_ALIAS }}
+          SIGN_KEY_PASSWORD: ${{ secrets.SIGN_KEY_PASSWORD }}
+        run: chmod a+x ./gradlew && ./gradlew --no-daemon :app:bundleRelease
+
+      - name: Publish to Google Play internal testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: vip.mystery0.pixel.telo
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          tracks: internal
+          status: completed
+          releaseName: ${{ steps.release-metadata.outputs.name }}
+
+      - name: Cleanup Keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"

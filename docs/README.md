@@ -85,6 +85,7 @@
 ### 工作流 (`workflow/`)
 
 * [开发与技能维护](workflow/development.md)：任务推进、按范围验证、Skills 适用边界与 CI 区分。
+* [Google Play 内部测试发布](workflow/google-play-publishing.md)：触发条件、签名与服务账号配置、版本号和首次验收。
 
 ## 快速链接
 

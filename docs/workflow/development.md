@@ -54,5 +54,6 @@
 设备标识和绝对路径不作为本次执行依据；不要重演已完成步骤或将历史验证结果当作当前结果。
 
 `.github/workflows/release.yml` 在推送 `v*` tag 后构建并发布 AAB/APK；
+`.github/workflows/google-play-internal.yml` 在 `master` 推送最后一条提交信息含 `ci` 时构建签名 AAB 并上传 Play 内部测试，配置与验收见 [发布说明](google-play-publishing.md)；
 `auto-assign-issue.yml` 在 issue 创建时分配负责人。它们属于 CI，不是模型开发流程。
 仅修改协作规则时不触发这些远程操作；修改 CI 时单独核对触发条件、权限、签名环境和产物。
