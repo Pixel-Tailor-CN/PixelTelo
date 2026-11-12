@@ -282,8 +282,7 @@ fun HomeScreen(
         }
         if (hasRecords || isFiltered) item(key = "history_controls") {
             vip.mystery0.pixel.telo.ui.components.CallHistoryControls(
-                query = searchQuery, filter = historyFilter,
-                onQuery = viewModel::updateSearchQuery,
+                filter = historyFilter,
                 onFilter = viewModel::updateHistoryFilter,
             )
         }

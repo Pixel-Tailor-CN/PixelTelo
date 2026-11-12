@@ -9,23 +9,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.model.CallHistoryFilter
 
 @Composable
-fun CallHistoryControls(query: String, filter: CallHistoryFilter,
-    onQuery: (String) -> Unit, onFilter: (CallHistoryFilter) -> Unit,
+fun CallHistoryControls(filter: CallHistoryFilter,
+    onFilter: (CallHistoryFilter) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        AppSearchField(
-            query = query,
-            onQueryChange = onQuery,
-            onClear = { onQuery("") },
-            placeholder = stringResource(R.string.history_search_hint),
-            keyboardType = KeyboardType.Phone,
-        )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CallHistoryFilter.entries.forEach { item ->
                 FilterChip(selected = filter == item, onClick = { onFilter(item) },

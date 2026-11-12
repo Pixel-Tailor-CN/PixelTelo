@@ -27,12 +27,13 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Rule
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.ScaffoldDefaults
+import vip.mystery0.pixel.telo.ui.components.CallHistoryScaffold
+import vip.mystery0.pixel.telo.ui.components.MainTabScaffold
+import vip.mystery0.pixel.telo.ui.components.CallHistoryAppBarActions
 import vip.mystery0.pixel.telo.viewmodel.CallReportViewModel
 import vip.mystery0.pixel.telo.viewmodel.MyReportsViewModel
 import vip.mystery0.pixel.telo.ui.screen.MyReportsScreen
@@ -48,12 +49,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +60,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -241,10 +241,24 @@ class MainActivity : ComponentActivity() {
                         var displayedTab by remember { mutableStateOf(currentDestination) }
                         if (displayed == destination) displayedTab = currentDestination
                         pageStateHolder.SaveableStateProvider(displayed.stateKey) {
+                            // 外层只负责二级页的顶部栏；三个主 Tab 在 Pager 内独立处理滚动。
+                            val topAppBarState = key(displayedTab) { rememberTopAppBarState() }
+                            val topAppBarScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(
+                                state = topAppBarState,
+                                canScroll = { displayed == destination && !pagerState.isScrollInProgress },
+                            )
                             Scaffold(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier.fillMaxSize().then(
+                                    if (mainPage) Modifier else Modifier.nestedScroll(topAppBarScrollBehavior.nestedScrollConnection)
+                                ),
+                                contentWindowInsets = if (mainPage) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
                                 topBar = {
-                                    TopAppBar(
+                                    if (!mainPage) TopAppBar(
+                                        scrollBehavior = topAppBarScrollBehavior,
+                                        colors = TopAppBarDefaults.topAppBarColors(
+                                            containerColor = MaterialTheme.colorScheme.background,
+                                            scrolledContainerColor = MaterialTheme.colorScheme.background,
+                                        ),
                                         title = {
                                             Text(
                                                 stringResource(
@@ -297,51 +311,6 @@ class MainActivity : ComponentActivity() {
                                                         Icons.AutoMirrored.Filled.ArrowBack,
                                                         contentDescription = stringResource(R.string.action_back),
                                                     )
-                                                }
-                                            }
-                                        },
-                                        actions = {
-                                            if (mainPage && displayedTab == AppDestinations.HOME) {
-                                                TooltipBox(
-                                                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                                                        TooltipAnchorPosition.Above,
-                                                    ),
-                                                    tooltip = {
-                                                        PlainTooltip {
-                                                            Text(stringResource(R.string.community_my_reports))
-                                                        }
-                                                    },
-                                                    state = rememberTooltipState(),
-                                                ) {
-                                                    IconButton(onClick = ::openMyReports) {
-                                                        Icon(
-                                                            Icons.AutoMirrored.Outlined.Assignment,
-                                                            contentDescription = stringResource(R.string.community_my_reports),
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            if (
-                                                mainPage && displayedTab == AppDestinations.HOME &&
-                                                hasBlockedCallRecords
-                                            ) {
-                                                Box {
-                                                    IconButton(onClick = { showRecordsMenu = true }) {
-                                                        Icon(Icons.Default.MoreVert,
-                                                            contentDescription = stringResource(R.string.action_more))
-                                                    }
-                                                    DropdownMenu(
-                                                        expanded = showRecordsMenu,
-                                                        onDismissRequest = { showRecordsMenu = false },
-                                                    ) {
-                                                        DropdownMenuItem(
-                                                            text = { Text(stringResource(R.string.action_clear_all_records)) },
-                                                            onClick = {
-                                                                showRecordsMenu = false
-                                                                showClearRecordsDialog = true
-                                                            },
-                                                        )
-                                                    }
                                                 }
                                             }
                                         },
@@ -457,82 +426,110 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier.fillMaxSize(),
                                             pageNestedScrollConnection = EmptyPagerNestedScrollConnection
                                         ) { page ->
+                                            val tabActive = displayed == destination && currentDestination.ordinal == page &&
+                                                !pagerState.isScrollInProgress
                                             when (AppDestinations.entries[page]) {
                                                 AppDestinations.HOME -> {
-                                                    HomeScreen(
-                                                        viewModel = homeViewModel,
-                                                        engagementPromptViewModel = engagementPromptViewModel,
-                                                        allowEngagementPrompt = mainPage && displayed == destination &&
-                                                            currentDestination == AppDestinations.HOME,
-                                                        homeUiObscured = kotlin.math.abs(pagerState.currentPageOffsetFraction) > 0.01f ||
+                                                    val query by homeViewModel.searchQuery.collectAsStateWithLifecycle()
+                                                    CallHistoryScaffold(
+                                                        query = query,
+                                                        onQueryChange = homeViewModel::updateSearchQuery,
+                                                        active = tabActive,
+                                                        actions = {
+                                                            CallHistoryAppBarActions(
+                                                                hasRecords = hasBlockedCallRecords,
+                                                                menuExpanded = showRecordsMenu,
+                                                                onMenuExpandedChange = { showRecordsMenu = it },
+                                                                onOpenReports = ::openMyReports,
+                                                                onClearRecords = { showClearRecordsDialog = true },
+                                                            )
+                                                        },
+                                                    ) {
+                                                        HomeScreen(
+                                                            viewModel = homeViewModel,
+                                                            engagementPromptViewModel = engagementPromptViewModel,
+                                                            allowEngagementPrompt = mainPage && displayed == destination &&
+                                                                currentDestination == AppDestinations.HOME,
+                                                            homeUiObscured = kotlin.math.abs(pagerState.currentPageOffsetFraction) > 0.01f ||
                                                                 pagerState.targetPage != AppDestinations.HOME.ordinal ||
-                                                            showRecordsMenu || showClearRecordsDialog,
-                                                        listViewModel = listViewModel,
-                                                        localLabelEditorViewModel = localNumberLabelEditorViewModel,
-                                                        callReportViewModel = callReportViewModel,
-                                                        onNavigateToMyReports = ::openMyReports,
-                                                        onNavigateToDeveloperSupport = ::openDeveloperSupport,
-                                                        onNavigateToListRule = { entry: UserListEntry ->
-                                                            homeViewModel.closeQuickAdd()
-                                                            listViewModel.navigateToEntry(entry)
-                                                            coroutineScope.launch {
-                                                                pagerState.animateScrollToPage(
-                                                                    AppDestinations.LIST.ordinal,
-                                                                )
-                                                            }
-                                                        },
-                                                        onNavigateToSettings = { category ->
-                                                            settingsCategory = category
-                                                            coroutineScope.launch {
-                                                                pagerState.animateScrollToPage(
-                                                                    AppDestinations.SETTINGS.ordinal
-                                                                )
-                                                            }
-                                                        },
-                                                        onNavigateToSourceSettings = {
-                                                            // 先打开 source 设置 BottomSheet，再切换到设置页，
-                                                            // 保证用户到达设置页时直接看到 source 配置
-                                                            settingsCategory = SettingsCategory.ONLINE_QUERY
-                                                            settingViewModel.openQuerySourceSettings()
-                                                            coroutineScope.launch {
-                                                                pagerState.animateScrollToPage(
-                                                                    AppDestinations.SETTINGS.ordinal
-                                                                )
-                                                            }
-                                                        },
-                                                        onNavigateToSelfHostedSettings = {
-                                                            // 打开自建服务管理入口后再切换页面，避免用户在设置中二次查找。
-                                                            settingsCategory = SettingsCategory.ONLINE_QUERY
-                                                            settingViewModel.openSelfHostedConfig()
-                                                            coroutineScope.launch {
-                                                                pagerState.animateScrollToPage(
-                                                                    AppDestinations.SETTINGS.ordinal
-                                                                )
-                                                            }
-                                                        },
-                                                    )
+                                                                showRecordsMenu || showClearRecordsDialog,
+                                                            listViewModel = listViewModel,
+                                                            localLabelEditorViewModel = localNumberLabelEditorViewModel,
+                                                            callReportViewModel = callReportViewModel,
+                                                            onNavigateToMyReports = ::openMyReports,
+                                                            onNavigateToDeveloperSupport = ::openDeveloperSupport,
+                                                            onNavigateToListRule = { entry: UserListEntry ->
+                                                                homeViewModel.closeQuickAdd()
+                                                                listViewModel.navigateToEntry(entry)
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(
+                                                                        AppDestinations.LIST.ordinal,
+                                                                    )
+                                                                }
+                                                            },
+                                                            onNavigateToSettings = { category ->
+                                                                settingsCategory = category
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(
+                                                                        AppDestinations.SETTINGS.ordinal
+                                                                    )
+                                                                }
+                                                            },
+                                                            onNavigateToSourceSettings = {
+                                                                // 先打开 source 设置 BottomSheet，再切换到设置页，
+                                                                // 保证用户到达设置页时直接看到 source 配置
+                                                                settingsCategory = SettingsCategory.ONLINE_QUERY
+                                                                settingViewModel.openQuerySourceSettings()
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(
+                                                                        AppDestinations.SETTINGS.ordinal
+                                                                    )
+                                                                }
+                                                            },
+                                                            onNavigateToSelfHostedSettings = {
+                                                                // 打开自建服务管理入口后再切换页面，避免用户在设置中二次查找。
+                                                                settingsCategory = SettingsCategory.ONLINE_QUERY
+                                                                settingViewModel.openSelfHostedConfig()
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(
+                                                                        AppDestinations.SETTINGS.ordinal
+                                                                    )
+                                                                }
+                                                            },
+                                                        )
+                                                    }
                                                 }
 
                                                 AppDestinations.LIST -> {
-                                                    ListScreen(
-                                                        viewModel = listViewModel,
-                                                        parentPagerState = pagerState
-                                                    )
+                                                    MainTabScaffold(
+                                                        title = stringResource(AppDestinations.LIST.titleResId),
+                                                        active = tabActive,
+                                                    ) {
+                                                        ListScreen(
+                                                            viewModel = listViewModel,
+                                                            parentPagerState = pagerState
+                                                        )
+                                                    }
                                                 }
 
                                                 AppDestinations.SETTINGS -> {
-                                                    SettingsScreen(
-                                                        viewModel = settingViewModel,
-                                                        engagementPromptViewModel = engagementPromptViewModel,
-                                                        saveableStateHolder = settingsSaveableStateHolder,
-                                                        settingsCategory = null,
-                                                        onNavigateToCategory = { category -> settingsCategory = category },
-                                                        onNavigateToMyReports = ::openMyReports,
-                                                        onNavigateToDeveloperSupport = ::openDeveloperSupport,
-                                                        onNavigateToLocalNumberLabels = {
-                                                            showLocalNumberLabelsScreen = true
-                                                        },
-                                                    )
+                                                    MainTabScaffold(
+                                                        title = stringResource(AppDestinations.SETTINGS.titleResId),
+                                                        active = tabActive,
+                                                    ) {
+                                                        SettingsScreen(
+                                                            viewModel = settingViewModel,
+                                                            engagementPromptViewModel = engagementPromptViewModel,
+                                                            saveableStateHolder = settingsSaveableStateHolder,
+                                                            settingsCategory = null,
+                                                            onNavigateToCategory = { category -> settingsCategory = category },
+                                                            onNavigateToMyReports = ::openMyReports,
+                                                            onNavigateToDeveloperSupport = ::openDeveloperSupport,
+                                                            onNavigateToLocalNumberLabels = {
+                                                                showLocalNumberLabelsScreen = true
+                                                            },
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
