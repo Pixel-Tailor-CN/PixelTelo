@@ -84,6 +84,7 @@ import vip.mystery0.pixel.telo.ui.components.CallDetailContent
 import vip.mystery0.pixel.telo.ui.components.CallFeedbackSection
 import vip.mystery0.pixel.telo.ui.components.CallRecordActions
 import vip.mystery0.pixel.telo.ui.components.CommunityReportSection
+import vip.mystery0.pixel.telo.ui.components.CommunityReportAction
 import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelEditorDialogs
 import vip.mystery0.pixel.telo.ui.components.NumberRuleAction
 import vip.mystery0.pixel.telo.ui.components.NumberRuleConfirmation
@@ -540,9 +541,13 @@ fun HomeScreen(
                             submissionState = viewModel.feedbackSubmissionState,
                             onSubmit = { positive -> viewModel.submitFeedback(call, positive) },
                         )
+                    },
+                    reportingAction = {
+                        CommunityReportAction(state = reportState, onSubmit = callReportViewModel::submit)
+                    },
+                    reporting = {
                         CommunityReportSection(
                             state = reportState,
-                            onSubmit = callReportViewModel::submit,
                             onViewReports = {
                                 viewModel.closeQuickAdd()
                                 onNavigateToMyReports()

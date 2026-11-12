@@ -55,7 +55,6 @@ fun CallFeedbackSection(
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
         val status = when (call.feedbackStatus) {
-            FeedbackStatus.POSITIVE, FeedbackStatus.NEGATIVE -> R.string.detail_feedback_saved
             FeedbackStatus.ALREADY_SUBMITTED -> R.string.detail_feedback_unknown
             FeedbackStatus.EXPIRED -> R.string.feedback_status_expired
             FeedbackStatus.INVALID -> R.string.feedback_status_invalid

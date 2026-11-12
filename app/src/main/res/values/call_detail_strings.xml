@@ -14,7 +14,8 @@
     <string name="detail_local_query_duration">Local query time</string>
     <string name="detail_network_query_duration">Network query time</string>
     <string name="detail_duration_ms">%1$d ms</string>
-    <string name="detail_feedback_reports">Feedback and reporting</string>
+    <string name="detail_feedback">Accuracy feedback</string>
+    <string name="detail_identity_chip_description">%1$s: %2$s</string>
     <string name="detail_feedback_submitting">Submitting feedback…</string>
     <string name="detail_feedback_saved">Feedback submitted. This choice cannot be changed.</string>
     <string name="detail_feedback_unknown">Feedback already submitted; the previous choice is unknown.</string>

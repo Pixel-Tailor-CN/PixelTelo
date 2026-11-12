@@ -20,7 +20,7 @@ import vip.mystery0.pixel.telo.data.model.parseCommunityStatus
 /** 历史字段保持直接可读；窄屏和大字体改为上下排列，不压缩原始内容。 */
 @Composable
 fun CallHistorySection(call: BlockedCall) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         val community = parseCommunityStatus(call.communityStatus)
         // UNKNOWN 仍遵循原显示门禁；真实社区拦截原因不能被状态文案替代。
         if (community != CommunityStatus.UNKNOWN || call.communityBlockApplied) {

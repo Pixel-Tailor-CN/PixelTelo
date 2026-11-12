@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,11 +39,10 @@ import vip.mystery0.pixel.telo.viewmodel.CallReportUiState
 @OptIn(ExperimentalLayoutApi::class)
 fun CommunityReportSection(
     state: CallReportUiState,
-    onSubmit: () -> Unit,
     onViewReports: () -> Unit,
 ) {
     val context = LocalContext.current
-    var confirming by remember(state.callId) { mutableStateOf(false) }
+    if (!state.loading && !state.submitting && !state.accepted && state.eligibility == null && state.failure == null) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         when {
             state.loading -> ReportProgress(R.string.community_report_checking)
@@ -90,16 +88,21 @@ fun CommunityReportSection(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                if (state.callId != null) OutlinedButton(
-                    onClick = { confirming = true },
-                ) {
-                    Text(stringResource(
-                        if (state.failure == null) R.string.community_report_spam
-                        else R.string.community_report_retry,
-                    ))
-                }
             }
         }
+    }
+}
+
+/** 上报动作放在处理结果右侧，状态说明独立排布，确认仍绑定当前记录。 */
+@Composable
+fun CommunityReportAction(state: CallReportUiState, onSubmit: () -> Unit) {
+    var confirming by remember(state.callId) { mutableStateOf(false) }
+    if (state.loading || state.submitting || state.accepted || state.eligibility != null || state.callId == null) return
+    TextButton(onClick = { confirming = true }) {
+        Text(stringResource(
+            if (state.failure == null) R.string.community_report_spam
+            else R.string.community_report_retry,
+        ))
     }
     if (confirming) {
         AlertDialog(

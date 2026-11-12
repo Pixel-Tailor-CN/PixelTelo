@@ -14,7 +14,8 @@
     <string name="detail_local_query_duration">本地查询耗时</string>
     <string name="detail_network_query_duration">网络查询耗时</string>
     <string name="detail_duration_ms">%1$d 毫秒</string>
-    <string name="detail_feedback_reports">反馈与上报</string>
+    <string name="detail_feedback">准确性反馈</string>
+    <string name="detail_identity_chip_description">%1$s：%2$s</string>
     <string name="detail_feedback_submitting">正在提交反馈…</string>
     <string name="detail_feedback_saved">已反馈，无法修改此次选择。</string>
     <string name="detail_feedback_unknown">已反馈，历史选择未知。</string>
