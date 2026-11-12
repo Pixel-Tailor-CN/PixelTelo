@@ -1,6 +1,7 @@
 package vip.mystery0.pixel.telo.data.repository
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -419,6 +420,8 @@ class QueryRepository(
         val encoded = runCatching {
             json.encodeToString<Map<String, StoredSourceConfig>>(migrated)
         }.getOrNull() ?: return markLegacyMigrationFailed()
+        // KTX edit 不返回 commit 结果；迁移必须确认落盘成功后才能继续。
+        @Suppress("UseKtx")
         val written = runCatching {
             preferences.edit().putString(SOURCE_CONFIGS_KEY, encoded).commit()
         }.getOrDefault(false)
@@ -433,7 +436,7 @@ class QueryRepository(
         }
 
         ignoreUnverifiedSourceConfigs = false
-        preferences.edit().remove(LEGACY_SOURCE_CONFIG_KEY).commit()
+        preferences.edit(commit = true) { remove(LEGACY_SOURCE_CONFIG_KEY) }
         return verified
     }
 
@@ -445,7 +448,7 @@ class QueryRepository(
     private fun markLegacyMigrationFailed(): Map<String, StoredSourceConfig> {
         ignoreUnverifiedSourceConfigs = true
         runCatching {
-            preferences.edit().remove(SOURCE_CONFIGS_KEY).apply()
+            preferences.edit { remove(SOURCE_CONFIGS_KEY) }
         }
         return uninitializedOfficialConfig()
     }
@@ -466,7 +469,7 @@ class QueryRepository(
             json.encodeToString<Map<String, StoredSourceConfig>>(configs)
         }.getOrNull() ?: return false
         // 普通更新沿用异步落盘，避免 invalid source 回写拖慢来电查询链路。
-        preferences.edit().putString(SOURCE_CONFIGS_KEY, encoded).apply()
+        preferences.edit { putString(SOURCE_CONFIGS_KEY, encoded) }
 
         val verified = preferences.getString(SOURCE_CONFIGS_KEY, null)
             ?.let(::decodeStoredConfigs)

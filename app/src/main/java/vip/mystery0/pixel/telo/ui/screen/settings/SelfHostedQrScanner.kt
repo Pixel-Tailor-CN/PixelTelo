@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,6 +38,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -139,13 +140,13 @@ internal fun SelfHostedQrScanner(
                             context.startActivity(
                                 Intent(
                                     Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                    Uri.parse("package:${context.packageName}"),
+                                    "package:${context.packageName}".toUri(),
                                 ),
                             )
                         } else {
                             retryingPriorDenial = denied || requested
                             requested = true
-                            permissionHistory.edit().putBoolean(CAMERA_PERMISSION_REQUESTED, true).apply()
+                            permissionHistory.edit { putBoolean(CAMERA_PERMISSION_REQUESTED, true) }
                             launcher.launch(Manifest.permission.CAMERA)
                         }
                     },

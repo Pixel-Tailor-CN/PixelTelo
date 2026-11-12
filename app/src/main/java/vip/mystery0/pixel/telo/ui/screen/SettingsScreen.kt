@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
@@ -882,12 +881,12 @@ fun SettingsScreen(
                 stringResource(R.string.setting_query_backend_official_summary)
 
             QueryBackendType.SELF_HOSTED -> selfHostedConfig?.baseUrl
-                ?.let { Uri.parse(it).host }
+                ?.let { it.toUri().host }
                 ?: selfHostedBackendFallback
         }
 
         is QueryBackendState.Blocked -> selfHostedConfig?.baseUrl
-            ?.let { Uri.parse(it).host }
+            ?.let { it.toUri().host }
             ?: selfHostedBackendFallback
     }
     val onlineSummary = if (viewModel.noNetworkQuery) {

@@ -3,7 +3,6 @@
     <string name="community_my_reports">我的上报</string>
     <string name="community_report_spam">上报骚扰</string>
     <string name="community_report_confirm">将此号码和当前安装标识发送至官方服务，表示你认为它是骚扰电话。不上传通讯录或录音，也不会自动加入个人黑名单。</string>
-    <string name="community_report_sent">已提交此凭据的上报，可在“我的上报”查看当前状态。</string>
     <string name="community_report_pending">正在提交…</string>
     <string name="community_report_retry">重试上报</string>
     <string name="community_report_checking">正在检查上报资格…</string>
@@ -32,7 +31,6 @@
     <string name="community_unavailable">暂不可用</string>
     <string name="community_unknown">未提供</string>
     <string name="community_label">社区骚扰提示</string>
-    <string name="community_snapshot">历史快照：%1$s</string>
     <string name="community_query_snapshot">本次查询快照：%1$s</string>
     <string name="community_block_applied">当时因社区标记拦截</string>
     <string name="community_block_setting">拦截社区标记号码</string>
@@ -59,5 +57,4 @@
     <string name="community_error_local">本地状态暂不可用，请稍后重试。</string>
     <string name="community_error_internal">操作未能完成，请稍后重试。</string>
     <string name="community_result_uncertain">服务端可能已处理该操作，请刷新“我的上报”核实结果。</string>
-    <string name="community_home_menu">首页操作</string>
 </resources>

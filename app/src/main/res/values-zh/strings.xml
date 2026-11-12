@@ -99,25 +99,10 @@
     <string name="home_no_records">暂无来电记录</string>
     <string name="home_no_records_hint">来电识别与拦截记录会显示在这里。</string>
     <string name="home_records_load_failed">拦截记录加载失败</string>
-    <string name="action_retry_query">重新联网查询（仅国内号码）</string>
-    <string name="label_phone_location">归属地：%1$s</string>
-    <string name="result_intercept_spam">拦截原因: 骚扰电话</string>
-    <string name="result_pass_but_notify">拦截原因: 提示(未拦截)</string>
-    <string name="result_network_timeout">放行原因: 联网查询超时</string>
-    <string name="result_network_rate_limited">放行原因: 请求过于频繁</string>
-    <string name="result_network_server_error">放行原因: 查询服务响应异常</string>
-    <string name="result_network_connection_error">放行原因: 网络连接失败</string>
-    <string name="result_query_service_unavailable">放行原因: 查询服务暂不可用</string>
-    <string name="result_pass_always_record">记录原因: 始终显示记录</string>
-    <string name="result_black_list">拦截原因: 用户黑名单</string>
-    <string name="result_white_list">放行原因: 用户白名单</string>
     <string name="current_list_black">当前状态: 已在黑名单中</string>
     <string name="current_list_white">当前状态: 已在白名单中</string>
     <string name="current_list_both">当前状态: 同时在黑名单和白名单中</string>
     <string name="label_call_feedback">这次识别准确吗？</string>
-    <string name="label_record_time">来电时间：%1$s</string>
-    <string name="label_remark_value">原始备注：%1$s</string>
-    <string name="label_compact_separator"> · </string>
     <string name="action_add_blacklist_short">加黑名单</string>
     <string name="action_add_whitelist_short">加白名单</string>
     <string name="msg_checking_user_lists">正在检查名单状态…</string>
@@ -133,13 +118,10 @@
     <string name="record_result_allowed">已放行</string>
     <string name="record_result_query_failed_open">查询失败 · 已放行</string>
     <string name="record_result_notify_allowed">已放行 · 仅提示</string>
-    <string name="label_record_result">处理结果</string>
     <string name="cd_record_blocked">此来电已拦截</string>
     <string name="cd_record_notify">此来电已放行并显示提示</string>
     <string name="cd_record_allowed">此来电已放行</string>
     <string name="cd_record_query_failed">查询失败，此来电已放行</string>
-    <string name="label_duration_with_network">"处理耗时: 本地 %1$dms | 网络 %2$dms"</string>
-    <string name="label_duration_local">"处理耗时: 本地 %1$dms"</string>
     <string name="msg_querying">正在查询 %1$s…</string>
     <string name="action_cancel">取消</string>
     <string name="msg_retry_spam">[重查] 骚扰, 标签: %1$s, 来源: %2$s</string>
@@ -148,7 +130,6 @@
     <string name="label_is_spam_yes">是否骚扰: 是</string>
     <string name="label_is_spam_no">是否骚扰: 否</string>
     <string name="label_tag">标签: </string>
-    <string name="label_confidence">可信度: </string>
     <string name="label_source">来源: </string>
     <string name="action_close">关闭</string>
     <string name="action_write_remark">写入备注</string>
@@ -169,12 +150,7 @@
     <string name="msg_no_contacts_app">未找到通讯录应用</string>
 
     <!-- Local number labels -->
-    <string name="label_local_number_label">本地标签：%1$s</string>
-    <string name="label_source_number_label">数据源标签：%1$s</string>
     <string name="title_local_number_label">本地标签</string>
-    <string name="msg_local_label_not_set">尚未设置</string>
-    <string name="action_set_local_label">设置标签</string>
-    <string name="action_edit_local_label">修改标签</string>
     <string name="title_set_local_label">设置本地标签</string>
     <string name="title_edit_local_label">修改本地标签</string>
     <string name="title_delete_local_label">删除本地标签？</string>
@@ -210,8 +186,6 @@
     <string name="msg_input_phone_number">输入需要检查的电话号码</string>
     <string name="label_phone_number">电话号码</string>
     <string name="action_check">检查</string>
-    <string name="label_should_block_yes">是否拦截: 是</string>
-    <string name="label_should_block_no">是否拦截: 否</string>
     <string name="label_tag_info">标签信息: </string>
     <string name="label_none">无</string>
     <string name="label_result_type">结果类型: </string>
@@ -256,7 +230,6 @@
     <string name="category_display_alerts">显示与提醒</string>
     <string name="category_records_backup">记录与备份</string>
     <string name="category_online_query">在线查询</string>
-    <string name="category_location_overlay">悬浮窗</string>
     <string name="setting_category_call_notify_summary">仅提示，强制拦截规则除外</string>
     <string name="setting_category_call_block_summary">按拦截规则处理</string>
     <string name="setting_category_online_disabled_summary">已关闭 · 仅使用本地号码库</string>
@@ -322,13 +295,10 @@
     <string name="msg_update_success">更新成功！</string>
     <string name="msg_update_failed">离线数据更新失败</string>
     <string name="msg_auto_check_update_requires_notification_permission">需要授予通知权限，才能开启自动检查更新。</string>
-    <string name="msg_test_failed">测试失败: %1$s</string>
     <string name="msg_test_failed_safe">测试失败，请稍后重试。</string>
-    <string name="label_manual_test">手动测试</string>
     <string name="msg_recorded_to_intercept_list">已记录到拦截列表</string>
     <string name="msg_backup_exported">备份已导出</string>
     <string name="msg_backup_failed">备份失败</string>
-    <string name="msg_restored_count_records">已恢复 %1$d 条记录</string>
     <string name="msg_restore_failed">恢复失败</string>
     <string name="msg_database_deleted">离线数据库已删除</string>
     <string name="notification_offline_update_channel_name">离线数据更新</string>
@@ -348,11 +318,7 @@
     <string name="label_user_list_remark">备注：%1$s</string>
     <string name="msg_no_matching_user_list">未找到匹配条目</string>
     <string name="msg_no_matching_user_list_hint">尝试使用其他关键词搜索。</string>
-    <string name="label_community_report_section">社区骚扰上报</string>
-    <string name="label_number_rules">号码规则与本地标签</string>
     <string name="action_clear_search">清除搜索</string>
-    <string name="pairing_scan_hint">使用相机扫描配对二维码。</string>
-    <string name="pairing_manual_hint">手动填写服务器地址和凭据。</string>
     <string name="self_hosted_http_warning">HTTP 不会加密网络流量，正式使用请配置 HTTPS。</string>
     <string name="self_hosted_https_notice">已填写 HTTPS 地址；连接仍会按当前 TLS 验证设置校验。</string>
     <string name="action_add_entry">添加条目</string>
@@ -442,19 +408,11 @@
     <string name="setting_self_hosted_documentation">自建服务部署文档</string>
     <string name="setting_self_hosted_documentation_summary">查看部署、配对与故障排查说明。</string>
     <string name="error_external_link_unavailable">未找到可打开此链接的应用</string>
-    <string name="title_self_hosted_config">配置自建服务</string>
     <string name="title_self_hosted_management">查询服务器管理</string>
-    <string name="title_self_hosted_pairing">配对自建服务</string>
-    <string name="msg_pairing_intro">扫描服务端二维码，或粘贴整段配对 JSON。也可以手动填写。</string>
     <string name="action_pairing_scan">扫描配对码</string>
     <string name="action_pairing_paste">粘贴配对配置</string>
     <string name="action_pairing_clipboard">从剪贴板粘贴</string>
     <string name="action_pairing_manual">手动配置</string>
-    <string name="action_pairing_import">导入</string>
-    <string name="action_pairing_confirm">确认配置</string>
-    <string name="action_pairing_validate">验证并启用</string>
-    <string name="action_pairing_reimport">重新导入</string>
-    <string name="action_pairing_retry">重新验证</string>
     <string name="action_pairing_next">下一步</string>
     <string name="action_pairing_retry_scan">重新扫描</string>
     <string name="action_pairing_discard">放弃</string>
@@ -465,9 +423,6 @@
     <string name="title_pairing_discard">放弃本次配置？</string>
     <string name="msg_pairing_discard">未保存的内容将被清除。</string>
     <string name="msg_pairing_manual_hint">填写服务器地址和访问令牌。每次验证都需要重新输入访问令牌。</string>
-    <string name="section_query_backend_status">当前服务</string>
-    <string name="section_self_hosted_config">已保存的配置</string>
-    <string name="section_self_hosted_actions">操作</string>
     <string name="section_official_service">官方服务</string>
     <string name="section_self_hosted_service">自建服务</string>
     <string name="section_pairing_connection">连接信息</string>
@@ -506,12 +461,9 @@
     <string name="hint_self_hosted_base_url">自建查询服务的 HTTPS 地址</string>
     <string name="label_self_hosted_token">访问令牌</string>
     <string name="hint_self_hosted_token">用于访问自建服务，摘要不会显示令牌。</string>
-    <string name="label_self_hosted_tls_mode">证书验证</string>
     <string name="tls_mode_system">系统信任</string>
-    <string name="tls_mode_system_summary">使用 Android 系统证书与主机名校验</string>
     <string name="tls_mode_system_summary_short">使用系统证书和主机名校验</string>
     <string name="tls_mode_spki_pin">自签名证书 / 精确 SPKI Pin</string>
-    <string name="tls_mode_spki_pin_summary">仅信任精确匹配的 SHA-256 SPKI Pin；仍校验证书有效期及域名/IP SAN</string>
     <string name="tls_mode_spki_pin_summary_short">只信任匹配的 SHA-256 SPKI Pin</string>
     <string name="msg_self_hosted_tls_short">选择系统证书信任，或使用精确 SPKI Pin。</string>
     <string name="action_self_hosted_tls_help">了解证书验证</string>
@@ -593,7 +545,6 @@
     <string name="notification_feedback_submitting">正在提交反馈…</string>
     <string name="notification_feedback_failed">反馈提交失败，可稍后在拦截记录详情中重试。</string>
     <!-- 查询失败分类和逐条标签规则匹配方式 -->
-    <string name="result_query_failure">放行原因：%1$s</string>
     <string name="query_failure_timeout">网络查询超时</string>
     <string name="query_failure_invalid_request">查询参数无效</string>
     <string name="query_failure_auth">查询服务认证失败或访问被拒绝</string>

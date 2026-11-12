@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
@@ -38,6 +39,8 @@ class SelfHostedCredentialStore(context: Context) {
     }
 
     /** 保存指定候选槽位的凭据；调用结束后会清空 [token]。 */
+    // KTX edit 不返回 Boolean；凭据保存必须确认同步落盘成功。
+    @Suppress("UseKtx")
     internal fun save(slot: String, token: CharArray): Result<Unit> {
         var plaintext: ByteArray? = null
         var iv: ByteArray? = null
@@ -122,6 +125,8 @@ class SelfHostedCredentialStore(context: Context) {
     }
 
     /** 清除指定候选槽位的密文。 */
+    // KTX edit 不返回 Boolean；调用方需要知道密文是否成功清除。
+    @Suppress("UseKtx")
     internal fun clear(slot: String): Result<Unit> = runCatching {
         requireValidSlot(slot)
         check(preferences.edit().remove(preferenceKey(slot)).commit()) {
@@ -150,7 +155,7 @@ class SelfHostedCredentialStore(context: Context) {
         if (invalidationResult.isFailure) return invalidationResult
 
         // 密钥删除是安全线性化边界；密文清理只用于减少无效数据残留。
-        runCatching { preferences.edit().clear().commit() }
+        runCatching { preferences.edit(commit = true) { clear() } }
         return Result.success(Unit)
     }
 

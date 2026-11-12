@@ -3,7 +3,6 @@
     <string name="community_my_reports">My reports</string>
     <string name="community_report_spam">Report spam</string>
     <string name="community_report_confirm">Send this number and the current installation identifier to the official service to report it as spam. Contacts and recordings are not uploaded. This does not add the number to your blocklist.</string>
-    <string name="community_report_sent">This credential has been submitted. View My reports for the current status.</string>
     <string name="community_report_pending">Submitting…</string>
     <string name="community_report_retry">Retry report</string>
     <string name="community_report_checking">Checking report eligibility…</string>
@@ -32,7 +31,6 @@
     <string name="community_unavailable">Unavailable</string>
     <string name="community_unknown">Not provided</string>
     <string name="community_label">Community spam warning</string>
-    <string name="community_snapshot">Historical snapshot: %1$s</string>
     <string name="community_query_snapshot">Query snapshot: %1$s</string>
     <string name="community_block_applied">Blocked due to the community status at that time</string>
     <string name="community_block_setting">Block community-marked numbers</string>
@@ -60,5 +58,4 @@
     <string name="community_error_local">Local state is unavailable. Try again later.</string>
     <string name="community_error_internal">The operation could not be completed. Try again later.</string>
     <string name="community_result_uncertain">The server may have processed this operation. Refresh My reports to verify the result.</string>
-    <string name="community_home_menu">Home actions</string>
 </resources>

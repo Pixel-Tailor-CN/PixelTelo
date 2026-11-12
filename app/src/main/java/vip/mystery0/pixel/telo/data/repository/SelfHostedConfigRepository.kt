@@ -2,6 +2,7 @@ package vip.mystery0.pixel.telo.data.repository
 
 import android.content.Context
 import android.util.AtomicFile
+import androidx.core.content.edit
 import java.io.File
 import java.io.FileNotFoundException
 import java.nio.charset.StandardCharsets
@@ -76,6 +77,8 @@ class SelfHostedConfigRepository(
      * 任一步失败都会保留恢复证据，但当前进程继续使用命令开始前的已发布 Backend；
      * journal 只在下次启动裁决磁盘上究竟完成了切换还是仍应回到旧选择。
      */
+    // KTX edit 不返回 Boolean；这里必须检查同步落盘结果。
+    @Suppress("UseKtx")
     @Synchronized
     internal fun selectOfficialBackend(): Result<Unit> {
         val previousSelection = currentProcessSelection()
@@ -168,7 +171,7 @@ class SelfHostedConfigRepository(
                 activeSlot = candidateSlot,
             )
             // journal 清理失败可在下次启动根据活动指针确认后重试，不影响新活动项。
-            preferences.edit().remove(ACTIVATION_JOURNAL_KEY).commit()
+            preferences.edit(commit = true) { remove(ACTIVATION_JOURNAL_KEY) }
             processBlockedReason = null
             backendSelectionBlocked = false
             _connectionState.value = SelfHostedConnectionState.Ready(config)
@@ -299,6 +302,8 @@ class SelfHostedConfigRepository(
     }
 
     /** 先验证 journal 与活动项，再决定保留、回滚或回收候选项。 */
+    // KTX edit 不返回 Boolean；恢复分支依赖同步落盘结果。
+    @Suppress("UseKtx")
     private fun recoverActivationJournal() {
         val journal = readActivationJournal() ?: run {
             // 没有活动指针的首次配置中断同样需要回收孤儿项。
@@ -325,7 +330,7 @@ class SelfHostedConfigRepository(
 
             journal.previousSlot == null && activeSlot == null -> {
                 // 首次提交未完成，候选未被任何活动指针引用。
-                preferences.edit().remove(ACTIVATION_JOURNAL_KEY).commit()
+                preferences.edit(commit = true) { remove(ACTIVATION_JOURNAL_KEY) }
                 clearInactiveCandidatesAfterRecovery(null)
             }
 
@@ -354,6 +359,8 @@ class SelfHostedConfigRepository(
         }
     }
 
+    // KTX edit 不返回 Boolean；落盘成功后才能清理候选配置。
+    @Suppress("UseKtx")
     private fun finalizeRecoveredActivation(slot: String, record: StoredConfigRecord) {
         if (
             preferences.edit()
@@ -367,6 +374,8 @@ class SelfHostedConfigRepository(
         }
     }
 
+    // KTX edit 不返回 Boolean；回滚落盘成功后才能删除候选项。
+    @Suppress("UseKtx")
     private fun finalizeRecoveredRollback(
         previousSlot: String,
         previousBackendType: String,
@@ -381,7 +390,7 @@ class SelfHostedConfigRepository(
                 .remove(ACTIVATION_JOURNAL_KEY)
                 .commit()
         ) {
-            preferences.edit().remove(recordKey(candidateSlot)).commit()
+            preferences.edit(commit = true) { remove(recordKey(candidateSlot)) }
             credentialStore.clear(candidateSlot)
             clearInactiveCandidatesAfterRecovery(previousSlot)
         }
@@ -420,6 +429,8 @@ class SelfHostedConfigRepository(
     }
 
     /** 启动时优先完成 Backend 选择 journal；恢复失败时保留 journal 并 Fail Closed。 */
+    // KTX edit 不返回 Boolean；必须按落盘结果恢复或阻止 Backend。
+    @Suppress("UseKtx")
     private fun recoverBackendSelectionJournal() {
         val raw = runCatching { preferences.getString(BACKEND_SELECTION_JOURNAL_KEY, null) }
             .getOrElse {
@@ -465,6 +476,8 @@ class SelfHostedConfigRepository(
         _connectionState.value = SelfHostedConnectionState.Blocked(config, reason)
     }
 
+    // KTX edit 不返回 Boolean；调用方需要知道阻止状态是否落盘。
+    @Suppress("UseKtx")
     private fun persistBlockedReason(
         slot: String?,
         record: StoredConfigRecord?,
@@ -493,7 +506,7 @@ class SelfHostedConfigRepository(
             .filter { it.startsWith(RECORD_KEY_PREFIX) }
             .map { it.removePrefix(RECORD_KEY_PREFIX) }
             .filter { it != activeSlot }
-            .forEach { slot -> preferences.edit().remove(recordKey(slot)).commit() }
+            .forEach { slot -> preferences.edit(commit = true) { remove(recordKey(slot)) } }
         credentialStore.clearInactiveSlots(activeSlot)
     }
 
@@ -502,7 +515,7 @@ class SelfHostedConfigRepository(
         recordWriteAttempted: Boolean,
         credentialWriteAttempted: Boolean,
     ) {
-        if (recordWriteAttempted) preferences.edit().remove(recordKey(slot)).commit()
+        if (recordWriteAttempted) preferences.edit(commit = true) { remove(recordKey(slot)) }
         if (credentialWriteAttempted) credentialStore.clear(slot)
         clearInactiveCandidatesAfterRecovery(activeSlot())
     }
@@ -532,6 +545,8 @@ class SelfHostedConfigRepository(
     }
 
     /** 为引入顶层 Backend 选择的升级路径保留任何旧自建选择证据。 */
+    // KTX edit 不返回 Boolean；迁移失败时必须保留安全阻止状态。
+    @Suppress("UseKtx")
     private fun migrateCurrentBackendTypeIfNeeded() {
         if (preferences.contains(CURRENT_BACKEND_TYPE_KEY)) return
 

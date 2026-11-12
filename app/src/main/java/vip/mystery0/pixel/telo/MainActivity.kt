@@ -10,7 +10,7 @@ import vip.mystery0.pixel.telo.viewmodel.DeveloperSupportViewModel
 import vip.mystery0.pixel.telo.viewmodel.EngagementPromptViewModel
 import vip.mystery0.pixel.telo.ui.screen.DeveloperSupportScreen
 import android.os.Bundle
-import android.graphics.drawable.ColorDrawable
+import androidx.core.graphics.drawable.toDrawable
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.SideEffect
@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
                 val windowBackground = MaterialTheme.colorScheme.background
                 // 固定底层只属于主窗口，不能放到与来电悬浮窗共用的主题中。
                 SideEffect {
-                    window.setBackgroundDrawable(ColorDrawable(windowBackground.toArgb()))
+                    window.setBackgroundDrawable(windowBackground.toArgb().toDrawable())
                 }
                 val settingsSaveableStateHolder = rememberSaveableStateHolder()
                 val pagerState = rememberPagerState(pageCount = { AppDestinations.entries.size })

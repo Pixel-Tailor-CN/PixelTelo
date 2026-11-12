@@ -1,9 +1,11 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- 数量文案统一用 (s) 兼容单复数；对应条目局部忽略 PluralsCandidate，无需数量分支。 -->
     <string name="app_name">Pixel Telo</string>
 
     <string name="smartspacer_intercept_label">Silently blocked calls</string>
     <string name="smartspacer_intercept_description">Shows how many spam calls were rejected without notifying you. Opening the app clears the count.</string>
-    <string name="smartspacer_intercept_count">%1$d blocked</string>
+    <!-- blocked / missing 的词形不随数量变化，无需复数资源。 -->
+    <string name="smartspacer_intercept_count" tools:ignore="PluralsCandidate">%1$d blocked</string>
     <string name="smartspacer_intercept_count_overflow">99+ blocked</string>
 
     <string name="setting_no_network_query">No Network Query</string>
@@ -20,7 +22,7 @@
     <string name="location_overlay_display_mode_fixed">Fixed duration</string>
     <string name="location_overlay_display_mode_until_call_end">Until the call ends</string>
     <string name="setting_location_overlay_duration">Display duration</string>
-    <string name="setting_location_overlay_duration_summary">%1$d seconds</string>
+    <string name="setting_location_overlay_duration_summary" tools:ignore="PluralsCandidate">%1$d second(s)</string>
     <string name="setting_location_overlay_style">Style</string>
     <string name="location_overlay_style_card">Card</string>
     <string name="location_overlay_style_minimal">Minimal text</string>
@@ -92,25 +94,10 @@
     <string name="home_no_records">No call records</string>
     <string name="home_no_records_hint">Incoming call identification and blocking records will appear here.</string>
     <string name="home_records_load_failed">Failed to load intercept records</string>
-    <string name="action_retry_query">Retry Query (Domestic Numbers)</string>
-    <string name="label_phone_location">Location: %1$s</string>
-    <string name="result_intercept_spam">Reason: Spam Call</string>
-    <string name="result_pass_but_notify">Reason: Notify (Not Blocked)</string>
-    <string name="result_network_timeout">Reason: Network Timeout (Allowed)</string>
-    <string name="result_network_rate_limited">Reason: Query Rate Limited (Allowed)</string>
-    <string name="result_network_server_error">Reason: Query Service Error (Allowed)</string>
-    <string name="result_network_connection_error">Reason: Network Connection Failed (Allowed)</string>
-    <string name="result_query_service_unavailable">Reason: Query Service Unavailable (Allowed)</string>
-    <string name="result_pass_always_record">Reason: Always Record (Allowed)</string>
-    <string name="result_black_list">Reason: User Blacklist (Blocked)</string>
-    <string name="result_white_list">Reason: User Whitelist (Allowed)</string>
     <string name="current_list_black">Current: In blacklist</string>
     <string name="current_list_white">Current: In whitelist</string>
     <string name="current_list_both">Current: In blacklist and whitelist</string>
     <string name="label_call_feedback">Was this identification accurate?</string>
-    <string name="label_record_time">Call time: %1$s</string>
-    <string name="label_remark_value">Original remark: %1$s</string>
-    <string name="label_compact_separator"> · </string>
     <string name="action_add_blacklist_short">Add to blacklist</string>
     <string name="action_add_whitelist_short">Add to whitelist</string>
     <string name="msg_checking_user_lists">Checking list status…</string>
@@ -126,13 +113,10 @@
     <string name="record_result_allowed">Allowed</string>
     <string name="record_result_query_failed_open">Query failed · Allowed</string>
     <string name="record_result_notify_allowed">Allowed · Notify only</string>
-    <string name="label_record_result">Recorded result</string>
     <string name="cd_record_blocked">This call was blocked</string>
     <string name="cd_record_notify">This call was allowed with a notification</string>
     <string name="cd_record_allowed">This call was allowed</string>
     <string name="cd_record_query_failed">The query failed and the call was allowed</string>
-    <string name="label_duration_with_network">"Duration: Local %1$dms | Network %2$dms"</string>
-    <string name="label_duration_local">"Duration: Local %1$dms"</string>
     <string name="msg_querying">Querying %1$s…</string>
     <string name="action_cancel">Cancel</string>
     <string name="msg_retry_spam">[Retry] Spam, Tag: %1$s, Source: %2$s</string>
@@ -141,7 +125,6 @@
     <string name="label_is_spam_yes">Is spam: Yes</string>
     <string name="label_is_spam_no">Is spam: No</string>
     <string name="label_tag">Tag: </string>
-    <string name="label_confidence">Confidence: </string>
     <string name="label_source">Source: </string>
     <string name="action_close">Close</string>
     <string name="action_write_remark">Write Remark</string>
@@ -162,12 +145,7 @@
     <string name="msg_no_contacts_app">No contacts app found</string>
 
     <!-- Local number labels -->
-    <string name="label_local_number_label">Local label: %1$s</string>
-    <string name="label_source_number_label">Source label: %1$s</string>
     <string name="title_local_number_label">Local label</string>
-    <string name="msg_local_label_not_set">Not set yet</string>
-    <string name="action_set_local_label">Set label</string>
-    <string name="action_edit_local_label">Edit label</string>
     <string name="title_set_local_label">Set local label</string>
     <string name="title_edit_local_label">Edit local label</string>
     <string name="title_delete_local_label">Delete local label?</string>
@@ -203,8 +181,6 @@
     <string name="msg_input_phone_number">Enter a phone number to check</string>
     <string name="label_phone_number">Phone Number</string>
     <string name="action_check">Check</string>
-    <string name="label_should_block_yes">Should block: Yes</string>
-    <string name="label_should_block_no">Should block: No</string>
     <string name="label_tag_info">Tag: </string>
     <string name="label_none">None</string>
     <string name="label_result_type">Result Type: </string>
@@ -224,7 +200,7 @@
     <string name="setting_auto_download_update">Automatically download database updates</string>
     <string name="setting_auto_download_update_summary">Download and install updates found by automatic checks, including over mobile data. Manual checks still ask for confirmation.</string>
     <string name="setting_auto_check_update_interval">Check interval</string>
-    <string name="setting_auto_check_update_interval_summary">%1$d hours</string>
+    <string name="setting_auto_check_update_interval_summary" tools:ignore="PluralsCandidate">%1$d hour(s)</string>
     <string name="setting_auto_check_update_interval_requires_enabled">Turn on automatic checks first.</string>
     <string name="title_auto_check_update_interval">Auto-check interval</string>
     <string name="hint_auto_check_update_interval">Hours</string>
@@ -236,7 +212,7 @@
     <string name="repeat_call_strategy_silence">Allow silently</string>
     <string name="repeat_call_strategy_allow">Allow completely</string>
     <string name="setting_repeat_call_window">Repeat call window</string>
-    <string name="setting_repeat_call_window_summary">%1$d minutes</string>
+    <string name="setting_repeat_call_window_summary" tools:ignore="PluralsCandidate">%1$d minute(s)</string>
     <string name="summary_test_intercept">Enter a number to simulate intercept check.</string>
     <string name="setting_backup_records">Backup App Data</string>
     <string name="setting_backup_records_summary">Export selected call records, lists, and local labels as a ZIP file.</string>
@@ -249,7 +225,6 @@
     <string name="category_display_alerts">Display and Alerts</string>
     <string name="category_records_backup">Records and Backup</string>
     <string name="category_online_query">Online Query</string>
-    <string name="category_location_overlay">Floating Window</string>
     <string name="setting_category_call_notify_summary">Notify only, except forced blocking rules</string>
     <string name="setting_category_call_block_summary">Apply blocking rules</string>
     <string name="setting_category_online_disabled_summary">Off · local number database only</string>
@@ -264,7 +239,8 @@
     <string name="setting_category_records_summary">Reports, labels, and data backup</string>
     <string name="setting_category_permissions_summary">%1$s · Optional permissions granted %2$d/%3$d</string>
     <string name="setting_permissions_required_complete">Required permissions complete</string>
-    <string name="setting_permissions_required_missing">Required permissions incomplete (%1$d missing)</string>
+    <!-- blocked / missing 的词形不随数量变化，无需复数资源。 -->
+    <string name="setting_permissions_required_missing" tools:ignore="PluralsCandidate">Required permissions incomplete (%1$d missing)</string>
     <string name="setting_group_intercept_behavior">Blocking behavior</string>
     <string name="setting_group_repeat_calls">Repeat calls</string>
     <string name="setting_group_records_and_checks">Records and checks</string>
@@ -305,7 +281,7 @@
     <string name="msg_confirm_delete_database">The local number database will be removed. You will need to download it again before local spam checks can use it.</string>
     <string name="msg_debug_mode_enabled">Debug Mode Enabled</string>
     <string name="setting_network_timeout">Query timeout</string>
-    <string name="setting_network_timeout_summary">%1$d seconds</string>
+    <string name="setting_network_timeout_summary" tools:ignore="PluralsCandidate">%1$d second(s)</string>
     <string name="setting_requires_network_enabled">Turn off No Network Query first.</string>
 
     <!-- ViewModel Strings -->
@@ -317,13 +293,10 @@
     <string name="msg_update_success">Update successful!</string>
     <string name="msg_update_failed">Offline data update failed.</string>
     <string name="msg_auto_check_update_requires_notification_permission">Notification permission is required to enable automatic update checks.</string>
-    <string name="msg_test_failed">Test failed: %1$s</string>
     <string name="msg_test_failed_safe">Test failed.</string>
-    <string name="label_manual_test">Manual Test</string>
     <string name="msg_recorded_to_intercept_list">Recorded to intercept list.</string>
     <string name="msg_backup_exported">Backup exported.</string>
     <string name="msg_backup_failed">Backup failed.</string>
-    <string name="msg_restored_count_records">Restored %1$d records.</string>
     <string name="msg_restore_failed">Restore failed.</string>
     <string name="msg_database_deleted">Offline database deleted.</string>
     <string name="notification_offline_update_channel_name">Offline data updates</string>
@@ -343,11 +316,7 @@
     <string name="label_user_list_remark">Note: %1$s</string>
     <string name="msg_no_matching_user_list">No matching entries</string>
     <string name="msg_no_matching_user_list_hint">Try a different keyword.</string>
-    <string name="label_community_report_section">Community spam report</string>
-    <string name="label_number_rules">Number rules and local labels</string>
     <string name="action_clear_search">Clear search</string>
-    <string name="pairing_scan_hint">Scan a pairing QR code using the camera.</string>
-    <string name="pairing_manual_hint">Enter the server address and credential yourself.</string>
     <string name="self_hosted_http_warning">HTTP does not encrypt traffic. Use HTTPS for production servers.</string>
     <string name="self_hosted_https_notice">HTTPS address entered. The configured TLS verification still applies.</string>
     <string name="action_add_entry">Add Entry</string>
@@ -427,12 +396,12 @@
     <string name="label_backup_local_number_labels">Local Number Labels</string>
     <string name="action_backup">Backup</string>
     <string name="title_restore_select">Select Data to Restore</string>
-    <string name="label_restore_blocked_calls">Call History (%1$d entries)</string>
-    <string name="label_restore_blacklist">Blacklist (%1$d entries)</string>
-    <string name="label_restore_whitelist">Whitelist (%1$d entries)</string>
-    <string name="label_restore_local_number_labels">Local Number Labels (%1$d entries)</string>
+    <string name="label_restore_blocked_calls" tools:ignore="PluralsCandidate">Call History (%1$d item(s))</string>
+    <string name="label_restore_blacklist" tools:ignore="PluralsCandidate">Blacklist (%1$d item(s))</string>
+    <string name="label_restore_whitelist" tools:ignore="PluralsCandidate">Whitelist (%1$d item(s))</string>
+    <string name="label_restore_local_number_labels" tools:ignore="PluralsCandidate">Local Number Labels (%1$d item(s))</string>
     <string name="action_restore">Restore</string>
-    <string name="msg_restored_summary">Restored: %1$d call records, %2$d blacklist, %3$d whitelist, %4$d local labels added, %5$d overwritten, %6$d skipped</string>
+    <string name="msg_restored_summary" tools:ignore="PluralsCandidate">Restored: %1$d call record(s), %2$d blacklist, %3$d whitelist, %4$d local label(s) added, %5$d overwritten, %6$d skipped</string>
 
     <!-- Query Sources -->
     <string name="setting_query_backend">Real-time query server</string>
@@ -444,19 +413,11 @@
     <string name="setting_self_hosted_documentation">Self-hosted deployment guide</string>
     <string name="setting_self_hosted_documentation_summary">Deploy, pair, and troubleshoot your service.</string>
     <string name="error_external_link_unavailable">No app is available to open this link</string>
-    <string name="title_self_hosted_config">Configure self-hosted service</string>
     <string name="title_self_hosted_management">Query server management</string>
-    <string name="title_self_hosted_pairing">Pair self-hosted service</string>
-    <string name="msg_pairing_intro">Scan the server’s QR code or paste the full pairing JSON. You can also enter the details manually.</string>
     <string name="action_pairing_scan">Scan pairing code</string>
     <string name="action_pairing_paste">Paste pairing configuration</string>
     <string name="action_pairing_clipboard">Paste from clipboard</string>
     <string name="action_pairing_manual">Configure manually</string>
-    <string name="action_pairing_import">Import</string>
-    <string name="action_pairing_confirm">Review configuration</string>
-    <string name="action_pairing_validate">Validate and enable</string>
-    <string name="action_pairing_reimport">Import again</string>
-    <string name="action_pairing_retry">Retry validation</string>
     <string name="action_pairing_next">Next</string>
     <string name="action_pairing_retry_scan">Scan again</string>
     <string name="action_pairing_discard">Discard</string>
@@ -467,9 +428,6 @@
     <string name="title_pairing_discard">Discard this configuration?</string>
     <string name="msg_pairing_discard">Unsaved content will be cleared.</string>
     <string name="msg_pairing_manual_hint">Enter the service address and token. The token is required again for every validation.</string>
-    <string name="section_query_backend_status">Current service</string>
-    <string name="section_self_hosted_config">Saved configuration</string>
-    <string name="section_self_hosted_actions">Actions</string>
     <string name="section_official_service">Official service</string>
     <string name="section_self_hosted_service">Self-hosted service</string>
     <string name="section_pairing_connection">Connection information</string>
@@ -508,12 +466,9 @@
     <string name="hint_self_hosted_base_url">HTTPS URL of your self-hosted query service</string>
     <string name="label_self_hosted_token">Token</string>
     <string name="hint_self_hosted_token">Used to access the self-hosted service. The token is hidden from the summary.</string>
-    <string name="label_self_hosted_tls_mode">TLS verification</string>
     <string name="tls_mode_system">System trust</string>
-    <string name="tls_mode_system_summary">Use Android system certificates and hostname verification.</string>
     <string name="tls_mode_system_summary_short">Verify with system certificates and hostname.</string>
     <string name="tls_mode_spki_pin">Self-signed certificate / exact SPKI Pin</string>
-    <string name="tls_mode_spki_pin_summary">Trust only the exact SHA-256 SPKI Pin; certificate validity and hostname/IP SAN are still verified.</string>
     <string name="tls_mode_spki_pin_summary_short">Trust only the matching SHA-256 SPKI Pin.</string>
     <string name="msg_self_hosted_tls_short">Choose system certificate trust or an exact SPKI Pin.</string>
     <string name="action_self_hosted_tls_help">Learn about certificate verification</string>
@@ -548,7 +503,7 @@
     <string name="title_query_sources">Online Query Sources</string>
     <string name="msg_query_sources_hint">Queries follow the order below. At least one available source must stay enabled.</string>
     <string name="label_source_unavailable">Offline (no longer provided by the server)</string>
-    <string name="label_source_quality_stats">Last 7 days: %1$d numbers · %2$d marked inaccurate</string>
+    <string name="label_source_quality_stats" tools:ignore="PluralsCandidate">Last 7 days: %1$d number(s) · %2$d marked inaccurate</string>
     <string name="action_move_up">Move up</string>
     <string name="action_move_down">Move down</string>
     <string name="action_restore_default_sources">Restore server defaults</string>
@@ -595,7 +550,6 @@
     <string name="notification_feedback_submitting">Submitting feedback…</string>
     <string name="notification_feedback_failed">Feedback failed. You can retry later from the record detail.</string>
     <!-- 查询失败分类和逐条标签规则匹配方式 -->
-    <string name="result_query_failure">Allowed: %1$s</string>
     <string name="query_failure_timeout">Network query timed out</string>
     <string name="query_failure_invalid_request">Invalid query parameters</string>
     <string name="query_failure_auth">Query authentication failed or access denied</string>
