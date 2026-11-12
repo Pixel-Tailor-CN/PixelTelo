@@ -1,26 +1,21 @@
 package vip.mystery0.pixel.telo.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import vip.mystery0.pixel.telo.R
 
-/** 将常用名单和标签命令放在自适应操作栏中；各操作互相独立。 */
-@OptIn(ExperimentalLayoutApi::class)
+/** 名单和本地标签各为一组，主按钮保持可见；当前名单状态不代表历史命中原因。 */
 @Composable
 fun NumberQuickActions(
     hasLocalLabel: Boolean,
@@ -33,60 +28,72 @@ fun NumberQuickActions(
     onOpenBlacklist: () -> Unit,
     onOpenWhitelist: () -> Unit,
     onEditLocalLabel: () -> Unit,
+    onDeleteLocalLabel: () -> Unit,
+    sourceLabel: String?,
+    onAddTagToWhitelist: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    FlowRow(
-        modifier = modifier,
+    // 两组操作始终等宽同行，菜单尾按钮占用各自半区内的空间。
+    Row(
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (userListsLoaded) {
-            QuickAction(
+            DetailSplitButton(
+                modifier = Modifier.weight(1f),
+                label = stringResource(if (isBlacklisted) R.string.detail_rule_short else R.string.detail_block_short),
+                actionDescription = stringResource(if (isBlacklisted) R.string.detail_view_blacklist else R.string.action_add_blacklist_short),
                 icon = if (isBlacklisted) Icons.Default.CheckCircle else Icons.Default.Block,
-                label = if (isBlacklisted) R.string.action_already_in_blacklist
-                else R.string.action_add_blacklist_short,
-                description = if (isBlacklisted) R.string.cd_open_blacklist_rule
-                else R.string.cd_add_number_to_blacklist,
+                menuDescription = stringResource(R.string.detail_list_actions),
                 onClick = if (isBlacklisted) onOpenBlacklist else onAddToBlacklist,
-            )
-            QuickAction(
-                icon = Icons.Default.CheckCircle,
-                label = if (isWhitelisted) R.string.action_already_in_whitelist
-                else R.string.action_add_whitelist_short,
-                description = if (isWhitelisted) R.string.cd_open_whitelist_rule
-                else R.string.cd_add_number_to_whitelist,
-                onClick = if (isWhitelisted) onOpenWhitelist else onAddToWhitelist,
-            )
+            ) { close ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (isWhitelisted) R.string.detail_view_whitelist else R.string.action_add_whitelist_short)) },
+                    onClick = { close(); if (isWhitelisted) onOpenWhitelist() else onAddToWhitelist() },
+                )
+                if (sourceLabel != null) {
+                    DropdownMenuItem(
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(stringResource(R.string.action_add_tag_to_whitelist, sourceLabel))
+                                Text(stringResource(R.string.tag_whitelist_scope), style = MaterialTheme.typography.bodySmall)
+                            }
+                        },
+                        onClick = { close(); onAddTagToWhitelist() },
+                    )
+                }
+            }
         } else {
-            Text(stringResource(R.string.msg_checking_user_lists))
+            Text(stringResource(R.string.msg_checking_user_lists), modifier = Modifier.weight(1f))
         }
-        QuickAction(
-            icon = Icons.Default.Edit,
-            label = if (hasLocalLabel) R.string.action_edit_local_label_short
-            else R.string.action_set_local_label_short,
-            description = if (hasLocalLabel) R.string.cd_edit_local_label
-            else R.string.cd_set_local_label,
-            enabled = labelEnabled,
-            onClick = onEditLocalLabel,
-        )
+        val label = stringResource(if (hasLocalLabel) R.string.detail_edit_label else R.string.detail_set_label)
+        if (hasLocalLabel) {
+            DetailSplitButton(
+                modifier = Modifier.weight(1f),
+                label = label,
+                icon = Icons.Default.Edit,
+                menuDescription = stringResource(R.string.detail_label_actions),
+                onClick = onEditLocalLabel,
+                enabled = labelEnabled,
+            ) { close ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.cd_delete_local_label)) },
+                    leadingIcon = { Icon(Icons.Default.DeleteOutline, null) },
+                    onClick = { close(); onDeleteLocalLabel() },
+                )
+            }
+        } else {
+            FilledTonalButton(
+                onClick = onEditLocalLabel,
+                enabled = labelEnabled,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+            ) {
+                Icon(Icons.Default.Edit, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
-}
-
-@Composable
-private fun QuickAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: Int,
-    description: Int,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    val accessibleDescription = stringResource(description)
-    // AssistChip 保持约 32dp 的可见高度，Material3 提供至少 48dp 的触摸区域。
-    AssistChip(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.semantics { contentDescription = accessibleDescription },
-        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
-        label = { Text(stringResource(label)) },
-    )
 }

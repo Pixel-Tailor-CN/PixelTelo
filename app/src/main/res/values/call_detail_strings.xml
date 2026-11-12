@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_title">Call details</string>
+    <string name="detail_copy_number">Copy phone number</string>
+    <string name="detail_result">Call handling</string>
+    <string name="detail_blacklist_reason">Matched a blacklist rule at the time of this call</string>
+    <string name="detail_whitelist_reason">Matched a whitelist rule at the time of this call</string>
+    <string name="detail_identity">Identification</string>
+    <string name="detail_source_label">Recorded label</string>
+    <string name="detail_query_source">Query source</string>
+    <string name="detail_current_local_label">Current local label</string>
+    <string name="detail_record">Record details</string>
+    <string name="detail_community_at_call">Community status at call time</string>
+    <string name="detail_local_query_duration">Local query time</string>
+    <string name="detail_network_query_duration">Network query time</string>
+    <string name="detail_duration_ms">%1$d ms</string>
+    <string name="detail_feedback_reports">Feedback and reporting</string>
+    <string name="detail_feedback_submitting">Submitting feedback…</string>
+    <string name="detail_feedback_saved">Feedback submitted. This choice cannot be changed.</string>
+    <string name="detail_feedback_unknown">Feedback already submitted; the previous choice is unknown.</string>
+    <string name="detail_list_actions">More list actions</string>
+    <string name="detail_label_actions">More local label actions</string>
+    <string name="detail_view_blacklist">View blacklist rule</string>
+    <string name="detail_view_whitelist">View whitelist rule</string>
+    <string name="detail_report_unavailable_reason">Cannot report: %1$s</string>
+    <string name="detail_block_short">Block</string>
+    <string name="detail_rule_short">Rule</string>
+    <string name="detail_set_label">Label</string>
+    <string name="detail_edit_label">Edit</string>
+</resources>

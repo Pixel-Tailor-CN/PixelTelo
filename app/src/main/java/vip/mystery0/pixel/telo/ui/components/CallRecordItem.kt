@@ -217,6 +217,7 @@ private fun RecordLabel(
 fun CallResultSummary(
     resultType: ResultType,
     modifier: Modifier = Modifier,
+    prominent: Boolean = false,
 ) {
     val failed = resultType.isQueryFailure()
     val status = when {
@@ -249,16 +250,23 @@ fun CallResultSummary(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        StatusBadge(
-            icon = status.icon,
-            text = stringResource(status.label),
-            description = stringResource(status.description),
-            tint = status.tint,
-        )
+        if (prominent) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(status.icon, null, tint = status.tint)
+                Text(stringResource(status.label), style = MaterialTheme.typography.titleLarge, color = status.tint)
+            }
+        } else {
+            StatusBadge(
+                icon = status.icon,
+                text = stringResource(status.label),
+                description = stringResource(status.description),
+                tint = status.tint,
+            )
+        }
         resultType.queryFailureSummaryRes()?.let { failure ->
             Text(
                 text = stringResource(failure),
-                style = MaterialTheme.typography.bodySmall,
+                style = if (prominent) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

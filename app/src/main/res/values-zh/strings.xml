@@ -50,16 +50,11 @@
     <string name="record_date_today">今天</string>
     <string name="record_date_yesterday">昨天</string>
     <string name="tag_whitelist_scope">此规则会匹配其他同标签号码</string>
-    <string name="record_history_section">历史记录</string>
-    <string name="history_community_label">社区标记</string>
     <string name="history_remark_label">原始备注</string>
-    <string name="history_duration_label">处理耗时</string>
     <string name="history_community_active">当时已生效</string>
     <string name="history_community_inactive">当时未生效</string>
     <string name="history_community_unavailable">当时暂不可用</string>
     <string name="history_community_unknown">当时未提供</string>
-    <string name="history_duration_network">本地 %1$dms · 网络 %2$dms</string>
-    <string name="history_duration_local">本地 %1$dms</string>
     <string name="detail_report_submitted">已提交上报</string>
     <string name="detail_view_reports">查看上报</string>
     <string name="confirm_blacklist_title">加入黑名单？</string>
@@ -72,7 +67,6 @@
     <string name="confirm_whitelist_message">加入后将按白名单规则放行此号码的来电。</string>
     <string name="confirm_tag_whitelist_message">加入后将按标签白名单规则放行同标签号码的来电。</string>
     <string name="rule_add_failed">添加失败，请重试</string>
-    <string name="detail_report_unavailable">不能上报</string>
     <string name="detail_report_reason_token">缺少上报凭据</string>
     <string name="detail_report_reason_expired">上报凭据已过期</string>
     <string name="detail_report_reason_used">上报凭据已使用</string>
@@ -123,22 +117,10 @@
     <string name="label_call_feedback">这次识别准确吗？</string>
     <string name="label_record_time">来电时间：%1$s</string>
     <string name="label_remark_value">原始备注：%1$s</string>
-    <string name="record_location_and_time">%1$s · %2$s</string>
     <string name="label_compact_separator"> · </string>
     <string name="action_add_blacklist_short">加黑名单</string>
     <string name="action_add_whitelist_short">加白名单</string>
-    <string name="action_set_local_label_short">本地标签</string>
-    <string name="action_edit_local_label_short">本地标签</string>
-    <string name="cd_add_number_to_blacklist">将此号码加入黑名单</string>
-    <string name="cd_add_number_to_whitelist">将此号码加入白名单</string>
-    <string name="action_already_in_blacklist">已在黑名单</string>
-    <string name="action_already_in_whitelist">已在白名单</string>
-    <string name="cd_open_blacklist_rule">打开此黑名单规则</string>
-    <string name="cd_open_whitelist_rule">打开此白名单规则</string>
     <string name="msg_checking_user_lists">正在检查名单状态…</string>
-    <string name="cd_set_local_label">为此号码设置本地标签</string>
-    <string name="cd_local_label_source">此设备设置的本地标签</string>
-    <string name="cd_source_label">查询来源返回的识别标签</string>
     <string name="cd_local_label_value">你的本地标签：%1$s</string>
     <string name="cd_source_label_value">查询来源识别标签：%1$s</string>
     <string name="cd_rule_prefix_value">号码前缀：%1$s</string>
@@ -585,7 +567,6 @@
     <string name="action_open_query_backend_settings">打开查询服务设置</string>
 
     <!-- Query Feedback -->
-    <string name="label_query_source">"识别来源: %1$s"</string>
     <string name="action_feedback_positive">准确</string>
     <string name="action_feedback_negative">不准确</string>
     <string name="msg_feedback_failed">反馈提交失败: %1$s</string>

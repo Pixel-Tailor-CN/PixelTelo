@@ -75,11 +75,12 @@ fun CommunityReportSection(
             ) {
                 Icon(Icons.Default.Info, contentDescription = null,
                     modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.detail_report_unavailable), style = MaterialTheme.typography.bodyMedium)
-                    Text(state.eligibility.detailEligibilityText(context),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                Text(
+                    stringResource(R.string.detail_report_unavailable_reason, state.eligibility.detailEligibilityText(context)),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             else -> {
                 state.failure?.let { failure ->

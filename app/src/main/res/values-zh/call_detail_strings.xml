@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="detail_title">来电详情</string>
+    <string name="detail_copy_number">复制号码</string>
+    <string name="detail_result">处理结果</string>
+    <string name="detail_blacklist_reason">当时命中黑名单规则</string>
+    <string name="detail_whitelist_reason">当时命中白名单规则</string>
+    <string name="detail_identity">识别信息</string>
+    <string name="detail_source_label">当时识别标签</string>
+    <string name="detail_query_source">查询来源</string>
+    <string name="detail_current_local_label">当前本地标签</string>
+    <string name="detail_record">记录详情</string>
+    <string name="detail_community_at_call">当时社区状态</string>
+    <string name="detail_local_query_duration">本地查询耗时</string>
+    <string name="detail_network_query_duration">网络查询耗时</string>
+    <string name="detail_duration_ms">%1$d 毫秒</string>
+    <string name="detail_feedback_reports">反馈与上报</string>
+    <string name="detail_feedback_submitting">正在提交反馈…</string>
+    <string name="detail_feedback_saved">已反馈，无法修改此次选择。</string>
+    <string name="detail_feedback_unknown">已反馈，历史选择未知。</string>
+    <string name="detail_list_actions">更多名单操作</string>
+    <string name="detail_label_actions">更多本地标签操作</string>
+    <string name="detail_view_blacklist">查看黑名单规则</string>
+    <string name="detail_view_whitelist">查看白名单规则</string>
+    <string name="detail_report_unavailable_reason">无法上报：%1$s</string>
+    <string name="detail_block_short">拉黑</string>
+    <string name="detail_rule_short">规则</string>
+    <string name="detail_set_label">标签</string>
+    <string name="detail_edit_label">编辑</string>
+</resources>

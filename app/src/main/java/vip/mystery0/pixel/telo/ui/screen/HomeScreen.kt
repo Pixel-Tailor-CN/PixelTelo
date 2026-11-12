@@ -14,11 +14,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,34 +24,24 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ThumbDown
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.SettingsPhone
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,11 +56,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -93,13 +77,12 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.util.queryFailureAdviceRes
 import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.BlockedCall
-import vip.mystery0.pixel.telo.data.entity.FeedbackStatus
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
 import vip.mystery0.pixel.telo.data.entity.isNetworkFailure
-import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.ui.components.BlockedCallItem
-import vip.mystery0.pixel.telo.ui.components.CallHistorySection
-import vip.mystery0.pixel.telo.ui.components.CallResultSummary
+import vip.mystery0.pixel.telo.ui.components.CallDetailContent
+import vip.mystery0.pixel.telo.ui.components.CallFeedbackSection
+import vip.mystery0.pixel.telo.ui.components.CallRecordActions
 import vip.mystery0.pixel.telo.ui.components.CommunityReportSection
 import vip.mystery0.pixel.telo.ui.components.LocalNumberLabelEditorDialogs
 import vip.mystery0.pixel.telo.ui.components.NumberRuleAction
@@ -113,14 +96,10 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import vip.mystery0.pixel.telo.ui.util.formatMills
 import vip.mystery0.pixel.telo.viewmodel.BlockedCallListItem
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import vip.mystery0.pixel.telo.util.textRes
 import vip.mystery0.pixel.telo.data.model.CommunityStatus
 import vip.mystery0.pixel.telo.data.query.decodeCommunityQueryMetadata
-import vip.mystery0.pixel.telo.viewmodel.FeedbackSubmissionState
 import vip.mystery0.pixel.telo.viewmodel.HomeViewModel
 import vip.mystery0.pixel.telo.viewmodel.ListViewModel
 import vip.mystery0.pixel.telo.viewmodel.LocalNumberLabelEditorViewModel
@@ -485,7 +464,6 @@ fun HomeScreen(
         } else null
         val label = call.label?.takeIf { it.isNotBlank() }
         val contactName = contactNames[phone]
-        val location = call.locationText()
         val noContactsAppMessage = stringResource(R.string.msg_no_contacts_app)
         val addedToBlacklistMessage = stringResource(R.string.msg_added_to_blacklist)
         val alreadyInBlacklistMessage = stringResource(R.string.msg_already_in_blacklist)
@@ -502,7 +480,10 @@ fun HomeScreen(
         LaunchedEffect(call.phoneNumber) {
             localLabelEditorViewModel.observe(call.phoneNumber)
         }
-        val detailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val detailSheetState = rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        )
         NumberRuleConfirmation(
             callId = call.id,
             phone = phone,
@@ -532,61 +513,11 @@ fun HomeScreen(
                 onDismissRequest = { viewModel.closeQuickAdd() },
                 sheetState = detailSheetState,
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .padding(top = 16.dp, bottom = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            if (!contactName.isNullOrBlank()) {
-                                Text(contactName, style = MaterialTheme.typography.titleMedium)
-                            }
-                            Text(phone, style = MaterialTheme.typography.headlineSmall)
-                            Text(
-                                if (location != null) {
-                                    stringResource(R.string.record_location_and_time, location, formatMills(call.blockTime))
-                                } else {
-                                    formatMills(call.blockTime)
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                itemVerticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                label?.let {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Cloud, contentDescription = stringResource(R.string.cd_source_label),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(it, style = MaterialTheme.typography.titleMedium)
-                                    }
-                                }
-                                call.querySource?.trim()?.takeIf(String::isNotBlank)?.let {
-                                    RecordSourceChip(it)
-                                }
-                                CallResultSummary(resultType = call.resultType)
-                            }
-                            if (showLocalNumberLabels && identityLocalLabel != null) {
-                                RecordDetailValue(
-                                    icon = Icons.Default.Edit,
-                                    description = stringResource(R.string.cd_local_label_source),
-                                    value = identityLocalLabel,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-
+                CallDetailContent(
+                    call = call,
+                    contactName = contactName,
+                    localLabel = identityLocalLabel.takeIf { showLocalNumberLabels },
+                    quickActions = {
                         NumberQuickActions(
                             hasLocalLabel = identityLocalLabel != null,
                             labelEnabled = labelEnabled,
@@ -595,86 +526,32 @@ fun HomeScreen(
                             isWhitelisted = whiteListEntry != null,
                             onAddToBlacklist = { requestRule(NumberRuleAction.BLACKLIST) },
                             onAddToWhitelist = { requestRule(NumberRuleAction.WHITELIST) },
-                            onOpenBlacklist = {
-                                blackListEntry?.let(onNavigateToListRule)
-                            },
-                            onOpenWhitelist = {
-                                whiteListEntry?.let(onNavigateToListRule)
-                            },
+                            onOpenBlacklist = { blackListEntry?.let(onNavigateToListRule) },
+                            onOpenWhitelist = { whiteListEntry?.let(onNavigateToListRule) },
                             onEditLocalLabel = localLabelEditorViewModel::openEditor,
+                            onDeleteLocalLabel = localLabelEditorViewModel::requestDelete,
+                            sourceLabel = label,
+                            onAddTagToWhitelist = { requestRule(NumberRuleAction.TAG_WHITELIST) },
                         )
-                    }
-                    HorizontalDivider()
-                    if (label != null) {
-                        TextButton(
-                            onClick = { requestRule(NumberRuleAction.TAG_WHITELIST) },
-                            contentPadding = PaddingValues(0.dp),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp).heightIn(min = 48.dp),
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null)
-                            Spacer(Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(stringResource(R.string.action_add_tag_to_whitelist, label),
-                                    style = MaterialTheme.typography.titleSmall)
-                                Text(stringResource(R.string.tag_whitelist_scope),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Icon(Icons.Default.ChevronRight, contentDescription = null)
-                        }
-                    }
-
-                    if (label != null) HorizontalDivider()
-                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-                        CallHistorySection(call)
-                    }
-                    HorizontalDivider()
-                    val showingSubmittedReport = reportState.accepted && !reportState.loading && !reportState.submitting
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth()
-                                .padding(horizontal = 20.dp)
-                                .padding(top = 12.dp, bottom = if (showingSubmittedReport) 4.dp else 12.dp),
-                            // 已提交行自带48dp触摸高度，中心20dp文字上下各有14dp布局留白。
-                            verticalArrangement = Arrangement.spacedBy(if (showingSubmittedReport) 0.dp else 4.dp),
-                        ) {
-                            if (call.queryBackendId == OFFICIAL_BACKEND_ID &&
-                                call.feedbackStatus != FeedbackStatus.UNAVAILABLE
-                            ) {
-                                // 按钮可见40dp、触摸48dp，上下各4dp；14dp外距合成约18dp视觉间隔。
-                                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                    Text(stringResource(R.string.label_call_feedback),
-                                        style = MaterialTheme.typography.titleSmall)
-                                    FeedbackSection(
-                                        call = call,
-                                        submissionState = viewModel.feedbackSubmissionState,
-                                        onSubmit = { positive -> viewModel.submitFeedback(call, positive) },
-                                    )
-                                }
-                            }
-                            CommunityReportSection(
-                                state = reportState,
-                                onSubmit = callReportViewModel::submit,
-                                onViewReports = {
-                                    viewModel.closeQuickAdd()
-                                    onNavigateToMyReports()
-                                },
-                            )
-                        }
-                    }
-                    HorizontalDivider()
-
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
-                        maxItemsInEachRow = if (LocalDensity.current.fontScale > 1.3f) 1 else 2,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        TextButton(
-                            onClick = {
+                    },
+                    feedback = {
+                        CallFeedbackSection(
+                            call = call,
+                            submissionState = viewModel.feedbackSubmissionState,
+                            onSubmit = { positive -> viewModel.submitFeedback(call, positive) },
+                        )
+                        CommunityReportSection(
+                            state = reportState,
+                            onSubmit = callReportViewModel::submit,
+                            onViewReports = {
+                                viewModel.closeQuickAdd()
+                                onNavigateToMyReports()
+                            },
+                        )
+                    },
+                    recordActions = {
+                        CallRecordActions(
+                            onSaveContact = {
                                 val intent = Intent(Intent.ACTION_INSERT_OR_EDIT).apply {
                                     type = ContactsContract.Contacts.CONTENT_ITEM_TYPE
                                     putExtra(ContactsContract.Intents.Insert.PHONE, phone)
@@ -687,29 +564,14 @@ fun HomeScreen(
                                     Toast.makeText(context, noContactsAppMessage, Toast.LENGTH_SHORT).show()
                                 }
                             },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        ) {
-                            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.action_save_to_contacts))
-                        }
-                        TextButton(
-                            onClick = {
+                            onDelete = {
                                 itemToDelete = call
                                 showDeleteDialog = true
                                 viewModel.closeQuickAdd()
                             },
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error,
-                            ),
-                        ) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.action_delete_record))
-                        }
-                    }
-                }
+                        )
+                    },
+                )
             }
         }
     }
@@ -831,83 +693,6 @@ private fun SelfHostedWarning.messageResId(): Int = when (this) {
     SelfHostedWarning.API_VERSION -> R.string.warning_self_hosted_api_version
     SelfHostedWarning.INSTANCE_CHANGED -> R.string.warning_self_hosted_instance_changed
     SelfHostedWarning.IDENTITY_HEADERS -> R.string.warning_self_hosted_identity_headers
-}
-
-/**
- * 记录详情中的反馈区域。
- * PENDING 时提供“准确/不准确”操作，提交中禁用；
- * 终态只展示状态文字；UNAVAILABLE 不展示任何内容。
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FeedbackSection(
-    call: BlockedCall,
-    submissionState: FeedbackSubmissionState,
-    onSubmit: (Boolean) -> Unit,
-) {
-    if (call.queryBackendId != OFFICIAL_BACKEND_ID) return
-    when (call.feedbackStatus) {
-        FeedbackStatus.UNAVAILABLE -> Unit
-
-        FeedbackStatus.PENDING -> {
-            if (submissionState is FeedbackSubmissionState.Failure &&
-                submissionState.callId == call.id
-            ) {
-                Text(
-                    stringResource(R.string.msg_feedback_failed, submissionState.message),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-            val submitting = submissionState is FeedbackSubmissionState.Submitting &&
-                submissionState.callId == call.id
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                maxItemsInEachRow = if (LocalDensity.current.fontScale > 1.3f) 1 else 2,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                OutlinedButton(
-                    onClick = { onSubmit(true) },
-                    enabled = !submitting,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                ) {
-                    Icon(Icons.Default.ThumbUp, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.action_feedback_positive))
-                }
-                OutlinedButton(
-                    onClick = { onSubmit(false) },
-                    enabled = !submitting,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                ) {
-                    Icon(Icons.Default.ThumbDown, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.action_feedback_negative))
-                }
-            }
-        }
-
-        FeedbackStatus.POSITIVE -> FeedbackStatusText(R.string.feedback_status_positive)
-        FeedbackStatus.NEGATIVE -> FeedbackStatusText(R.string.feedback_status_negative)
-        FeedbackStatus.ALREADY_SUBMITTED ->
-            FeedbackStatusText(R.string.feedback_status_already_submitted)
-
-        FeedbackStatus.EXPIRED -> FeedbackStatusText(R.string.feedback_status_expired)
-        FeedbackStatus.INVALID -> FeedbackStatusText(R.string.feedback_status_invalid)
-    }
-}
-
-/** 反馈终态的状态文字 */
-@Composable
-private fun FeedbackStatusText(textResId: Int) {
-    Text(
-        stringResource(textResId),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
 }
 
 @Composable
@@ -1089,45 +874,6 @@ private fun LazyListScope.blockedCallsList(
         }
     }
 }
-
-@Composable
-private fun RecordSourceChip(source: String) {
-    val description = stringResource(R.string.label_query_source, source)
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.clearAndSetSemantics { contentDescription = description },
-    ) {
-        Text(
-            text = source,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun RecordDetailValue(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    description: String,
-    value: String,
-    tint: androidx.compose.ui.graphics.Color,
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Icon(icon, contentDescription = description, tint = tint)
-        Text(value, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-private fun BlockedCall.locationText(): String? = listOfNotNull(
-    province?.trim()?.takeIf { it.isNotEmpty() },
-    city?.trim()?.takeIf { it.isNotEmpty() },
-).distinct().joinToString(" ").takeIf { it.isNotEmpty() }
 
 private fun BlockedCall.recordDate(): LocalDate =
     Instant.ofEpochMilli(blockTime).atZone(ZoneId.systemDefault()).toLocalDate()
