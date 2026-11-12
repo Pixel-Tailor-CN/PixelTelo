@@ -276,6 +276,18 @@ class SettingViewModel : ViewModel(), KoinComponent {
         }
     }
 
+    var autoDownloadUpdate by mutableStateOf(
+        prefs.getBoolean(OfflineDatabaseUpdateScheduler.KEY_AUTO_DOWNLOAD_UPDATE, false)
+    )
+        private set
+
+    fun updateAutoDownloadUpdate(enabled: Boolean) {
+        autoDownloadUpdate = enabled && autoCheckUpdate
+        prefs.edit {
+            putBoolean(OfflineDatabaseUpdateScheduler.KEY_AUTO_DOWNLOAD_UPDATE, autoDownloadUpdate)
+        }
+    }
+
     var autoCheckUpdateIntervalHours by mutableIntStateOf(
         OfflineDatabaseUpdateScheduler.normalizeIntervalHours(
             prefs.getInt(
@@ -477,17 +489,19 @@ class SettingViewModel : ViewModel(), KoinComponent {
         viewModelScope.launch {
             OfflineDatabaseDownloadScheduler.observe(context).collect { workInfos ->
                 val work = OfflineDatabaseDownloadScheduler.latestWork(workInfos)
+                val skipped = work?.outputData?.getBoolean(OfflineDatabaseDownloadScheduler.KEY_SKIPPED, false) == true
                 isDownloading = work != null && !work.state.isFinished
                 downloadStage = when (work?.state) {
                     WorkInfo.State.RUNNING -> work.progress.getString(OfflineDatabaseDownloadScheduler.KEY_STAGE) ?: "downloading"
                     else -> "waiting"
                 }
                 if (!isDownloading) showDownloadProgress = false
-                downloadProgress = if (work?.state == WorkInfo.State.SUCCEEDED) 1f else {
+                downloadProgress = if (work?.state == WorkInfo.State.SUCCEEDED && !skipped) 1f else {
                     (work?.progress?.getInt(OfflineDatabaseDownloadScheduler.KEY_PROGRESS, 0) ?: 0) / 100f
                 }
                 when (work?.state) {
-                    WorkInfo.State.SUCCEEDED -> syncStatusMessage = context.getString(R.string.msg_update_success)
+                    WorkInfo.State.SUCCEEDED -> syncStatusMessage =
+                        if (skipped) null else context.getString(R.string.msg_update_success)
                     WorkInfo.State.FAILED, WorkInfo.State.CANCELLED ->
                         syncStatusMessage = context.getString(R.string.msg_update_failed)
                     WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING, WorkInfo.State.BLOCKED ->
@@ -1215,6 +1229,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     fun deleteDatabase() {
+        // 用户主动删除库后不在下一次周期检查中自动装回，已排队任务也会复核此偏好。
+        updateAutoDownloadUpdate(false)
         viewModelScope.launch {
             try {
                 OfflineDatabaseDownloadScheduler.cancel(context)

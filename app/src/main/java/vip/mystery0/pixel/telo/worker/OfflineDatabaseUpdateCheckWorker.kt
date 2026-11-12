@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.CancellationException
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.MainActivity
@@ -51,12 +52,30 @@ class OfflineDatabaseUpdateCheckWorker(
                 )
             }
 
+            // 检查请求期间设置可能变化；关闭检查后不再下载或发出迟到的提醒。
+            if (!prefs.getBoolean(OfflineDatabaseUpdateScheduler.KEY_AUTO_CHECK_UPDATE, false)) {
+                return Result.success()
+            }
             if (response.hasUpdate) {
-                notifyOncePerVersion(response.latestVersion)
+                if (OfflineDatabaseUpdateScheduler.isAutomaticDownloadEnabled(prefs)) {
+                    try {
+                        OfflineDatabaseDownloadScheduler.enqueue(applicationContext, response, automatic = true)
+                        Log.i(TAG, "Automatic database download requested")
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (_: Exception) {
+                        Log.w(TAG, "Unable to enqueue automatic database download")
+                        notifyOncePerVersion(response.latestVersion)
+                    }
+                } else {
+                    notifyOncePerVersion(response.latestVersion)
+                }
             } else {
                 Log.i(TAG, "Offline database is already up to date")
             }
             Result.success()
+        } catch (exception: CancellationException) {
+            throw exception
         } catch (e: Exception) {
             Log.w(TAG, "Auto update check failed", e)
             Result.success()

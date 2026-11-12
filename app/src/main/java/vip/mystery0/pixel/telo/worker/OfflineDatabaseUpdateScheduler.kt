@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit
 
 object OfflineDatabaseUpdateScheduler {
     const val KEY_AUTO_CHECK_UPDATE = "auto_check_update"
+    const val KEY_AUTO_DOWNLOAD_UPDATE = "auto_download_database_update"
     const val KEY_AUTO_CHECK_UPDATE_INTERVAL_HOURS = "auto_check_update_interval_hours"
     const val KEY_LAST_AUTO_UPDATE_CHECK_AT = "last_auto_update_check_at"
     const val KEY_LAST_NOTIFIED_UPDATE_VERSION = "last_notified_update_version"
@@ -27,6 +28,11 @@ object OfflineDatabaseUpdateScheduler {
 
     private const val TAG = "OfflineDbUpdateScheduler"
     private const val UNIQUE_WORK_NAME = "offline_database_update_check"
+
+    /** 自动下载是周期检查的附属选项，关闭检查时保留偏好但不生效。 */
+    fun isAutomaticDownloadEnabled(prefs: SharedPreferences): Boolean =
+        prefs.getBoolean(KEY_AUTO_CHECK_UPDATE, false) &&
+            prefs.getBoolean(KEY_AUTO_DOWNLOAD_UPDATE, false)
 
     fun normalizeIntervalHours(hours: Int): Int =
         hours.coerceIn(MIN_UPDATE_INTERVAL_HOURS, MAX_UPDATE_INTERVAL_HOURS)

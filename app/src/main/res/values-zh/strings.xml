@@ -227,7 +227,9 @@
     <string name="setting_offline_database_summary">当前版本：%1$s</string>
     <string name="setting_offline_database_not_downloaded">未下载</string>
     <string name="setting_auto_check_update">自动检查更新</string>
-    <string name="setting_auto_check_update_summary">发现新版本时提醒，不自动下载。</string>
+    <string name="setting_auto_check_update_summary">定期检查离线数据库的新版本。</string>
+    <string name="setting_auto_download_update">自动下载数据库更新</string>
+    <string name="setting_auto_download_update_summary">自动检查发现新版本时下载并安装，可使用移动网络。手动检查仍需确认下载。</string>
     <string name="setting_auto_check_update_interval">检查间隔</string>
     <string name="setting_auto_check_update_interval_summary">%1$d 小时</string>
     <string name="setting_auto_check_update_interval_requires_enabled">需先开启自动检查。</string>

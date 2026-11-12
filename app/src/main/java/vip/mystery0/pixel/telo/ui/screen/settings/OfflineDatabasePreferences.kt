@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Update
@@ -89,6 +90,20 @@ fun OfflineDatabasePreferences(
                             else -> onRequestNotificationPermission()
                         }
                     },
+                )
+            },
+            SettingsRowItem("auto-download-update") { modifier ->
+                SettingsSwitchRow(
+                    modifier = modifier,
+                    checked = viewModel.autoDownloadUpdate,
+                    enabled = viewModel.autoCheckUpdate,
+                    title = stringResource(R.string.setting_auto_download_update),
+                    summary = stringResource(
+                        if (viewModel.autoCheckUpdate) R.string.setting_auto_download_update_summary
+                        else R.string.setting_auto_check_update_interval_requires_enabled,
+                    ),
+                    icon = Icons.Default.Download,
+                    onCheckedChange = viewModel::updateAutoDownloadUpdate,
                 )
             },
             SettingsRowItem("auto-check-interval") { modifier ->
