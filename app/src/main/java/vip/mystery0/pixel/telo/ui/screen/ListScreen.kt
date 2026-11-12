@@ -19,22 +19,18 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -48,8 +44,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,13 +57,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -78,6 +70,7 @@ import kotlinx.coroutines.launch
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ListType
 import vip.mystery0.pixel.telo.data.entity.UserListEntry
+import vip.mystery0.pixel.telo.ui.components.AppSearchField
 import vip.mystery0.pixel.telo.ui.components.EmptyState
 import vip.mystery0.pixel.telo.ui.components.ListEntryItem
 import vip.mystery0.pixel.telo.ui.util.EmptyPagerNestedScrollConnection
@@ -295,10 +288,12 @@ fun ListScreen(
             modifier = Modifier.imePadding(),
         ) {
             if (showSearchField) {
-                UserListSearchField(
+                AppSearchField(
                     query = viewModel.searchQuery,
                     onQueryChange = viewModel::updateSearchQuery,
                     onClear = viewModel::clearSearchQuery,
+                    placeholder = stringResource(R.string.hint_search_user_list),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
             // Tab 行：点击时通过动画滚动 Pager
@@ -718,50 +713,4 @@ private fun UserListContent(
             }
         }
     }
-}
-
-/**
- * 名单搜索框：位于标题栏与 Tab 之间，查询词在两个名单之间共享。
- * 前缀规则在列表里带 * 后缀，这里允许输入星号后再清空，保持与列表显示一致。
- */
-@Composable
-private fun UserListSearchField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClear: () -> Unit,
-) {
-    val focusManager = LocalFocusManager.current
-    TextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        singleLine = true,
-        shape = MaterialTheme.shapes.extraLarge,
-        placeholder = { Text(stringResource(R.string.hint_search_user_list)) },
-        leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = null)
-        },
-        trailingIcon = if (query.isNotEmpty()) {
-            {
-                IconButton(onClick = onClear) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = stringResource(R.string.action_clear_search),
-                    )
-                }
-            }
-        } else null,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent,
-        ),
-    )
 }

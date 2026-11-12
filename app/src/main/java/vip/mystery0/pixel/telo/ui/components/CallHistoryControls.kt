@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -23,17 +19,12 @@ fun CallHistoryControls(query: String, filter: CallHistoryFilter,
     onQuery: (String) -> Unit, onFilter: (CallHistoryFilter) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        OutlinedTextField(
-            value = query, onValueChange = onQuery, singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.history_search_hint)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            trailingIcon = if (query.isNotEmpty()) {{
-                IconButton(onClick = { onQuery("") }) {
-                    Icon(Icons.Default.Close, stringResource(R.string.action_clear_search))
-                }
-            }} else null,
+        AppSearchField(
+            query = query,
+            onQueryChange = onQuery,
+            onClear = { onQuery("") },
+            placeholder = stringResource(R.string.history_search_hint),
+            keyboardType = KeyboardType.Phone,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CallHistoryFilter.entries.forEach { item ->

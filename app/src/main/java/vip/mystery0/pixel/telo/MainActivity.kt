@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import vip.mystery0.pixel.telo.viewmodel.CallReportViewModel
@@ -383,7 +384,13 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                             ) { innerPadding ->
-                                Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+                                // Scaffold 的安全区已变成实际留白，子页只需避让剩余 IME 高度。
+                                Box(
+                                    modifier = Modifier
+                                        .padding(innerPadding)
+                                        .consumeWindowInsets(innerPadding)
+                                        .fillMaxSize(),
+                                ) {
                                     if (displayedPage == AppPage.DEVELOPER_SUPPORT) {
                                         DeveloperSupportScreen(viewModel = developerSupportViewModel)
                                     } else if (displayedPage == AppPage.PAIRING) {
