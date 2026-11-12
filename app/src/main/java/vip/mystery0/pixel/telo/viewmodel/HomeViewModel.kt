@@ -13,6 +13,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import vip.mystery0.pixel.telo.data.model.CallHistoryFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -180,7 +184,23 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         UserLists(blackList, whiteList)
     }
 
-    private val cachedBlockedCalls = repository.blockedCallsPager.cachedIn(viewModelScope)
+    private val searchQueryFlow = MutableStateFlow("")
+    private val historyFilterFlow = MutableStateFlow(CallHistoryFilter.ALL)
+    val searchQuery = searchQueryFlow.asStateFlow()
+    val historyFilter = historyFilterFlow.asStateFlow()
+    fun updateSearchQuery(query: String) { searchQueryFlow.value = query }
+    fun updateHistoryFilter(filter: CallHistoryFilter) { historyFilterFlow.value = filter }
+    fun clearHistoryFilters() {
+        searchQueryFlow.value = ""
+        historyFilterFlow.value = CallHistoryFilter.ALL
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
+    private val cachedBlockedCalls = combine(
+        searchQueryFlow.debounce(250).distinctUntilChanged(), historyFilterFlow,
+    ) { query, filter -> query to filter }
+        .flatMapLatest { (query, filter) -> repository.filteredCalls(query, filter) }
+        .cachedIn(viewModelScope)
 
     val blockedCallItems: Flow<PagingData<BlockedCallListItem>> =
         cachedBlockedCalls.combine(userLists) { pagingData, lists ->
@@ -320,20 +340,39 @@ class HomeViewModel() : ViewModel(), KoinComponent {
         _retryQueryState.value = RetryQueryState.Idle
     }
 
-    fun delete(blockedCall: BlockedCall) {
-        viewModelScope.launch {
-            repository.delete(blockedCall)
-        }
+    var deletionBusy by mutableStateOf(false)
+        private set
+    var deletionError by mutableStateOf<String?>(null)
+        private set
+
+    fun clearDeletionError() { deletionError = null }
+
+    fun delete(blockedCall: BlockedCall, onSuccess: () -> Unit = {}) =
+        deleteRecords(onSuccess) { repository.delete(blockedCall) }
+
+    fun deleteAll(onSuccess: () -> Unit = {}) = deleteRecords(onSuccess) {
+        repository.deleteAll()
+        closeQuickAdd()
+        loadedPhoneNumbers = emptySet()
+        _contactNames.value = emptyMap()
+        resolveLoadedLocalLabels()
     }
 
-    fun deleteAll() {
+    private fun deleteRecords(onSuccess: () -> Unit, action: suspend () -> Unit) {
+        if (deletionBusy) return
+        deletionBusy = true
+        deletionError = null
         viewModelScope.launch {
-            closeQuickAdd()
-            loadedPhoneNumbers = emptySet()
-            _contactNames.value = emptyMap()
-            // 只清空当前窗口映射，不得删除本地号码标签
-            resolveLoadedLocalLabels()
-            repository.deleteAll()
+            try {
+                action()
+                onSuccess()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                deletionError = context.getString(R.string.operation_failed_retry)
+            } finally {
+                deletionBusy = false
+            }
         }
     }
 

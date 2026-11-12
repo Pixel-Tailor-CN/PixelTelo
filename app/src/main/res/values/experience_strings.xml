@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permissions_required">Required permissions</string>
+    <string name="permissions_optional">Optional feature permissions</string>
+    <string name="permission_open_settings">App settings</string>
+    <string name="operation_failed_retry">The operation failed. Changes are not confirmed. Please retry.</string>
+    <string name="operation_processing">Processing…</string>
+    <string name="test_rule_explanation">This is a number lookup decision, not an actual call outcome. Incoming calls also depend on notify-only mode, forced rules, repeat calls, and the screening deadline.</string>
+    <string name="test_rule_block">Rule decision: recommend blocking</string>
+    <string name="test_rule_allow">Rule decision: allow</string>
+    <string name="test_record_remark">Manual lookup (no actual blocking): %1$s</string>
+    <string name="query_timeout_explanation">This controls how long a query may wait. Incoming call screening has a separate total response budget of about 4.5 seconds and allows the call when that budget expires.</string>
+    <string name="rule_priority_explanation">Contacts are always allowed first, followed by whitelist and blacklist rules. Forced blocking overrides notify-only and repeat-call settings, but not contacts or an earlier whitelist match.</string>
+    <string name="download_waiting">Waiting for network or system scheduling</string>
+    <string name="download_running">Downloading · %1$d%%</string>
+    <string name="download_verifying">Verifying number database</string>
+    <string name="download_installing">Installing number database</string>
+    <string name="download_background">Hide and continue in background</string>
+    <string name="download_view_progress">View download progress</string>
+    <string name="setup_title">Set up caller identification</string>
+    <string name="setup_steps">1. Set the default caller ID app\n2. Grant required permissions\n3. Download the offline number database</string>
+    <string name="setup_next_role">Next: set default app</string>
+    <string name="setup_next_permissions">Next: grant permissions</string>
+    <string name="setup_next_database">Next: download database</string>
+    <string name="history_search_hint">Search phone numbers</string>
+    <string name="history_filter_all">All</string>
+    <string name="history_filter_blocked">Blocked</string>
+    <string name="history_filter_allowed">Allowed</string>
+    <string name="history_filter_failed">Query failed</string>
+    <string name="history_no_match">No matching records</string>
+    <string name="history_reset_filters">Clear search and filters</string>
+    <string name="reports_window_notice">Only the latest loaded window of up to 100 records is shown. Previously loaded records have been removed from this window.</string>
+    <string name="reports_latest">Back to latest reports</string>
+    <string name="display_summary_none">Local labels, call vibration, and feedback reminders are off</string>
+    <string name="display_summary">Enabled: %1$s</string>
+</resources>

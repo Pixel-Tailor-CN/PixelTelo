@@ -19,6 +19,7 @@ data class MyReportsUiState(
     val loadingMore: Boolean = false,
     val operationId: String? = null,
     val initialized: Boolean = false,
+    val windowTrimmed: Boolean = false,
     val failure: ReportFailure? = null,
 )
 
@@ -79,6 +80,7 @@ class MyReportsViewModel : ViewModel(), KoinComponent {
                             else page.items.distinctBy { it.reportId }
                         _state.value.copy(
                             items = merged.takeLast(100), nextCursor = page.nextCursor,
+                            windowTrimmed = append && (_state.value.windowTrimmed || merged.size > 100),
                             loading = false, loadingMore = false, initialized = true, failure = null,
                         )
                     }

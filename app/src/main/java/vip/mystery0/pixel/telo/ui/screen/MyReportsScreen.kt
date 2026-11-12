@@ -91,6 +91,15 @@ fun MyReportsScreen(viewModel: MyReportsViewModel, modifier: Modifier = Modifier
                 }
 
                 null -> {
+                    if (state.windowTrimmed) item(key = "window-notice") {
+                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                            Text(stringResource(R.string.reports_window_notice), style = MaterialTheme.typography.bodySmall)
+                            TextButton(onClick = viewModel::refresh,
+                                enabled = !busy && !state.loading && !state.loadingMore) {
+                                Text(stringResource(R.string.reports_latest))
+                            }
+                        }
+                    }
                     state.failure?.let { failure ->
                         item(key = "stale") {
                             StaleReportsNotice(

@@ -29,6 +29,12 @@ class OfflineDatabaseDownloadWorker(
                 expectedSize = inputData.getLong(OfflineDatabaseDownloadScheduler.KEY_SIZE_BYTES, 0),
                 expectedVersion = version,
                 expectedRowCount = inputData.getLong(OfflineDatabaseDownloadScheduler.KEY_ROW_COUNT, 0),
+                onStage = { stage ->
+                    setProgress(workDataOf(
+                        OfflineDatabaseDownloadScheduler.KEY_STAGE to stage,
+                        OfflineDatabaseDownloadScheduler.KEY_PROGRESS to 99,
+                    ))
+                },
             ) { progress ->
                 setProgressAsync(workDataOf(OfflineDatabaseDownloadScheduler.KEY_PROGRESS to progress))
             }

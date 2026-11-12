@@ -195,6 +195,7 @@ fun OnlineQueryPreferences(
             title = { Text(stringResource(R.string.setting_network_timeout)) },
             text = {
                 Column {
+                    Text(stringResource(R.string.query_timeout_explanation), style = MaterialTheme.typography.bodyMedium)
                     Text(
                         stringResource(
                             R.string.setting_network_timeout_summary,

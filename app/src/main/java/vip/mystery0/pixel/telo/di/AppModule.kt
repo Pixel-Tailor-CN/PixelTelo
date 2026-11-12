@@ -82,7 +82,7 @@ val appModule = module {
     single { ContactRepository(androidContext()) }
     single { UserListRepository(get()) }
     single { LocalNumberLabelRepository(get(), get()) }
-    single { BackupRepository(get(), get(), get()) }
+    single { BackupRepository(get(), get(), get(), get()) }
     single { SpamNumberRepository() }
     single { SmartspacerInterceptRepository() }
     single { IncomingCallOverlay(androidContext(), get()) }

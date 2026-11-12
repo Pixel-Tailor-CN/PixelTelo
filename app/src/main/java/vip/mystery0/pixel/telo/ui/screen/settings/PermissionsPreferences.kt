@@ -29,44 +29,48 @@ import vip.mystery0.pixel.telo.ui.util.PermissionUtils
 fun PermissionsPreferences(
     overlayPermissionGranted: Boolean,
     permissionsState: Map<String, Boolean>,
+    settingsRequired: Set<String>,
     onRequestOverlayPermission: () -> Unit,
     onRequestPermission: (String) -> Unit,
 ) {
     val grantedLabel = stringResource(R.string.permission_status_granted)
     val requestLabel = stringResource(R.string.action_request_permission)
-    val permissionRows = buildList {
-        add(
-            SettingsRowItem("overlay-permission") { modifier ->
-                PermissionRow(
-                    modifier = modifier,
-                    icon = Icons.Default.PictureInPicture,
-                    title = stringResource(R.string.permission_overlay_name),
-                    description = stringResource(R.string.permission_overlay_desc),
-                    granted = overlayPermissionGranted,
-                    grantedLabel = grantedLabel,
-                    requestLabel = requestLabel,
-                    onRequest = onRequestOverlayPermission,
-                )
-            }
-        )
-        PermissionUtils.allPermissions.forEach { item ->
-            val granted = permissionsState[item.permission] == true
-            add(
-                SettingsRowItem("permission-${item.permission}") { modifier ->
-                    PermissionRow(
-                        modifier = modifier,
-                        item = item,
-                        granted = granted,
-                        grantedLabel = grantedLabel,
-                        requestLabel = requestLabel,
-                        onRequest = { onRequestPermission(item.permission) },
-                    )
+    androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        listOf(true, false).forEach { required ->
+            SettingsSection(title = stringResource(
+                if (required) R.string.permissions_required else R.string.permissions_optional
+            )) {
+                val permissionRows = buildList {
+                    PermissionUtils.allPermissions.filter { it.isCritical == required }.forEach { item ->
+                        add(SettingsRowItem("permission-${item.permission}") { modifier ->
+                            PermissionRow(
+                                modifier = modifier,
+                                item = item,
+                                granted = permissionsState[item.permission] == true,
+                                grantedLabel = grantedLabel,
+                                requestLabel = if (item.permission in settingsRequired)
+                                    stringResource(R.string.permission_open_settings) else requestLabel,
+                                onRequest = { onRequestPermission(item.permission) },
+                            )
+                        })
+                    }
+                    if (!required) add(SettingsRowItem("overlay-permission") { modifier ->
+                        PermissionRow(
+                            modifier = modifier,
+                            icon = Icons.Default.PictureInPicture,
+                            title = stringResource(R.string.permission_overlay_name),
+                            description = stringResource(R.string.permission_overlay_desc),
+                            granted = overlayPermissionGranted,
+                            grantedLabel = grantedLabel,
+                            requestLabel = requestLabel,
+                            onRequest = onRequestOverlayPermission,
+                        )
+                    })
                 }
-            )
+                SettingsGroup(permissionRows)
+            }
         }
     }
-
-    SettingsGroup(permissionRows)
 }
 
 @Composable

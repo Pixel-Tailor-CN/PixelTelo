@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -155,96 +156,71 @@ fun SettingsScreen(
         )
     }
 
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { result ->
-        permissionsState = permissionsState.toMutableMap().apply {
-            result.forEach { (permission, isGranted) ->
-                this[permission] = isGranted
+    var pendingPermissionAction by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
+    val permissionRequester = vip.mystery0.pixel.telo.ui.util.rememberPermissionRequester { result ->
+        permissionsState = permissionsState + result
+        val granted = when (pendingPermissionAction) {
+            "feedback" -> feedbackPermissions.all { permission ->
+                ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
             }
+            else -> result.values.all { it }
+        }
+        val denialMessage = when (pendingPermissionAction) {
+            "feedback" -> {
+                viewModel.updateFeedbackNotification(granted)
+                feedbackPermissionDeniedMessage
+            }
+            "notification" -> {
+                viewModel.updateAutoCheckUpdate(granted)
+                autoCheckPermissionDeniedMessage
+            }
+            "vibration" -> {
+                viewModel.updateCallStateVibrationEnabled(granted)
+                callStateVibrationPermissionDeniedMessage
+            }
+            else -> null
+        }
+        if (!granted && denialMessage != null) Toast.makeText(context, denialMessage, Toast.LENGTH_SHORT).show()
+        pendingPermissionAction = null
+    }
+    val launcher: (Array<String>) -> Unit = { permissions ->
+        pendingPermissionAction = null
+        permissionRequester.launch(permissions)
+    }
+    val feedbackPermissionLauncher: (Array<String>) -> Unit = { permissions ->
+        pendingPermissionAction = "feedback"
+        permissionRequester.launch(permissions)
+    }
+    val notificationPermissionLauncher: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pendingPermissionAction = "notification"
+            permissionRequester.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
+        } else {
+            viewModel.updateAutoCheckUpdate(true)
         }
     }
-
-    val feedbackPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { result ->
-        permissionsState = permissionsState.toMutableMap().apply {
-            result.forEach { (permission, isGranted) ->
-                this[permission] = isGranted
-            }
-        }
-        val allGranted = feedbackPermissions.all { permission ->
-            ContextCompat.checkSelfPermission(context, permission) ==
-                    PackageManager.PERMISSION_GRANTED
-        }
-        viewModel.updateFeedbackNotification(allGranted)
-        if (!allGranted) {
-            Toast.makeText(
-                context,
-                feedbackPermissionDeniedMessage,
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+    val callStateVibrationPermissionLauncher: () -> Unit = {
+        pendingPermissionAction = "vibration"
+        permissionRequester.launch(arrayOf(Manifest.permission.READ_PHONE_STATE))
     }
-
     val overlayPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
         overlayPermissionGranted = Settings.canDrawOverlays(context)
     }
 
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        permissionsState = permissionsState.toMutableMap().apply {
-            this[Manifest.permission.POST_NOTIFICATIONS] = isGranted
-        }
-        if (isGranted) {
-            viewModel.updateAutoCheckUpdate(true)
-        } else {
-            viewModel.updateAutoCheckUpdate(false)
-            Toast.makeText(
-                context,
-                autoCheckPermissionDeniedMessage,
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-    val callStateVibrationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        permissionsState = permissionsState.toMutableMap().apply {
-            this[Manifest.permission.READ_PHONE_STATE] = isGranted
-        }
-        viewModel.updateCallStateVibrationEnabled(isGranted)
-        if (!isGranted) {
-            Toast.makeText(
-                context,
-                callStateVibrationPermissionDeniedMessage,
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
     // 备份：通过系统文件保存对话框选择保存位置
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
-        uri?.let {
-            val stream = context.contentResolver.openOutputStream(it)
-            if (stream != null) viewModel.performBackupWithOptions(stream)
-        }
+        uri?.let(viewModel::backupToUri)
     }
 
     // 恢复：通过系统文件选择对话框选择备份文件，先解析预览
     val restoreLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let {
-            val stream = context.contentResolver.openInputStream(it)
-            if (stream != null) viewModel.parseBackupFile(stream)
-        }
+        uri?.let(viewModel::readBackupUri)
     }
 
     fun checkPermissions() {
@@ -353,6 +329,14 @@ fun SettingsScreen(
             initialValue = SheetValue.Hidden,
             enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
         )
+        if (backupState is BackupRestoreState.Processing) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(stringResource(R.string.operation_processing)) },
+                text = { CircularProgressIndicator() },
+                confirmButton = {},
+            )
+        }
         if (backupState is BackupRestoreState.Success) {
             ModalBottomSheet(
                 onDismissRequest = { viewModel.dismissBackupRestoreResult() },
@@ -590,9 +574,12 @@ fun SettingsScreen(
         }
 
         // 更新离线数据 Bottom Sheet：确认与下载进度共用同一个 Sheet，用 AnimatedContent 切换
-        if (viewModel.showUpdateDialog != null || viewModel.isDownloading) {
+        if (viewModel.showUpdateDialog != null || (viewModel.isDownloading && viewModel.showDownloadProgress)) {
             ModalBottomSheet(
-                onDismissRequest = { if (!viewModel.isDownloading) viewModel.cancelUpdate() }
+                onDismissRequest = {
+                    viewModel.hideDownloadProgress()
+                    viewModel.cancelUpdate()
+                }
             ) {
                 AnimatedContent(
                     targetState = viewModel.isDownloading,
@@ -612,14 +599,26 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
-                                "${(viewModel.downloadProgress * 100).toInt()}%",
+                                when (viewModel.downloadStage) {
+                                    "verifying" -> stringResource(R.string.download_verifying)
+                                    "installing" -> stringResource(R.string.download_installing)
+                                    "downloading" -> stringResource(R.string.download_running, (viewModel.downloadProgress * 100).toInt())
+                                    else -> stringResource(R.string.download_waiting)
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            LinearWavyProgressIndicator(
-                                progress = { viewModel.downloadProgress },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            if (viewModel.downloadStage == "downloading") {
+                                LinearWavyProgressIndicator(
+                                    progress = { viewModel.downloadProgress },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                            TextButton(onClick = viewModel::hideDownloadProgress) {
+                                Text(stringResource(R.string.download_background))
+                            }
                         } else {
                             Text(
                                 stringResource(R.string.title_new_version_detected),
@@ -683,9 +682,15 @@ fun SettingsScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
                             .padding(bottom = 32.dp)
-                            .imePadding(),
+                            .imePadding()
+                            .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        if (viewModel.testBusy || viewModel.testSaving) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            Text(stringResource(R.string.operation_processing))
+                        }
+                        viewModel.testError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         if (result == null) {
                             Text(
                                 stringResource(R.string.title_test_intercept),
@@ -698,6 +703,8 @@ fun SettingsScreen(
                             )
                             OutlinedTextField(
                                 value = viewModel.testPhoneNumber,
+                                enabled = !viewModel.testBusy,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone),
                                 onValueChange = { viewModel.updateTestPhoneNumber(it) },
                                 label = { Text(stringResource(R.string.label_phone_number)) },
                                 singleLine = true,
@@ -713,6 +720,7 @@ fun SettingsScreen(
                                 ) { Text(stringResource(R.string.action_cancel)) }
                                 Button(
                                     onClick = { viewModel.testBlock() },
+                                    enabled = !viewModel.testBusy && viewModel.testPhoneNumber.isNotBlank(),
                                     modifier = Modifier.weight(1f)
                                 ) { Text(stringResource(R.string.action_check)) }
                             }
@@ -722,11 +730,12 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
-                                viewModel.testPhoneNumber,
+                                viewModel.testResultPhone,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(stringResource(if (result.shouldBlock) R.string.label_should_block_yes else R.string.label_should_block_no))
+                            Text(stringResource(if (result.shouldBlock) R.string.test_rule_block else R.string.test_rule_allow))
+                            Text(stringResource(R.string.test_rule_explanation), style = MaterialTheme.typography.bodySmall)
                             Text(stringResource(R.string.label_tag_info) + result.label.ifEmpty {
                                 stringResource(
                                     R.string.label_none
@@ -737,9 +746,8 @@ fun SettingsScreen(
                                     stringResource(R.string.community_status_prefixed, stringResource(result.communityStatus.textRes()))))
                             }
                             val failureSummary = result.resultType.queryFailureSummaryRes()
-                            Text(stringResource(R.string.label_result_type) +
-                                (failureSummary?.let { stringResource(it) } ?: result.resultType.name))
                             if (failureSummary != null) {
+                                Text(stringResource(R.string.label_result_type) + stringResource(failureSummary))
                                 Text(
                                     stringResource(result.resultType.queryFailureAdviceRes()),
                                     style = MaterialTheme.typography.bodyMedium,
@@ -758,6 +766,7 @@ fun SettingsScreen(
                                 ) { Text(stringResource(R.string.action_close)) }
                                 Button(
                                     onClick = { viewModel.saveTestResult() },
+                                    enabled = !viewModel.testSaving,
                                     modifier = Modifier.weight(1f)
                                 ) { Text(stringResource(R.string.action_record)) }
                             }
@@ -911,6 +920,17 @@ fun SettingsScreen(
             stringResource(R.string.setting_category_overlay_permission_required_summary)
         else -> stringResource(R.string.setting_category_overlay_enabled_summary)
     }
+    val displayFeatures = buildList {
+        if (viewModel.showLocalNumberLabels) add(stringResource(R.string.setting_local_number_labels))
+        if (viewModel.callStateVibrationEnabled) add(stringResource(R.string.setting_call_state_vibration))
+        if (viewModel.feedbackNotification && !viewModel.noNetworkQuery &&
+            (queryBackendState as? QueryBackendState.Ready)?.type == QueryBackendType.OFFICIAL) {
+            add(stringResource(R.string.setting_feedback_notification))
+        }
+        if (viewModel.showLocationOverlay) add(overlaySummary)
+    }
+    val displaySummary = if (displayFeatures.isEmpty()) stringResource(R.string.display_summary_none)
+        else stringResource(R.string.display_summary, displayFeatures.joinToString(" · "))
     val appPermissions = PermissionUtils.allPermissions
     val requiredPermissions = appPermissions.filter { it.isCritical }
     val optionalPermissions = appPermissions.filterNot { it.isCritical }
@@ -965,7 +985,7 @@ fun SettingsScreen(
                 listOf(
                     Triple(
                         SettingsCategory.DISPLAY_ALERTS,
-                        overlaySummary,
+                        displaySummary,
                         Icons.Default.Visibility,
                     ),
                     Triple(
@@ -1039,9 +1059,7 @@ fun SettingsScreen(
                         OfflineDatabasePreferences(
                             viewModel = viewModel,
                             onRequestNotificationPermission = {
-                                notificationPermissionLauncher.launch(
-                                    Manifest.permission.POST_NOTIFICATIONS
-                                )
+                                notificationPermissionLauncher()
                             },
                         )
 
@@ -1050,11 +1068,9 @@ fun SettingsScreen(
                             viewModel = viewModel,
                             backendState = queryBackendState,
                             feedbackPermissions = feedbackPermissions,
-                            onRequestFeedbackPermissions = feedbackPermissionLauncher::launch,
+                            onRequestFeedbackPermissions = feedbackPermissionLauncher,
                             onRequestPhoneStatePermission = {
-                                callStateVibrationPermissionLauncher.launch(
-                                    Manifest.permission.READ_PHONE_STATE
-                                )
+                                callStateVibrationPermissionLauncher()
                             },
                         )
                         LocationOverlayPreferences(viewModel)
@@ -1071,14 +1087,11 @@ fun SettingsScreen(
                         )
 
                     SettingsCategory.PERMISSIONS ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                        ) {
+                        Box(modifier = Modifier.fillMaxWidth()) {
                             PermissionsPreferences(
                                 overlayPermissionGranted = overlayPermissionGranted,
                                 permissionsState = permissionsState,
+                                settingsRequired = permissionRequester.blocked,
                                 onRequestOverlayPermission = {
                                     val intent = Intent(
                                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -1087,7 +1100,7 @@ fun SettingsScreen(
                                     overlayPermissionLauncher.launch(intent)
                                 },
                                 onRequestPermission = { permission ->
-                                    launcher.launch(arrayOf(permission))
+                                    launcher(arrayOf(permission))
                                 },
                             )
                         }

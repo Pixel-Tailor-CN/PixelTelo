@@ -273,7 +273,7 @@
     <string name="category_records_backup">记录与备份</string>
     <string name="category_online_query">在线查询</string>
     <string name="category_location_overlay">悬浮窗</string>
-    <string name="setting_category_call_notify_summary">仅提示，不拦截</string>
+    <string name="setting_category_call_notify_summary">仅提示，强制拦截规则除外</string>
     <string name="setting_category_call_block_summary">按拦截规则处理</string>
     <string name="setting_category_online_disabled_summary">已关闭 · 仅使用本地号码库</string>
     <string name="setting_category_online_backend_summary">%1$s · 超时 %2$d 秒</string>
@@ -306,7 +306,7 @@
     <string name="permission_read_call_log_name">通话记录</string>
     <string name="permission_read_call_log_desc">Android 要求授予该权限后，才能在来电界面提供号码查询标签</string>
     <string name="permission_post_notifications_name">通知</string>
-    <string name="permission_post_notifications_desc">用于在离线数据库存在可用更新时提醒你。</string>
+    <string name="permission_post_notifications_desc">用于离线号码库更新提醒和通话结束后的识别反馈提醒，均可独立关闭。</string>
 
     <string name="category_about">关于</string>
     <string name="setting_app_version">应用版本</string>
@@ -352,7 +352,7 @@
     <string name="notification_offline_update_text">版本 %1$s 已可用，打开 Pixel Telo 下载更新。</string>
 
     <!-- Navigation - Custom Rules -->
-    <string name="nav_list">自定义</string>
+    <string name="nav_list">规则</string>
 
     <!-- List Screen -->
     <string name="tab_blacklist">黑名单</string>
@@ -598,7 +598,7 @@
 
     <!-- Feedback Notification -->
     <string name="permission_read_phone_state_name">电话状态</string>
-    <string name="permission_read_phone_state_desc">用于识别通话结束时机，以便在通话结束后提醒你反馈查询结果</string>
+    <string name="permission_read_phone_state_desc">用于识别来电接听与结束时机，支持通话状态震动及通话后反馈提醒。</string>
     <string name="setting_feedback_notification">通话后提醒反馈</string>
     <string name="setting_feedback_notification_summary">联网识别的来电结束后提醒反馈。</string>
     <string name="setting_feedback_notification_no_network_summary">需先开启联网查询；自建服务不支持反馈，但会保留此偏好。</string>

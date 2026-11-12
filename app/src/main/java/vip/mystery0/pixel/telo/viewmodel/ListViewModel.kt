@@ -419,35 +419,45 @@ class ListViewModel : ViewModel(), KoinComponent {
         }
     }
 
+    var isDeleting by mutableStateOf(false)
+        private set
+    var deleteError by mutableStateOf<String?>(null)
+        private set
+
     fun requestDelete(entry: UserListEntry) {
+        if (isDeleting) return
+        deleteError = null
         pendingDeleteEntry = entry
         showDeleteDialog = true
     }
 
     fun cancelDelete() {
+        if (isDeleting) return
+        deleteError = null
         showDeleteDialog = false
         pendingDeleteEntry = null
     }
 
     fun confirmDelete() {
         val entry = pendingDeleteEntry ?: return
+        if (isDeleting) return
+        isDeleting = true
+        deleteError = null
         viewModelScope.launch {
             try {
                 userListRepository.delete(entry)
                 showDeleteDialog = false
                 pendingDeleteEntry = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Delete failed", e)
-            }
-        }
-    }
-
-    fun delete(entry: UserListEntry) {
-        viewModelScope.launch {
-            try {
-                userListRepository.delete(entry)
-            } catch (e: Exception) {
-                Log.e(TAG, "Delete failed", e)
+                if (editingEntry?.id == entry.id) {
+                    showAddSheet = false
+                    editingEntry = null
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                deleteError = context.getString(R.string.operation_failed_retry)
+            } finally {
+                isDeleting = false
             }
         }
     }

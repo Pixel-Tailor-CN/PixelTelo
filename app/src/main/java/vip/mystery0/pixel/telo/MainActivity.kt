@@ -474,8 +474,8 @@ class MainActivity : ComponentActivity() {
                                                                 )
                                                             }
                                                         },
-                                                        onNavigateToSettings = {
-                                                            settingsCategory = null
+                                                        onNavigateToSettings = { category ->
+                                                            settingsCategory = category
                                                             coroutineScope.launch {
                                                                 pagerState.animateScrollToPage(
                                                                     AppDestinations.SETTINGS.ordinal
@@ -538,21 +538,34 @@ class MainActivity : ComponentActivity() {
 
                 if (showClearRecordsDialog) {
                     AlertDialog(
-                        onDismissRequest = { showClearRecordsDialog = false },
+                        onDismissRequest = {
+                            if (!homeViewModel.deletionBusy) {
+                                showClearRecordsDialog = false
+                                homeViewModel.clearDeletionError()
+                            }
+                        },
                         title = { Text(stringResource(R.string.title_clear_all_records)) },
-                        text = { Text(stringResource(R.string.msg_clear_all_records_confirm)) },
+                        text = {
+                            androidx.compose.foundation.layout.Column {
+                                Text(stringResource(R.string.msg_clear_all_records_confirm))
+                                homeViewModel.deletionError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            }
+                        },
                         confirmButton = {
                             TextButton(
+                                enabled = !homeViewModel.deletionBusy,
                                 onClick = {
-                                    showClearRecordsDialog = false
-                                    homeViewModel.deleteAll()
+                                    homeViewModel.deleteAll { showClearRecordsDialog = false }
                                 }
                             ) {
                                 Text(stringResource(R.string.action_clear_all_records))
                             }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showClearRecordsDialog = false }) {
+                            TextButton(enabled = !homeViewModel.deletionBusy, onClick = {
+                                showClearRecordsDialog = false
+                                homeViewModel.clearDeletionError()
+                            }) {
                                 Text(stringResource(R.string.action_cancel))
                             }
                         },

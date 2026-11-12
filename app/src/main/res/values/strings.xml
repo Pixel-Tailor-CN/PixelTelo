@@ -266,7 +266,7 @@
     <string name="category_records_backup">Records and Backup</string>
     <string name="category_online_query">Online Query</string>
     <string name="category_location_overlay">Floating Window</string>
-    <string name="setting_category_call_notify_summary">Notify only · no blocking</string>
+    <string name="setting_category_call_notify_summary">Notify only, except forced blocking rules</string>
     <string name="setting_category_call_block_summary">Apply blocking rules</string>
     <string name="setting_category_online_disabled_summary">Off · local number database only</string>
     <string name="setting_category_online_backend_summary">%1$s · %2$d s timeout</string>
@@ -299,7 +299,7 @@
     <string name="permission_read_call_log_name">Call log</string>
     <string name="permission_read_call_log_desc">Required by Android to provide phone lookup labels on the incoming call screen.</string>
     <string name="permission_post_notifications_name">Notifications</string>
-    <string name="permission_post_notifications_desc">Used to remind you when an offline database update is available.</string>
+    <string name="permission_post_notifications_desc">Used for offline database update alerts and post-call feedback reminders. Each can be turned off separately.</string>
     <string name="permission_overlay_name">Floating window</string>
     <string name="permission_overlay_desc">Required to show phone attribution above the incoming call screen.</string>
 
@@ -347,7 +347,7 @@
     <string name="notification_offline_update_text">Version %1$s is available. Open Pixel Telo to download it.</string>
 
     <!-- Navigation - Custom Rules -->
-    <string name="nav_list">Custom</string>
+    <string name="nav_list">Rules</string>
 
     <!-- List Screen -->
     <string name="tab_blacklist">Blacklist</string>
@@ -600,7 +600,7 @@
 
     <!-- Feedback Notification -->
     <string name="permission_read_phone_state_name">Phone state</string>
-    <string name="permission_read_phone_state_desc">Used to detect when a call ends so we can remind you to rate the query result.</string>
+    <string name="permission_read_phone_state_desc">Detects incoming call answer and end events for call vibration and post-call feedback reminders.</string>
     <string name="setting_feedback_notification">Post-call feedback reminder</string>
     <string name="setting_feedback_notification_summary">Remind you to rate an online result after the call ends.</string>
     <string name="setting_feedback_notification_no_network_summary">Turn on online queries first. Self-hosted services cannot send feedback; your preference is saved.</string>

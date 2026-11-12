@@ -154,9 +154,14 @@ fun ListScreen(
         AlertDialog(
             onDismissRequest = { viewModel.cancelDelete() },
             title = { Text(stringResource(R.string.title_delete_entry)) },
-            text = { Text(stringResource(R.string.msg_delete_entry_confirm)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.msg_delete_entry_confirm))
+                    viewModel.deleteError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { viewModel.confirmDelete() }) {
+                TextButton(enabled = !viewModel.isDeleting, onClick = { viewModel.confirmDelete() }) {
                     Text(stringResource(R.string.action_delete))
                 }
             },

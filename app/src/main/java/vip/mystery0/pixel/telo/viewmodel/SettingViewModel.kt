@@ -26,6 +26,8 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import vip.mystery0.pixel.telo.BuildConfig
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.entity.ResultType
+import vip.mystery0.pixel.telo.data.entity.isQueryFailure
 import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
 import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
@@ -53,8 +55,6 @@ import vip.mystery0.pixel.telo.data.repository.SyncRepository
 import vip.mystery0.pixel.telo.receiver.CallStateVibrationController
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseUpdateScheduler
 import vip.mystery0.pixel.telo.worker.OfflineDatabaseDownloadScheduler
-import java.io.InputStream
-import java.io.OutputStream
 
 /**
  * 备份/恢复操作的结果状态
@@ -455,6 +455,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
     // Download State
     var isDownloading by mutableStateOf(false)
         private set
+    var showDownloadProgress by mutableStateOf(false)
+        private set
+    var downloadStage by mutableStateOf("waiting")
+        private set
+    fun hideDownloadProgress() { showDownloadProgress = false }
+
     var downloadProgress by mutableFloatStateOf(0f)
         private set
 
@@ -472,6 +478,11 @@ class SettingViewModel : ViewModel(), KoinComponent {
             OfflineDatabaseDownloadScheduler.observe(context).collect { workInfos ->
                 val work = OfflineDatabaseDownloadScheduler.latestWork(workInfos)
                 isDownloading = work != null && !work.state.isFinished
+                downloadStage = when (work?.state) {
+                    WorkInfo.State.RUNNING -> work.progress.getString(OfflineDatabaseDownloadScheduler.KEY_STAGE) ?: "downloading"
+                    else -> "waiting"
+                }
+                if (!isDownloading) showDownloadProgress = false
                 downloadProgress = if (work?.state == WorkInfo.State.SUCCEEDED) 1f else {
                     (work?.progress?.getInt(OfflineDatabaseDownloadScheduler.KEY_PROGRESS, 0) ?: 0) / 100f
                 }
@@ -488,7 +499,10 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     fun checkUpdate() {
-        if (isDownloading) return
+        if (isDownloading) {
+            showDownloadProgress = true
+            return
+        }
         viewModelScope.launch {
             syncStatusMessage = context.getString(R.string.msg_checking_update)
             try {
@@ -518,6 +532,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
         if (isDownloading) return
         // 先收起确认页；下载由持久化任务执行，页面仅观察状态。
         isDownloading = true
+        showDownloadProgress = true
+        downloadStage = "waiting"
         showUpdateDialog = null
         downloadProgress = 0f
         syncStatusMessage = null
@@ -546,52 +562,92 @@ class SettingViewModel : ViewModel(), KoinComponent {
         showTestDialog = true
     }
 
+    private var testJob: Job? = null
+    private var testGeneration = 0L
+    var testBusy by mutableStateOf(false)
+        private set
+    var testSaving by mutableStateOf(false)
+        private set
+    var testResultPhone by mutableStateOf("")
+        private set
+    var testError by mutableStateOf<String?>(null)
+        private set
+
     fun hideTestDialog() {
+        if (testSaving) return
+        testGeneration++
+        testJob?.cancel()
+        testBusy = false
         showTestDialog = false
         testPhoneNumber = ""
+        testResultPhone = ""
         testResult = null
+        testError = null
     }
 
     fun updateTestPhoneNumber(number: String) {
+        if (testBusy || testSaving) return
         testPhoneNumber = number
+        testResult = null
+        testError = null
     }
 
     fun testBlock() {
-        if (testPhoneNumber.isBlank()) return
-        viewModelScope.launch {
+        val phone = testPhoneNumber.trim()
+        if (phone.isBlank() || testBusy || testSaving) return
+        val generation = ++testGeneration
+        testBusy = true
+        testError = null
+        testResultPhone = phone
+        testJob = viewModelScope.launch {
             try {
-                testResult = spamNumberRepository.checkSpam(testPhoneNumber)
+                val result = spamNumberRepository.checkSpam(phone)
+                if (generation == testGeneration && showTestDialog) testResult = result
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                Log.e(TAG, "Test block failed: unexpected")
-                syncStatusMessage = context.getString(R.string.msg_test_failed_safe)
+                if (generation == testGeneration) testError = context.getString(R.string.msg_test_failed_safe)
+            } finally {
+                if (generation == testGeneration) testBusy = false
             }
         }
     }
 
     fun saveTestResult() {
         val result = testResult ?: return
+        val phone = testResultPhone
+        if (testSaving || testBusy || phone.isBlank()) return
+        testSaving = true
+        testError = null
         viewModelScope.launch {
-            blockedCallRepository.insert(
-                testPhoneNumber,
-                remark = result.label.ifBlank { context.getString(R.string.label_manual_test) },
-                result.resultType,
-                result.localCost,
-                result.networkCost,
-                label = result.label.takeIf { it.isNotBlank() },
-                province = result.locationInfo?.province,
-                city = result.locationInfo?.city,
-                querySource = result.querySource,
-                queryBackendId = result.queryBackendId,
-                feedbackToken = result.feedbackToken,
-                feedbackPhone = result.feedbackPhone,
-                feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
-                communityStatus = result.communityStatus,
-                communityBlockApplied = false,
-            )
-            hideTestDialog()
-            syncStatusMessage = context.getString(R.string.msg_recorded_to_intercept_list)
+            try {
+                blockedCallRepository.insert(
+                    phoneNumber = phone,
+                    remark = context.getString(R.string.test_record_remark, result.label),
+                    resultType = if (result.resultType.isQueryFailure()) result.resultType else ResultType.PASS_BUT_NOTIFY,
+                    localDuration = result.localCost,
+                    networkDuration = result.networkCost,
+                    label = result.label.takeIf { it.isNotBlank() },
+                    province = result.locationInfo?.province,
+                    city = result.locationInfo?.city,
+                    querySource = result.querySource,
+                    queryBackendId = result.queryBackendId,
+                    feedbackToken = result.feedbackToken,
+                    feedbackPhone = result.feedbackPhone,
+                    feedbackTokenExpiresAt = result.feedbackTokenExpiresAt,
+                    communityStatus = result.communityStatus,
+                    communityBlockApplied = false,
+                )
+                testSaving = false
+                hideTestDialog()
+                syncStatusMessage = context.getString(R.string.msg_recorded_to_intercept_list)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                testError = context.getString(R.string.operation_failed_retry)
+            } finally {
+                testSaving = false
+            }
         }
     }
 
@@ -1032,6 +1088,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     fun dismissBackupRestoreResult() {
+        if (backupRestoreState is BackupRestoreState.Processing) return
         backupRestoreState = BackupRestoreState.Idle
     }
 
@@ -1044,6 +1101,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     var backupOptions by mutableStateOf(BackupOptions())
 
     fun openBackupOptionsSheet() {
+        if (backupRestoreState is BackupRestoreState.Processing) return
         backupOptions = BackupOptions()
         showBackupOptionsSheet = true
     }
@@ -1065,12 +1123,15 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     /** 解析备份文件（不执行写入），成功后展示恢复选项 Sheet */
-    fun parseBackupFile(inputStream: InputStream) {
+    fun readBackupUri(uri: android.net.Uri) {
+        if (backupRestoreState is BackupRestoreState.Processing) return
+        backupRestoreState = BackupRestoreState.Processing
         viewModelScope.launch {
-            backupRestoreState = BackupRestoreState.Processing
             try {
                 val preview = withContext(Dispatchers.IO) {
-                    backupRepository.parseBackup(inputStream)
+                    requireNotNull(context.contentResolver.openInputStream(uri)).use {
+                        backupRepository.parseBackup(it)
+                    }
                 }
                 backupPreview = preview
                 // 根据备份内容默认勾选有数据的部分
@@ -1081,6 +1142,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
                     includeLocalNumberLabels = preview.localNumberLabelCount > 0,
                 )
                 backupRestoreState = BackupRestoreState.Idle
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 Log.e(TAG, "Parse backup failed")
                 backupRestoreState = BackupRestoreState.Failure(
@@ -1091,16 +1154,23 @@ class SettingViewModel : ViewModel(), KoinComponent {
     }
 
     /** 使用选定的选项执行备份 */
-    fun performBackupWithOptions(outputStream: OutputStream) {
+    fun backupToUri(uri: android.net.Uri) {
+        if (backupRestoreState is BackupRestoreState.Processing) return
         val options = backupOptions
         showBackupOptionsSheet = false
+        backupRestoreState = BackupRestoreState.Processing
         viewModelScope.launch {
-            backupRestoreState = BackupRestoreState.Processing
             try {
-                withContext(Dispatchers.IO) { backupRepository.backup(outputStream, options) }
+                withContext(Dispatchers.IO) {
+                    requireNotNull(context.contentResolver.openOutputStream(uri)).use {
+                        backupRepository.backup(it, options)
+                    }
+                }
                 backupRestoreState = BackupRestoreState.Success(
                     context.getString(R.string.msg_backup_exported)
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 Log.e(TAG, "Backup failed")
                 backupRestoreState = BackupRestoreState.Failure(
@@ -1112,11 +1182,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
 
     /** 使用选定的选项执行恢复 */
     fun performRestoreWithOptions() {
+        if (backupRestoreState is BackupRestoreState.Processing) return
         val preview = backupPreview ?: return
         val options = restoreOptions
         backupPreview = null
+        backupRestoreState = BackupRestoreState.Processing
         viewModelScope.launch {
-            backupRestoreState = BackupRestoreState.Processing
             try {
                 val result = withContext(Dispatchers.IO) {
                     backupRepository.restore(preview, options)
@@ -1132,6 +1203,8 @@ class SettingViewModel : ViewModel(), KoinComponent {
                         result.localLabels.skipped,
                     )
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 Log.e(TAG, "Restore failed")
                 backupRestoreState = BackupRestoreState.Failure(

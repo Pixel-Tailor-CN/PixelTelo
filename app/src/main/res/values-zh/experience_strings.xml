@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permissions_required">必需权限</string>
+    <string name="permissions_optional">可选功能权限</string>
+    <string name="permission_open_settings">去系统设置</string>
+    <string name="operation_failed_retry">操作失败，数据未确认更改，请重试。</string>
+    <string name="operation_processing">正在处理…</string>
+    <string name="test_rule_explanation">这里展示号码查询的规则判定，不是实际通话结果。真实来电还受仅提示、强制规则、重复来电策略与系统响应时限影响。</string>
+    <string name="test_rule_block">规则判定：建议拦截</string>
+    <string name="test_rule_allow">规则判定：放行</string>
+    <string name="test_record_remark">手动查询记录（未发生实际拦截）：%1$s</string>
+    <string name="query_timeout_explanation">此设置控制查询等待时间。实际来电筛查须在约 4.5 秒总预算内响应，耗尽预算会先放行，不会等待完整查询超时。</string>
+    <string name="rule_priority_explanation">通讯录联系人始终优先放行，其次按白名单与黑名单规则判断。强制拦截可覆盖仅提示和重复来电策略，但不能覆盖通讯录放行与先命中的白名单。</string>
+    <string name="download_waiting">等待网络或系统调度</string>
+    <string name="download_running">正在下载 · %1$d%%</string>
+    <string name="download_verifying">正在校验号码库</string>
+    <string name="download_installing">正在安装号码库</string>
+    <string name="download_background">收起，后台继续</string>
+    <string name="download_view_progress">查看下载进度</string>
+    <string name="setup_title">完成来电识别设置</string>
+    <string name="setup_steps">1. 设置默认来电识别应用\n2. 授予必需权限\n3. 下载离线号码库</string>
+    <string name="setup_next_role">下一步：设置默认应用</string>
+    <string name="setup_next_permissions">下一步：授予权限</string>
+    <string name="setup_next_database">下一步：下载号码库</string>
+    <string name="history_search_hint">搜索号码</string>
+    <string name="history_filter_all">全部</string>
+    <string name="history_filter_blocked">已拦截</string>
+    <string name="history_filter_allowed">已放行</string>
+    <string name="history_filter_failed">查询失败</string>
+    <string name="history_no_match">没有符合条件的记录</string>
+    <string name="history_reset_filters">清除搜索和筛选</string>
+    <string name="reports_window_notice">当前仅显示最近加载的最多 100 条记录。更早加载的内容已移出窗口。</string>
+    <string name="reports_latest">回到最新上报</string>
+    <string name="display_summary_none">本地标签、通话震动和反馈提醒均未开启</string>
+    <string name="display_summary">已开启：%1$s</string>
+</resources>

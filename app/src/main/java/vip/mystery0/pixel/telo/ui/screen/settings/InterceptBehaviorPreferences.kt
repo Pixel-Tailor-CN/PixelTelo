@@ -51,6 +51,7 @@ fun InterceptBehaviorPreferences(
     )
 
     SettingsSection(title = stringResource(R.string.setting_group_intercept_behavior)) {
+        Text(stringResource(R.string.rule_priority_explanation), style = MaterialTheme.typography.bodySmall)
         SettingsGroup(
             rows = listOf(
             SettingsRowItem("notify-only") { modifier ->

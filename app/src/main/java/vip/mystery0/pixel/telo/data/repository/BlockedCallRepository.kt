@@ -37,6 +37,13 @@ class BlockedCallRepository : KoinComponent {
         pagingSourceFactory = blockedCallDao::getPagingSource,
     ).flow
 
+    fun filteredCalls(query: String, filter: vip.mystery0.pixel.telo.data.model.CallHistoryFilter): Flow<PagingData<BlockedCall>> = Pager(
+        config = PagingConfig(pageSize = 30, initialLoadSize = 30, prefetchDistance = 10,
+            maxSize = 90, enablePlaceholders = false),
+        pagingSourceFactory = { blockedCallDao.getFilteredPagingSource(
+            vip.mystery0.pixel.telo.data.model.phoneSearchKey(query), filter.resultTypes()) },
+    ).flow
+
     /** 插入拦截记录，返回新记录的自增 id */
     suspend fun insert(
         phoneNumber: String,
@@ -172,6 +179,7 @@ class BlockedCallRepository : KoinComponent {
 
     suspend fun delete(blockedCall: BlockedCall) {
         blockedCallDao.delete(blockedCall)
+        SmartspacerIntegration.notifyChanged(context)
     }
 
     /** 清空全部拦截记录，并刷新依赖记录数量的系统集成。 */

@@ -46,7 +46,8 @@ class LocalNumberLabelsViewModel : ViewModel(), KoinComponent {
             availableLabels
         } else {
             availableLabels.filter { entry ->
-                entry.normalizedPhoneNumber.contains(normalizedQuery, ignoreCase = true) ||
+                entry.normalizedPhoneNumber.contains(
+                    vip.mystery0.pixel.telo.data.model.phoneSearchKey(normalizedQuery), ignoreCase = true) ||
                     entry.label.contains(normalizedQuery, ignoreCase = true)
             }
         }

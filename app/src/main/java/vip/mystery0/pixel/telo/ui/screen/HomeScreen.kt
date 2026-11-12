@@ -140,12 +140,16 @@ fun HomeScreen(
     allowEngagementPrompt: Boolean,
     homeUiObscured: Boolean,
     onNavigateToListRule: (UserListEntry) -> Unit,
-    onNavigateToSettings: () -> Unit,
+    onNavigateToSettings: (vip.mystery0.pixel.telo.ui.screen.settings.SettingsCategory) -> Unit,
     onNavigateToSourceSettings: () -> Unit,
     onNavigateToSelfHostedSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val blockedCallItems = viewModel.blockedCallItems.collectAsLazyPagingItems()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val historyFilter by viewModel.historyFilter.collectAsState()
+    val hasRecords by viewModel.hasBlockedCallRecords.collectAsState()
+    val isFiltered = searchQuery.isNotBlank() || historyFilter != vip.mystery0.pixel.telo.data.model.CallHistoryFilter.ALL
     val contactNames by viewModel.contactNames.collectAsState()
     val blackList by listViewModel.blackList.collectAsState()
     val whiteList by listViewModel.whiteList.collectAsState()
@@ -236,23 +240,25 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
-        item {
-            AnimatedVisibility(!isDefaultApp) {
-                DefaultAppWarningCard {
-                    val intent =
-                        roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING)
-                    roleLauncher.launch(intent)
-                }
-            }
-        }
-        item {
-            AnimatedVisibility(missingPermissions.isNotEmpty()) {
-                PermissionWarningCard(onNavigateToSettings)
+        item(key = "setup") {
+            if (!isDefaultApp || missingPermissions.isNotEmpty() || !isDatabaseReady) {
+                vip.mystery0.pixel.telo.ui.components.SetupStepsCard(
+                    defaultApp = isDefaultApp,
+                    permissionsGranted = missingPermissions.isEmpty(),
+                    databaseReady = isDatabaseReady,
+                    onDefaultApp = {
+                        if (roleManager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
+                            roleLauncher.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING))
+                        }
+                    },
+                    onPermissions = { onNavigateToSettings(vip.mystery0.pixel.telo.ui.screen.settings.SettingsCategory.PERMISSIONS) },
+                    onDatabase = { onNavigateToSettings(vip.mystery0.pixel.telo.ui.screen.settings.SettingsCategory.OFFLINE_DATABASE) },
+                )
             }
         }
         item {
             AnimatedVisibility(!isDatabaseReady) {
-                DatabaseWarningCard(onNavigateToSettings)
+                DatabaseWarningCard { onNavigateToSettings(vip.mystery0.pixel.telo.ui.screen.settings.SettingsCategory.OFFLINE_DATABASE) }
             }
         }
         item {
@@ -294,7 +300,16 @@ fun HomeScreen(
                 )
             }
         }
+        if (hasRecords || isFiltered) item(key = "history_controls") {
+            vip.mystery0.pixel.telo.ui.components.CallHistoryControls(
+                query = searchQuery, filter = historyFilter,
+                onQuery = viewModel::updateSearchQuery,
+                onFilter = viewModel::updateHistoryFilter,
+            )
+        }
         blockedCallsList(
+            filtered = isFiltered,
+            onClearFilters = viewModel::clearHistoryFilters,
             callItems = blockedCallItems,
             contactNames = contactNames,
             localLabels = localLabels,
@@ -411,17 +426,29 @@ fun HomeScreen(
     if (showDeleteDialog && itemToDelete != null) {
         AlertDialog(
             onDismissRequest = {
-                showDeleteDialog = false
-                itemToDelete = null
+                if (!viewModel.deletionBusy) {
+                    showDeleteDialog = false
+                    itemToDelete = null
+                    viewModel.clearDeletionError()
+                }
             },
             title = { Text(stringResource(R.string.title_delete_record)) },
-            text = { Text(stringResource(R.string.msg_delete_record_confirm)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.msg_delete_record_confirm))
+                    viewModel.deletionError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
             confirmButton = {
                 TextButton(
+                    enabled = !viewModel.deletionBusy,
                     onClick = {
-                        itemToDelete?.let { viewModel.delete(it) }
-                        showDeleteDialog = false
-                        itemToDelete = null
+                        itemToDelete?.let { call ->
+                            viewModel.delete(call) {
+                                showDeleteDialog = false
+                                itemToDelete = null
+                            }
+                        }
                     }
                 ) {
                     Text(stringResource(R.string.action_delete))
@@ -429,9 +456,11 @@ fun HomeScreen(
             },
             dismissButton = {
                 TextButton(
+                    enabled = !viewModel.deletionBusy,
                     onClick = {
                         showDeleteDialog = false
                         itemToDelete = null
+                        viewModel.clearDeletionError()
                     }
                 ) {
                     Text(stringResource(R.string.action_cancel))
@@ -904,6 +933,8 @@ fun DatabaseWarningCard(onClick: () -> Unit) {
 }
 
 private fun LazyListScope.blockedCallsList(
+    filtered: Boolean,
+    onClearFilters: () -> Unit,
     callItems: LazyPagingItems<BlockedCallListItem>,
     contactNames: Map<String, String>,
     localLabels: Map<String, String>,
@@ -949,8 +980,11 @@ private fun LazyListScope.blockedCallsList(
                 ) {
                     EmptyState(
                         icon = Icons.Default.SettingsPhone,
-                        title = stringResource(R.string.home_no_records),
-                        description = stringResource(R.string.home_no_records_hint),
+                        title = stringResource(if (filtered) R.string.history_no_match else R.string.home_no_records),
+                        description = if (filtered) null else stringResource(R.string.home_no_records_hint),
+                        action = if (filtered) {{
+                            TextButton(onClick = onClearFilters) { Text(stringResource(R.string.history_reset_filters)) }
+                        }} else null,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 }

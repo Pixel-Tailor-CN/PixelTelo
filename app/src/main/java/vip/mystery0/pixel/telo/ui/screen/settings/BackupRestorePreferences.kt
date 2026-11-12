@@ -50,6 +50,7 @@ fun BackupRestorePreferences(
                 SettingsItemRow(
                     modifier = modifier,
                     title = stringResource(R.string.setting_backup_records),
+                    enabled = viewModel.backupRestoreState !is vip.mystery0.pixel.telo.viewmodel.BackupRestoreState.Processing,
                     summary = stringResource(R.string.setting_backup_records_summary),
                     icon = Icons.Default.Backup,
                     onClick = viewModel::openBackupOptionsSheet,
@@ -59,6 +60,7 @@ fun BackupRestorePreferences(
                 SettingsItemRow(
                     modifier = modifier,
                     title = stringResource(R.string.setting_restore_records),
+                    enabled = viewModel.backupRestoreState !is vip.mystery0.pixel.telo.viewmodel.BackupRestoreState.Processing,
                     summary = stringResource(R.string.setting_restore_records_summary),
                     icon = Icons.Default.RestorePage,
                     onClick = onRestore,

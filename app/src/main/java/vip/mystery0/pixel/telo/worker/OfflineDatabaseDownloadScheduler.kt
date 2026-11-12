@@ -24,6 +24,7 @@ object OfflineDatabaseDownloadScheduler {
     internal const val KEY_VERSION = "version"
     internal const val KEY_ROW_COUNT = "row_count"
     const val KEY_PROGRESS = "progress"
+    const val KEY_STAGE = "stage"
     private const val REQUEST_SEQUENCE_TAG = "offline_database_download_sequence:"
     private val commandMutex = Mutex()
 

@@ -124,8 +124,8 @@ fun DeveloperSupportScreen(
                                 image?.bitmap != null -> Image(
                                     bitmap = image.bitmap.asImageBitmap(),
                                     contentDescription = stringResource(R.string.support_qr_description, name),
-                                    modifier = Modifier.widthIn(max = 320.dp).fillMaxWidth()
-                                        .height(420.dp)
+                                    modifier = Modifier.widthIn(max = 240.dp).fillMaxWidth()
+                                        .height(260.dp)
                                         .background(Color.White)
                                         .clickable(onClickLabel = stringResource(R.string.support_enlarge)) { enlargedImage = image.bitmap },
                                     contentScale = ContentScale.Fit,

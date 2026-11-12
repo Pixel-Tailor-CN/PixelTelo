@@ -23,6 +23,15 @@ interface BlockedCallDao {
     @Query("SELECT * FROM blocked_calls ORDER BY blockTime DESC")
     fun getPagingSource(): PagingSource<Int, BlockedCall>
 
+    @Query("""
+        SELECT * FROM blocked_calls
+        WHERE (:query = '' OR instr(replace(replace(replace(replace(replace(replace(phoneNumber,
+            ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', ''), :query) > 0)
+        AND resultType IN (:resultTypes)
+        ORDER BY blockTime DESC, id DESC
+    """)
+    fun getFilteredPagingSource(query: String, resultTypes: List<String>): PagingSource<Int, BlockedCall>
+
     @Query("SELECT * FROM blocked_calls")
     suspend fun getAllSnapshot(): List<BlockedCall>
 

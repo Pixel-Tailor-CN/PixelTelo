@@ -58,7 +58,8 @@ fun OfflineDatabasePreferences(
                 SettingsItemRow(
                     modifier = modifier,
                     title = stringResource(R.string.setting_offline_database),
-                    summary = stringResource(
+                    summary = if (viewModel.isDownloading) stringResource(R.string.download_view_progress)
+                    else stringResource(
                         R.string.setting_offline_database_summary,
                         offlineDatabaseVersion,
                     ),

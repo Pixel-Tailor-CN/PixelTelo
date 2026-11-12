@@ -146,6 +146,7 @@ class SyncRepository(
         expectedSize: Long,
         expectedVersion: String? = null,
         expectedRowCount: Long = 0,
+        onStage: suspend (String) -> Unit = {},
         onProgress: (Int) -> Unit,
     ): Boolean = withContext(Dispatchers.IO) {
         updateMutex.withLock {
@@ -164,6 +165,7 @@ class SyncRepository(
                 candidate = candidateFile
                 downloadArchive(downloadUrl, archiveFile, expectedSize, onProgress)
                 currentCoroutineContext().ensureActive()
+                onStage("verifying")
                 check(calculateSha256(archiveFile).equals(expectedChecksum, ignoreCase = true))
                 extractDatabase(archiveFile, candidateFile)
                 val state = validateCandidate(candidateFile)
@@ -171,6 +173,7 @@ class SyncRepository(
                 check(expectedRowCount <= 0 || state.rowCount == expectedRowCount)
                 currentCoroutineContext().ensureActive()
 
+                onStage("installing")
                 databaseMutex.withLock {
                     currentCoroutineContext().ensureActive()
                     database?.close()

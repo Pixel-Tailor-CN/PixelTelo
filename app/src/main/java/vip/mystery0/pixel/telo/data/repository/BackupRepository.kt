@@ -1,5 +1,7 @@
 package vip.mystery0.pixel.telo.data.repository
 
+import androidx.room.withTransaction
+import vip.mystery0.pixel.telo.data.AppDatabase
 import kotlinx.serialization.json.Json
 import vip.mystery0.pixel.telo.data.dao.BlockedCallDao
 import vip.mystery0.pixel.telo.data.dao.UserListDao
@@ -57,6 +59,7 @@ data class RestoreResult(
  * 显示开关不属于备份范围，本仓库不读取、不写入该偏好。
  */
 class BackupRepository(
+    private val database: AppDatabase,
     private val blockedCallDao: BlockedCallDao,
     private val userListDao: UserListDao,
     private val localNumberLabelRepository: LocalNumberLabelRepository,
@@ -136,7 +139,8 @@ class BackupRepository(
      * 去重策略：BlockedCall 按 (phoneNumber, blockTime)，UserListEntry 按 (phoneNumber, listType)。
      * 本地标签仅在选中该范围时委托 [LocalNumberLabelRepository.restore]；未选择时不读取、不校验、不修改标签表。
      */
-    suspend fun restore(preview: BackupPreview, options: BackupOptions): RestoreResult {
+    suspend fun restore(preview: BackupPreview, options: BackupOptions): RestoreResult = database.withTransaction {
+        // 所有所选运行时数据共享一个事务，任何写入失败都回滚本次恢复。
         var insertedCalls = 0
         var insertedBlack = 0
         var insertedWhite = 0
@@ -188,7 +192,7 @@ class BackupRepository(
             RestoreLocalLabelsResult(inserted = 0, overwritten = 0, skipped = 0)
         }
 
-        return RestoreResult(insertedCalls, insertedBlack, insertedWhite, localLabels)
+        RestoreResult(insertedCalls, insertedBlack, insertedWhite, localLabels)
     }
 
     private fun readJsonFromZip(inputStream: InputStream): String {
