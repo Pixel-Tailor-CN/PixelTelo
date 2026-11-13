@@ -29,6 +29,8 @@ import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.isQueryFailure
 import vip.mystery0.pixel.telo.data.dao.QuerySourceQuality
+import vip.mystery0.pixel.telo.data.preferences.CallHandlingPreferences
+import vip.mystery0.pixel.telo.data.preferences.CallHandlingStrategy
 import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
 import vip.mystery0.pixel.telo.data.query.QueryBackendProvider
 import vip.mystery0.pixel.telo.data.query.QueryBackendState
@@ -104,7 +106,6 @@ enum class SelfHostedPairingOrigin { MANUAL, PASTE, SCAN }
 class SettingViewModel : ViewModel(), KoinComponent {
     companion object {
         private const val TAG = "SettingViewModel"
-        const val KEY_NOTIFY_ONLY = "notify_only"
         const val KEY_NO_NETWORK_QUERY = "no_network_query"
         const val KEY_ALWAYS_RECORD = "always_record"
         const val KEY_NETWORK_TIMEOUT = "network_timeout"
@@ -139,6 +140,7 @@ class SettingViewModel : ViewModel(), KoinComponent {
     private val queryBackendProvider: QueryBackendProvider by inject()
     private val selfHostedConfigRepository: SelfHostedConfigRepository by inject()
     private val prefs: SharedPreferences by inject()
+    private val callHandlingPreferences: CallHandlingPreferences by inject()
     private val localNumberLabelPreferences: LocalNumberLabelPreferences by inject()
     private val communityPreferences: vip.mystery0.pixel.telo.data.preferences.CommunityReportPreferences by inject()
     val blockCommunityReports: StateFlow<Boolean> get() = communityPreferences.blockEnabled
@@ -196,11 +198,12 @@ class SettingViewModel : ViewModel(), KoinComponent {
         }
     }
 
-    var notifyOnly by mutableStateOf(prefs.getBoolean(KEY_NOTIFY_ONLY, true))
+    var callHandlingStrategy by mutableStateOf(callHandlingPreferences.readStrategy())
+        private set
 
-    fun updateNotifyOnly(enabled: Boolean) {
-        notifyOnly = enabled
-        prefs.edit { putBoolean(KEY_NOTIFY_ONLY, enabled) }
+    fun updateCallHandlingStrategy(strategy: CallHandlingStrategy) {
+        callHandlingStrategy = strategy
+        callHandlingPreferences.setStrategy(strategy)
     }
 
     var noNetworkQuery by mutableStateOf(prefs.getBoolean(KEY_NO_NETWORK_QUERY, false))

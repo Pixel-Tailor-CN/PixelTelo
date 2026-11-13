@@ -113,6 +113,8 @@
     <string name="record_result_allowed">Allowed</string>
     <string name="record_result_query_failed_open">Query failed · Allowed</string>
     <string name="record_result_notify_allowed">Allowed · Notify only</string>
+    <string name="record_result_silenced_allowed">Allowed · Silenced</string>
+    <string name="cd_record_silenced">This call was allowed silently</string>
     <string name="cd_record_blocked">This call was blocked</string>
     <string name="cd_record_notify">This call was allowed with a notification</string>
     <string name="cd_record_allowed">This call was allowed</string>
@@ -205,10 +207,13 @@
     <string name="title_auto_check_update_interval">Auto-check interval</string>
     <string name="hint_auto_check_update_interval">Hours</string>
     <string name="error_auto_check_update_interval">Enter a whole number from 1 to 720.</string>
-    <string name="setting_notify_only">Notify Only</string>
-    <string name="setting_notify_only_summary">Recognize spam calls and log them without hanging up.</string>
+    <string name="setting_call_handling_strategy">Default call handling</string>
+    <string name="setting_call_handling_summary">%1$s. Applies to flagged calls; repeat-call settings may override it. Forced blocking takes priority.</string>
+    <string name="call_handling_strategy_notify">Allow normally, notify only</string>
+    <string name="call_handling_strategy_silence">Allow silently</string>
+    <string name="call_handling_strategy_block">Reject call</string>
     <string name="setting_repeat_call_strategy">Repeat call strategy</string>
-    <string name="repeat_call_strategy_unchanged">No change</string>
+    <string name="repeat_call_strategy_unchanged">Use default call handling</string>
     <string name="repeat_call_strategy_silence">Allow silently</string>
     <string name="repeat_call_strategy_allow">Allow completely</string>
     <string name="setting_repeat_call_window">Repeat call window</string>
@@ -225,7 +230,8 @@
     <string name="category_display_alerts">Display and Alerts</string>
     <string name="category_records_backup">Records and Backup</string>
     <string name="category_online_query">Online Query</string>
-    <string name="setting_category_call_notify_summary">Notify only, except forced blocking rules</string>
+    <string name="setting_category_call_notify_summary">Allow normally, except forced blocking rules</string>
+    <string name="setting_category_call_silence_summary">Allow silently, except forced blocking rules</string>
     <string name="setting_category_call_block_summary">Apply blocking rules</string>
     <string name="setting_category_online_disabled_summary">Off · local number database only</string>
     <string name="setting_category_online_backend_summary">%1$s · %2$d s timeout</string>
@@ -326,7 +332,7 @@
     <string name="summary_prefix_match">Matches all numbers beginning with this prefix, e.g. 400.</string>
     <string name="label_location_match">Location match</string>
     <string name="label_force_block">Force intercept</string>
-    <string name="summary_force_block_on">On: matching calls are hung up, regardless of Notify Only and short repeat call settings.</string>
+    <string name="summary_force_block_on">On: matching calls are hung up, regardless of default call handling and repeat-call settings.</string>
     <string name="summary_force_block_off">Off: follows global blocking settings.</string>
     <string name="label_force_block_chip">Force block</string>
     <string name="msg_location_match_requires_network">Location rules use attribution returned by online number queries.</string>
@@ -364,8 +370,8 @@
     <string name="msg_confirm_tag_contains_scope">Scope: calls whose recognized tag contains “%1$s” (case-sensitive).</string>
     <string name="msg_confirm_location_scope">Scope: calls whose queried attribution contains “%1$s”.</string>
     <string name="msg_confirm_whitelist_effect">Contacts are allowed first. This whitelist allows the call when its match is reached in the existing decision order.</string>
-    <string name="msg_confirm_force_block_effect">Contacts and whitelist rules that match earlier in the existing order are allowed first. A call that reaches this blacklist rule is hung up, ignoring Notify Only and short repeat call settings.</string>
-    <string name="msg_confirm_global_block_effect">Contacts and whitelist rules that match earlier in the existing order are allowed first. A call that reaches this blacklist rule follows global blocking settings; short repeat call settings still apply.</string>
+    <string name="msg_confirm_force_block_effect">Contacts and whitelist rules that match earlier in the existing order are allowed first. A call that reaches this blacklist rule is hung up, ignoring default call handling and repeat-call settings.</string>
+    <string name="msg_confirm_global_block_effect">Contacts and whitelist rules that match earlier in the existing order are allowed first. A call that reaches this blacklist rule follows default call handling: allow normally, allow silently, or reject. Repeat-call settings still apply.</string>
     <string name="msg_added_to_list">Entry added</string>
     <string name="msg_updated_in_list">Entry updated</string>
     <string name="title_delete_entry">Delete Entry</string>
@@ -382,6 +388,7 @@
     <string name="msg_added_tag_to_whitelist">Added tag to whitelist</string>
     <string name="msg_tag_already_in_whitelist">Tag already in whitelist</string>
     <string name="call_label_spam_default">Spam call</string>
+    <string name="call_remark_silence">%1$s (allowed silently)</string>
     <string name="call_remark_repeat_silence">%1$s (repeat call, allowed silently)</string>
     <string name="call_remark_repeat_allow">%1$s (repeat call, allowed completely)</string>
     <string name="call_remark_notify_only">%1$s (notify only)</string>

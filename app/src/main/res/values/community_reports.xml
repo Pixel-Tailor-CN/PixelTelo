@@ -34,8 +34,8 @@
     <string name="community_query_snapshot">Query snapshot: %1$s</string>
     <string name="community_block_applied">Blocked due to the community status at that time</string>
     <string name="community_block_setting">Block community-marked numbers</string>
-    <string name="community_block_summary">Community labels only warn by default and are available from official queries only; notify-only mode and list rules still apply.</string>
-    <string name="community_block_disabled_summary">Turn on online queries and use the official service first. Notify-only mode and list rules still apply.</string>
+    <string name="community_block_summary">Community labels only warn by default and are available from official queries only; default call handling and list rules still apply.</string>
+    <string name="community_block_disabled_summary">Turn on online queries and use the official service first. Default call handling and list rules still apply.</string>
     <string name="community_backup_notice">System backup and device transfer exclude call records, lists and local labels. Use manual backup here. It includes historical community display, but not reporting identity or feedback credentials.</string>
     <string name="community_reset_identity">Create a new reporting identity</string>
     <string name="community_reset_confirm">The current identity cannot be used. Creating a new one permanently loses access to view, withdraw or delete reports under the old identity. Continue?</string>

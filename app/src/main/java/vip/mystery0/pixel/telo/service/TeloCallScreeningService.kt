@@ -23,6 +23,8 @@ import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.entity.isQueryFailure
 import vip.mystery0.pixel.telo.data.model.CommunityStatus
+import vip.mystery0.pixel.telo.data.preferences.CallHandlingPreferences
+import vip.mystery0.pixel.telo.data.preferences.CallHandlingStrategy
 import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
@@ -47,6 +49,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     private val blockedCallRepository: BlockedCallRepository by inject()
     private val spamNumberRepository: SpamNumberRepository by inject()
     private val localNumberLabelRepository: LocalNumberLabelRepository by inject()
+    private val callHandlingPreferences: CallHandlingPreferences by inject()
     private val localNumberLabelPreferences: LocalNumberLabelPreferences by inject()
     private val prefs: SharedPreferences by inject()
     private val incomingCallOverlay: IncomingCallOverlay by inject()
@@ -135,7 +138,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
             return
         }
         Log.i(TAG, "Screening processed: incoming=${pending.hasResponseDeadline}, rejected=${decision.rejected}, " +
-            "resultType=${decision.historyType}, localCost=${decision.result.localCost}ms, " +
+            "silenced=${decision.response.silenceCall}, resultType=${decision.historyType}, localCost=${decision.result.localCost}ms, " +
             "networkCost=${decision.result.networkCost}ms")
         val number = pending.phoneNumber ?: return
         postResponseScope.launch {
@@ -177,7 +180,6 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
     private fun buildDecision(pending: PendingCall, result: CheckResult): ScreeningDecision {
         val response = CallResponse.Builder().setDisallowCall(false)
             .setRejectCall(false).setSkipCallLog(false)
-        val notifyOnly = prefs.getBoolean(SettingViewModel.KEY_NOTIFY_ONLY, true)
         val displayLabel = result.label.ifBlank {
             if (result.communityStatus == CommunityStatus.ACTIVE) getString(R.string.community_label)
             else ""
@@ -185,12 +187,20 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         val repeated = pending.phoneNumber?.let {
             repeatCallStrategy(it, pending.callTime, result)
         }
-        val rejected = result.shouldBlock && (result.forceBlock || (!notifyOnly && repeated == null))
-        response.setDisallowCall(rejected).setRejectCall(rejected)
-        if (repeated != null) response.setSilenceCall(repeated == RepeatCallStrategy.SILENCE)
+        // 安全与失败结果不进入常规处置；强制拦截优先，重复策略只覆盖非强制结果。
+        val strategy = when {
+            !result.shouldBlock -> CallHandlingStrategy.NOTIFY
+            result.forceBlock -> CallHandlingStrategy.BLOCK
+            repeated == RepeatCallStrategy.SILENCE -> CallHandlingStrategy.SILENCE
+            repeated == RepeatCallStrategy.ALLOW -> CallHandlingStrategy.NOTIFY
+            else -> callHandlingPreferences.readStrategy()
+        }
+        val rejected = strategy == CallHandlingStrategy.BLOCK
+        val silenced = strategy == CallHandlingStrategy.SILENCE
+        response.setDisallowCall(rejected).setRejectCall(rejected).setSilenceCall(silenced)
         val historyType = when {
             rejected -> result.resultType
-            repeated == RepeatCallStrategy.SILENCE -> ResultType.PASS_BUT_NOTIFY
+            silenced -> ResultType.PASS_SILENT
             repeated == RepeatCallStrategy.ALLOW -> ResultType.PASS
             result.shouldBlock -> ResultType.PASS_BUT_NOTIFY
             result.resultType.isQueryFailure() -> result.resultType
@@ -203,6 +213,10 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
                 displayLabel.ifBlank { getString(R.string.call_label_spam_default) },
             )
             rejected -> displayLabel
+            silenced -> getString(
+                R.string.call_remark_silence,
+                displayLabel.ifBlank { getString(R.string.call_label_spam_default) },
+            )
             result.shouldBlock -> getString(R.string.call_remark_notify_only, displayLabel)
             result.resultType.isQueryFailure() -> queryFailureRemark(result.resultType)
             else -> displayLabel.ifBlank { getString(R.string.call_remark_normal) }

@@ -118,6 +118,8 @@
     <string name="record_result_allowed">已放行</string>
     <string name="record_result_query_failed_open">查询失败 · 已放行</string>
     <string name="record_result_notify_allowed">已放行 · 仅提示</string>
+    <string name="record_result_silenced_allowed">已放行 · 静音</string>
+    <string name="cd_record_silenced">本次来电已静音放行</string>
     <string name="cd_record_blocked">此来电已拦截</string>
     <string name="cd_record_notify">此来电已放行并显示提示</string>
     <string name="cd_record_allowed">此来电已放行</string>
@@ -210,10 +212,13 @@
     <string name="title_auto_check_update_interval">自动检查更新间隔</string>
     <string name="hint_auto_check_update_interval">小时</string>
     <string name="error_auto_check_update_interval">请输入 1 到 720 之间的整数。</string>
-    <string name="setting_notify_only">仅提示不拦截</string>
-    <string name="setting_notify_only_summary">识别骚扰来电并记录，不挂断。</string>
+    <string name="setting_call_handling_strategy">常规处理策略</string>
+    <string name="setting_call_handling_summary">%1$s。适用于识别为应拦截的号码；重复来电可覆盖，强制拦截规则除外。</string>
+    <string name="call_handling_strategy_notify">正常放行，仅提示</string>
+    <string name="call_handling_strategy_silence">静音放行</string>
+    <string name="call_handling_strategy_block">直接拒接</string>
     <string name="setting_repeat_call_strategy">重复来电策略</string>
-    <string name="repeat_call_strategy_unchanged">不修改</string>
+    <string name="repeat_call_strategy_unchanged">沿用常规策略</string>
     <string name="repeat_call_strategy_silence">放行但静音</string>
     <string name="repeat_call_strategy_allow">完全放行</string>
     <string name="setting_repeat_call_window">重复来电判定时间</string>
@@ -230,7 +235,8 @@
     <string name="category_display_alerts">显示与提醒</string>
     <string name="category_records_backup">记录与备份</string>
     <string name="category_online_query">在线查询</string>
-    <string name="setting_category_call_notify_summary">仅提示，强制拦截规则除外</string>
+    <string name="setting_category_call_notify_summary">正常放行，仅提示；强制拦截规则除外</string>
+    <string name="setting_category_call_silence_summary">静音放行；强制拦截规则除外</string>
     <string name="setting_category_call_block_summary">按拦截规则处理</string>
     <string name="setting_category_online_disabled_summary">已关闭 · 仅使用本地号码库</string>
     <string name="setting_category_online_backend_summary">%1$s · 超时 %2$d 秒</string>
@@ -327,7 +333,7 @@
     <string name="label_prefix_match">前缀匹配</string>
     <string name="summary_prefix_match">匹配所有以该前缀开头的号码，如 400。</string>
     <string name="label_force_block">强制拦截</string>
-    <string name="summary_force_block_on">开启：命中后直接挂断，忽略“仅提示不拦截”和“短时间重复来电”设置。</string>
+    <string name="summary_force_block_on">开启：命中后直接挂断，忽略常规处理策略和重复来电策略。</string>
     <string name="summary_force_block_off">关闭：遵循全局拦截设置。</string>
     <string name="label_force_block_chip">强制拦截</string>
     <string name="label_tag_name">标签名称</string>
@@ -359,8 +365,8 @@
     <string name="msg_confirm_tag_contains_scope">匹配范围：来电识别标签包含关键词“%1$s”（区分大小写）。</string>
     <string name="msg_confirm_location_scope">匹配范围：查询返回的归属地包含“%1$s”。</string>
     <string name="msg_confirm_whitelist_effect">通讯录优先放行；这条白名单在现有匹配顺序中命中后会放行来电。</string>
-    <string name="msg_confirm_force_block_effect">通讯录及在现有顺序中先命中的白名单仍优先放行；来电进入此黑名单规则后会直接挂断，忽略“仅提示不拦截”和“短时间重复来电”。</string>
-    <string name="msg_confirm_global_block_effect">通讯录及在现有顺序中先命中的白名单仍优先放行；来电进入此黑名单规则后遵循全局拦截设置，开启“仅提示不拦截”时会放行并记录，短时间重复来电设置仍适用。</string>
+    <string name="msg_confirm_force_block_effect">通讯录及在现有顺序中先命中的白名单仍优先放行；来电进入此黑名单规则后会直接挂断，忽略常规处理策略和重复来电策略。</string>
+    <string name="msg_confirm_global_block_effect">通讯录及在现有顺序中先命中的白名单仍优先放行；来电进入此黑名单规则后遵循常规处理策略，可正常放行、静音放行或直接拒接，重复来电策略仍适用。</string>
     <string name="msg_added_to_list">已添加</string>
     <string name="msg_updated_in_list">已修改</string>
     <string name="title_delete_entry">删除条目</string>
@@ -377,6 +383,7 @@
     <string name="msg_added_tag_to_whitelist">已加入标签白名单</string>
     <string name="msg_tag_already_in_whitelist">该标签已在白名单中</string>
     <string name="call_label_spam_default">骚扰电话</string>
+    <string name="call_remark_silence">%1$s（静音放行）</string>
     <string name="call_remark_repeat_silence">%1$s（重复来电，静音放行）</string>
     <string name="call_remark_repeat_allow">%1$s（重复来电，完全放行）</string>
     <string name="call_remark_notify_only">%1$s（仅提示）</string>

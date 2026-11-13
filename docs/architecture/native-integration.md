@@ -117,17 +117,14 @@ Pixel Telo 致力于通过深度集成 Android 系统 API 来提供原生体验�
 4. **决策**:
     * **放行**: 未找到匹配项或号码安全。白名单（号码/标签/归属地）永远放行，不受任何开关影响。
     * **拒绝**: 在黑名单中找到匹配项，或自动识别为骚扰。
-    * **“仅提示不拦截”叠加规则**: 每条黑名单规则自带 `forceBlock` 配置（UI 中的
-      “忽略‘仅提示不拦截’”开关，新建默认开启）。`forceBlock=true` 的规则命中时直接挂断，
-      无视“仅提示不拦截”与“短时间重复来电”；`forceBlock=false` 的规则与自动识别结果一样
-      遵循全局开关（仅提示时放行并记录）。v6→v7 迁移时既有标签/归属地黑名单补为 true
-      （保持原强制行为），既有号码黑名单保持 false（保持原软行为）。
-    * **重复来电策略**: 对设定窗口内再次呼入的已标记号码提供“不修改”“放行但静音”“完全放行”
-      三种策略。“不修改”不参与重复来电判断；“放行但静音”记录为 `PASS_BUT_NOTIFY`；“完全放行”
-      正常响铃并记录为 `PASS`。两种放行策略的记录备注必须明确标注实际处理方式。
+    * **常规处理策略与强制规则**：识别为应拦截且未命中强制规则的号码，可选择“正常放行，仅提示”“静音放行”或“直接拒接”。首次来电使用常规策略，重复来电策略可以覆盖它；安全号码、通讯录、白名单与查询失败仍正常放行。
+      设置页与 Service 共用 `CallHandlingPreferences`：优先读取 `call_handling_strategy`；没有有效新值时，旧 `notify_only=true` 映射正常放行，false 映射拒接，新安装默认正常放行。读取不写入偏好，用户选择后保存新键并移除旧键。
+      每条黑名单规则自带 `forceBlock` 配置，新建默认开启；命中后直接挂断，忽略常规与重复来电策略。v6→v7 迁移时既有标签/归属地黑名单补为 true，既有号码黑名单保持 false。
+    * **重复来电策略**：对设定窗口内再次呼入的已标记号码提供“沿用常规策略”“放行但静音”“完全放行”三种策略。“沿用常规策略”保留存储值 `UNCHANGED`，不参与重复来电判断；另外两项分别覆盖常规策略为静音放行或正常放行。
+      常规与重复策略产生的新静音记录均为 `PASS_SILENT`，列表和详情显示“已放行 · 静音”，备注注明是否为重复来电；重复完全放行为 `PASS`，普通仅提示为 `PASS_BUT_NOTIFY`。旧 `PASS_BUT_NOTIFY` 历史保持原样，不根据可编辑备注推断是否静音；新增类型仍属于已放行筛选，不计入静默拒接数量。
     * Settings 中的 Test Intercept 通过同一个 `SpamNumberRepository.checkSpam()` 决策入口执行，
       不再强制联网，因此与 `CallScreeningService` 使用相同的名单优先级、国际号码门禁和查询设置。
-    * **社区拦截**：仅官方 ACTIVE 且独立开关开启时作为新增候选；不设置 forceBlock，仍遵守前置规则、全局仅提示和重复来电策略。
+    * **社区拦截**：仅官方 ACTIVE 且独立开关开启时作为新增候选；不设置 forceBlock，仍遵守前置规则、常规处理策略和重复来电策略。
       使用 `INTERCEPT` 保持既有计数。最终 `respondToCall` 前再次校验社区代次和开关，旧增强不能重新拒接。
 5. **动作**: `onScreenCall` 立即返回，由后台执行识别；来电进入回调时即注册 **4.5 秒**截止保护，在系统要求的 5 秒以内预留余量。
     * 查询完成、截止回调和服务销毁通过同一个一次响应门禁调用 `respondToCall`；截止不依赖数据库、偏好或 DI 初始化。
@@ -164,7 +161,7 @@ IDLE 仅移除已过时的来电窗口，迟到的移除操作不能关闭新通
 
 ### 目的
 
-在关闭“仅提示不拦截”或黑名单规则强制拦截时，来电会被直接挂断且没有任何提醒。通过
+在常规处理策略为“直接拒接”或黑名单规则强制拦截时，来电会被直接挂断且没有任何提醒。通过
 [Smartspacer](https://github.com/KieronQuinn/Smartspacer) Complication 在锁屏/AtAGlance
 显示“用户不知情时被拦截的来电数量”，点按打开应用。
 
@@ -176,7 +173,7 @@ IDLE 仅移除已过时的来电窗口，迟到的移除操作不能关闭新通
   （action `com.kieronquinn.app.smartspacer.COMPLICATION`）。
 * **计数口径**: `smartspacer/SmartspacerInterceptRepository`，统计 `resultType` 为
   `INTERCEPT` 或 `BLACK_LIST`（即被直接挂断、用户无感知）且 `blockTime` 晚于基线的记录数；
-  `PASS_BUT_NOTIFY` 等用户可感知的记录不计入。
+  `PASS_BUT_NOTIFY`、`PASS_SILENT` 等已放行记录不计入。
 * **清零机制**: 基线时间戳存于 `SharedPreferences`。`MainActivity.onResume` 调用
   `acknowledge()` 更新基线（进入应用即视为已知晓），计数归零后 Complication 自动隐藏。
 * **刷新推送**: `BlockedCallRepository.insert` 写入静默拦截记录后调用

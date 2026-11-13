@@ -37,7 +37,7 @@ data class UserListEntry(
     /** true = 归属地匹配，依赖联网查询结果 */
     val locationMatch: Boolean = false,
     /**
-     * 仅黑名单有效：true 表示命中时忽略“仅提示不拦截”与“短时间重复来电”设置，
+     * 仅黑名单有效：true 表示命中时忽略常规处理策略与重复来电策略，
      * 直接挂断来电；false 表示遵循全局设置。白名单条目恒为 false。
      */
     val forceBlock: Boolean = false,

@@ -43,7 +43,7 @@ data class CheckResult(
     val networkCost: Long,
     val locationInfo: PhoneLocationInfo? = null,
     val locationLookupAttempted: Boolean = false,
-    /** true 表示用户规则要求强制拦截，不受“仅提示”等全局策略影响。 */
+    /** true 表示用户规则要求强制拦截，不受常规处理策略等全局设置影响。 */
     val forceBlock: Boolean = false,
     val querySource: String? = null,
     /** 联网结果所属的稳定 Backend ID；纯本地结果或联网失败时为 null。 */

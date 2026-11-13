@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** 独立社区拦截开关；不改变自动联网或全局仅提示设置。 */
+/** 独立社区拦截开关；不改变自动联网或常规处理策略。 */
 class CommunityReportPreferences(private val preferences: SharedPreferences) {
     private val state = MutableStateFlow(preferences.getBoolean(KEY, false))
     val blockEnabled: StateFlow<Boolean> = state.asStateFlow()

@@ -70,7 +70,8 @@ enum class FeedbackStatus {
 
 enum class ResultType {
     INTERCEPT, // 拦截
-    PASS_BUT_NOTIFY, // 仅提示、静音放行或身份资料展示，不拒接来电
+    PASS_BUT_NOTIFY, // 仅提示或身份资料展示；兼容旧版静音放行记录，不拒接来电
+    PASS_SILENT, // 静音放行，包含常规策略与重复来电策略
     LOCAL_TIMEOUT, // 本地门禁或离线查询超过预算，已放行
     SCREENING_TIMEOUT, // 系统筛查响应预算耗尽，已放行
     NETWORK_TIMEOUT, // 联网查询超时

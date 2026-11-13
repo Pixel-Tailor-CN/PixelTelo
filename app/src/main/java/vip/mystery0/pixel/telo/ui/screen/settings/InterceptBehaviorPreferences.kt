@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import vip.mystery0.pixel.telo.R
+import vip.mystery0.pixel.telo.data.preferences.CallHandlingStrategy
 import vip.mystery0.pixel.telo.data.query.QueryBackendState
 import vip.mystery0.pixel.telo.data.query.QueryBackendType
 import vip.mystery0.pixel.telo.viewmodel.RepeatCallStrategy
@@ -54,14 +55,21 @@ fun InterceptBehaviorPreferences(
         Text(stringResource(R.string.rule_priority_explanation), style = MaterialTheme.typography.bodySmall)
         SettingsGroup(
             rows = listOf(
-            SettingsRowItem("notify-only") { modifier ->
-                SettingsSwitchRow(
+            SettingsRowItem("call-handling-strategy") { modifier ->
+                SettingsChoiceRow(
                     modifier = modifier,
-                    title = stringResource(R.string.setting_notify_only),
-                    summary = stringResource(R.string.setting_notify_only_summary),
-                    checked = viewModel.notifyOnly,
+                    value = viewModel.callHandlingStrategy,
+                    options = CallHandlingStrategy.entries,
+                    onValueChange = viewModel::updateCallHandlingStrategy,
+                    title = stringResource(R.string.setting_call_handling_strategy),
+                    summary = stringResource(
+                        R.string.setting_call_handling_summary,
+                        stringResource(viewModel.callHandlingStrategy.labelRes()),
+                    ),
                     icon = Icons.Default.NotificationsNone,
-                    onCheckedChange = viewModel::updateNotifyOnly,
+                    optionContent = { strategy ->
+                        Text(stringResource(strategy.labelRes()))
+                    },
                 )
             },
             SettingsRowItem("community-block") { modifier ->
@@ -178,6 +186,12 @@ fun InterceptBehaviorPreferences(
             },
         )
     }
+}
+
+private fun CallHandlingStrategy.labelRes(): Int = when (this) {
+    CallHandlingStrategy.NOTIFY -> R.string.call_handling_strategy_notify
+    CallHandlingStrategy.SILENCE -> R.string.call_handling_strategy_silence
+    CallHandlingStrategy.BLOCK -> R.string.call_handling_strategy_block
 }
 
 private fun RepeatCallStrategy.labelRes(): Int = when (this) {

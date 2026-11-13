@@ -70,6 +70,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import vip.mystery0.pixel.telo.data.preferences.CallHandlingStrategy
 import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.util.queryFailureSummaryRes
 import vip.mystery0.pixel.telo.util.queryFailureAdviceRes
@@ -962,10 +963,10 @@ fun SettingsScreen(
                     Triple(
                         SettingsCategory.CALL_RECOGNITION,
                         stringResource(
-                            if (viewModel.notifyOnly) {
-                                R.string.setting_category_call_notify_summary
-                            } else {
-                                R.string.setting_category_call_block_summary
+                            when (viewModel.callHandlingStrategy) {
+                                CallHandlingStrategy.NOTIFY -> R.string.setting_category_call_notify_summary
+                                CallHandlingStrategy.SILENCE -> R.string.setting_category_call_silence_summary
+                                CallHandlingStrategy.BLOCK -> R.string.setting_category_call_block_summary
                             }
                         ),
                         Icons.Default.NotificationsNone,

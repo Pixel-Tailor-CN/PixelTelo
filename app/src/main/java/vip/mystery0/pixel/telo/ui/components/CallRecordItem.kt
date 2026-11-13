@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -69,6 +70,12 @@ fun BlockedCallItem(
             MaterialTheme.colorScheme.onSurfaceVariant,
             R.string.record_result_query_failed_open,
             R.string.cd_record_query_failed,
+        )
+        call.resultType == ResultType.PASS_SILENT -> RecordStatus(
+            Icons.Default.NotificationsOff,
+            MaterialTheme.colorScheme.primary,
+            R.string.record_result_silenced_allowed,
+            R.string.cd_record_silenced,
         )
         call.resultType == ResultType.PASS_BUT_NOTIFY -> RecordStatus(
             Icons.Default.Notifications,
@@ -226,6 +233,12 @@ fun CallResultSummary(
             MaterialTheme.colorScheme.onSurfaceVariant,
             R.string.record_result_query_failed_open,
             R.string.cd_record_query_failed,
+        )
+        resultType == ResultType.PASS_SILENT -> RecordStatus(
+            Icons.Default.NotificationsOff,
+            MaterialTheme.colorScheme.primary,
+            R.string.record_result_silenced_allowed,
+            R.string.cd_record_silenced,
         )
         resultType == ResultType.PASS_BUT_NOTIFY -> RecordStatus(
             Icons.Default.Notifications,
