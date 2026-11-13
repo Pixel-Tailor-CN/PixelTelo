@@ -5,15 +5,12 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,28 +35,25 @@ fun CallHistoryScaffold(
     actions: @Composable RowScope.() -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val searchBarState = rememberSearchBarState()
     var searchFocused by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     LaunchedEffect(active) {
         if (!active && searchFocused) focusManager.clearFocus()
     }
-    val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior(
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(
         canScroll = { active && !searchFocused },
     )
     Scaffold(
         modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            AppBarWithSearch(
-                state = searchBarState,
+            // 折叠态 AppBarWithSearch 会拦截平台输入；原地筛选必须使用可直接编辑的顶部栏。
+            TopAppBar(
                 scrollBehavior = scrollBehavior,
-                colors = SearchBarDefaults.appBarWithSearchColors(
-                    searchBarColors = SearchBarDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                    scrolledSearchBarContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    appBarContainerColor = MaterialTheme.colorScheme.background,
-                    scrolledAppBarContainerColor = MaterialTheme.colorScheme.background,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background,
                 ),
-                inputField = {
+                title = {
                     AppSearchField(
                         query = query,
                         onQueryChange = onQueryChange,
