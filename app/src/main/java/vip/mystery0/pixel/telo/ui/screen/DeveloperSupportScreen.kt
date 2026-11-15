@@ -89,7 +89,7 @@ fun DeveloperSupportScreen(
                 }
                 TextButton(onClick = {
                     try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, "https://pixel.mystery0.app/#support".toUri()))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, "https://pixel.mystery0.vip/#support".toUri()))
                     } catch (_: Exception) {
                         viewModel.showMessage(R.string.support_website_unavailable)
                     }

@@ -64,7 +64,7 @@ These network operations use HTTPS. Service operators receive the requests and c
 
 ### Voluntary support and ratings
 
-Opening or explicitly retrying the support page requests public configuration from `https://pixel.mystery0.app/support/config.json` and QR images under `/support/`. Requests contain no numbers, call contents, installation identity or self-hosted credentials; the website receives network connection information. Only an explicit save writes the QR image to photos through MediaStore, without storage permission or reading other photos.
+Opening or explicitly retrying the support page requests public configuration from `https://pixel.mystery0.vip/support/config.json` and QR images under `/support/`. Requests contain no numbers, call contents, installation identity or self-hosted credentials; the website receives network connection information. Only an explicit save writes the QR image to photos through MediaStore, without storage permission or reading other photos.
 
 After a payment app, Google Play or browser is opened, that service handles subsequent actions. Support is voluntary and provides no digital benefits. Pixel Telo does not read, verify or record payment or rating outcomes. Minimal local prompt counters are used only to decide when to show the optional card.
 

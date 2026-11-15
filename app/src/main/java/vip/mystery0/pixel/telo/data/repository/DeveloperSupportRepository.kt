@@ -36,7 +36,7 @@ class DeveloperSupportRepository(context: Context) {
         .build()
 
     suspend fun loadConfig(): DeveloperSupportConfig = withContext(Dispatchers.IO) {
-        val bytes = download("https://pixel.mystery0.app/support/config.json", 64 * 1024)
+        val bytes = download("https://pixel.mystery0.vip/support/config.json", 64 * 1024)
         parser.parse(bytes.toString(Charsets.UTF_8))
     }
 

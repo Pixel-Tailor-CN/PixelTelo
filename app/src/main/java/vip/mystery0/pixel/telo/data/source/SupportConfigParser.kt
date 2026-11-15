@@ -47,7 +47,7 @@ class SupportConfigParser {
     companion object {
         fun isTrustedQrUrl(value: String): Boolean {
             val uri = safeHttpsUri(value) ?: return false
-            return uri.host == "pixel.mystery0.app" && uri.rawPath.startsWith("/support/") &&
+            return uri.host == "pixel.mystery0.vip" && uri.rawPath.startsWith("/support/") &&
                 !uri.rawPath.contains('%') && uri.normalize().rawPath == uri.rawPath && uri.rawQuery == null
         }
 
