@@ -569,4 +569,16 @@
     <string name="label_tag_contains">标签·包含匹配</string>
     <string name="summary_tag_contains">如“保险”匹配“保险推销”，区分大小写。仅匹配识别标签，不含本地标签。</string>
     <string name="msg_database_delete_failed">离线号码库删除失败，请重试。</string>
+    <string name="setting_stranger_calls">拦截陌生来电</string>
+    <string name="setting_stranger_calls_summary">为通讯录和号码白名单之外的来电使用独立策略。关闭后恢复原有设置，两套策略分别保存。</string>
+    <string name="setting_stranger_permission_required">需要通讯录权限。点击开启时申请授权；无法确认联系人时，陌生来电规则不生效。</string>
+    <string name="setting_stranger_first_call">陌生号码首次来电</string>
+    <string name="setting_stranger_first_summary">%1$s。仅用于陌生来电模式，与常规策略分别保存。强制号码黑名单仍直接拒接。</string>
+    <string name="setting_stranger_repeat_call">陌生号码重复来电</string>
+    <string name="setting_category_stranger_summary">陌生来电模式 · 使用独立的首次与重复来电策略</string>
+    <string name="stranger_rule_priority_explanation">通讯录与号码白名单优先放行，强制号码黑名单直接拒接。其余陌生号码使用下方策略；保留国际号码放行规则。此模式不查询骚扰库或网络，不使用标签、归属地和社区拦截规则。</string>
+    <string name="stranger_community_inactive">陌生来电模式使用独立策略；关闭该模式后恢复社区拦截设置。</string>
+    <string name="call_stranger_rule">陌生来电规则</string>
+    <string name="call_contact_unknown">无法确认通讯录，已放行</string>
+    <string name="call_remark_repeat_block">%1$s（重复来电，直接拒接）</string>
 </resources>

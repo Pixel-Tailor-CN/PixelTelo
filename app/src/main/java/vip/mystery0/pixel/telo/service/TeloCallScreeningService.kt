@@ -26,6 +26,7 @@ import vip.mystery0.pixel.telo.data.model.CommunityStatus
 import vip.mystery0.pixel.telo.data.preferences.CallHandlingPreferences
 import vip.mystery0.pixel.telo.data.preferences.CallHandlingStrategy
 import vip.mystery0.pixel.telo.data.preferences.LocalNumberLabelPreferences
+import vip.mystery0.pixel.telo.data.preferences.StrangerCallPolicy
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.repository.BlockedCallRepository
 import vip.mystery0.pixel.telo.data.repository.CheckResult
@@ -41,6 +42,8 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         private const val SCREENING_RESPONSE_BUDGET_MS = 4_500L
         private const val LOCAL_LABEL_LOOKUP_TIMEOUT_MS = 100L
         private val recentMarkedCalls = mutableMapOf<String, Long>()
+        private val recentStrangerCalls = linkedMapOf<String, Long>()
+        private var strangerCallGeneration: Long? = null
 
         // 系统响应之后的记录和展示不依赖筛查 Service 的存活，避免解绑时取消落库。
         private val postResponseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -72,7 +75,7 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         pending.queryJob = scope.launch {
             try {
                 val number = pending.phoneNumber ?: return@launch
-                val result = spamNumberRepository.checkSpam(number)
+                val result = spamNumberRepository.checkSpam(number, applyStrangerPolicy = pending.hasResponseDeadline)
                 mainHandler.post { finishCall(pending, result) }
             } catch (exception: CancellationException) {
                 throw exception
@@ -184,13 +187,19 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
             if (result.communityStatus == CommunityStatus.ACTIVE) getString(R.string.community_label)
             else ""
         }
-        val repeated = pending.phoneNumber?.let {
-            repeatCallStrategy(it, pending.callTime, result)
-        }
+        val strangerPolicy = result.strangerPolicy
+        val repeatedStranger = pending.hasResponseDeadline && strangerPolicy != null &&
+            !result.forceBlock && pending.phoneNumber?.let {
+                isRepeatedStrangerCall(it, pending.callTime, strangerPolicy)
+            } == true
+        val repeated = pending.phoneNumber?.takeIf {
+            pending.hasResponseDeadline && strangerPolicy == null
+        }?.let { repeatCallStrategy(it, pending.callTime, result) }
         // 安全与失败结果不进入常规处置；强制拦截优先，重复策略只覆盖非强制结果。
         val strategy = when {
             !result.shouldBlock -> CallHandlingStrategy.NOTIFY
             result.forceBlock -> CallHandlingStrategy.BLOCK
+            strangerPolicy != null -> if (repeatedStranger) strangerPolicy.repeatCall else strangerPolicy.firstCall
             repeated == RepeatCallStrategy.SILENCE -> CallHandlingStrategy.SILENCE
             repeated == RepeatCallStrategy.ALLOW -> CallHandlingStrategy.NOTIFY
             else -> callHandlingPreferences.readStrategy()
@@ -201,12 +210,19 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         val historyType = when {
             rejected -> result.resultType
             silenced -> ResultType.PASS_SILENT
-            repeated == RepeatCallStrategy.ALLOW -> ResultType.PASS
+            repeated == RepeatCallStrategy.ALLOW || repeatedStranger -> ResultType.PASS
             result.shouldBlock -> ResultType.PASS_BUT_NOTIFY
             result.resultType.isQueryFailure() -> result.resultType
             else -> ResultType.PASS
         }
         val remark = when {
+            repeatedStranger -> getString(
+                when (strategy) {
+                    CallHandlingStrategy.BLOCK -> R.string.call_remark_repeat_block
+                    CallHandlingStrategy.SILENCE -> R.string.call_remark_repeat_silence
+                    CallHandlingStrategy.NOTIFY -> R.string.call_remark_repeat_allow
+                }, displayLabel,
+            )
             repeated != null -> getString(
                 if (repeated == RepeatCallStrategy.SILENCE) R.string.call_remark_repeat_silence
                 else R.string.call_remark_repeat_allow,
@@ -322,6 +338,24 @@ class TeloCallScreeningService : CallScreeningService(), KoinComponent {
         val remark: String,
         val shouldRecord: Boolean,
     )
+
+    /** 与常规模式完全分开计数；配置变化后重新计算首次来电，缓存只覆盖当前窗口。 */
+    private fun isRepeatedStrangerCall(number: String, callTime: Long, policy: StrangerCallPolicy): Boolean =
+        synchronized(recentStrangerCalls) {
+            if (strangerCallGeneration != policy.generation) {
+                recentStrangerCalls.clear()
+                strangerCallGeneration = policy.generation
+            }
+            val windowMillis = policy.windowMinutes * 60_000L
+            recentStrangerCalls.entries.removeAll { callTime - it.value !in 0..windowMillis }
+            val normalized = normalizePhoneNumber(number)
+            val previous = recentStrangerCalls.remove(normalized)
+            recentStrangerCalls[normalized] = callTime
+            while (recentStrangerCalls.size > 256) {
+                recentStrangerCalls.remove(recentStrangerCalls.keys.first())
+            }
+            previous != null && callTime - previous in 0..windowMillis
+        }
 
     private fun repeatCallStrategy(
         phoneNumber: String,

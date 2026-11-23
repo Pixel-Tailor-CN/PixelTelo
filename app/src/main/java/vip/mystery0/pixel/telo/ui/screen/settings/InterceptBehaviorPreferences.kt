@@ -34,8 +34,14 @@ import vip.mystery0.pixel.telo.viewmodel.SettingViewModel
 fun InterceptBehaviorPreferences(
     viewModel: SettingViewModel,
     backendState: QueryBackendState,
+    contactsPermissionGranted: Boolean,
+    onRequestContactsPermission: () -> Unit,
 ) {
-    var showRepeatWindowDialog by remember { mutableStateOf(false) }
+    // 弹窗固定打开时的模式，防止保存到另一套策略。
+    var repeatWindowMode by remember { mutableStateOf<Boolean?>(null) }
+    val strangerMode = viewModel.strangerCallsEnabled
+    val firstStrategy = if (strangerMode) viewModel.strangerCallPolicy.firstCall else viewModel.callHandlingStrategy
+    val windowMinutes = if (strangerMode) viewModel.strangerCallPolicy.windowMinutes else viewModel.repeatCallWindowMinutes
     val blockCommunity by viewModel.blockCommunityReports.collectAsState()
     val selfHostedSelected = when (backendState) {
         is QueryBackendState.Ready -> backendState.type == QueryBackendType.SELF_HOSTED
@@ -52,19 +58,42 @@ fun InterceptBehaviorPreferences(
     )
 
     SettingsSection(title = stringResource(R.string.setting_group_intercept_behavior)) {
-        Text(stringResource(R.string.rule_priority_explanation), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(
+            if (strangerMode) R.string.stranger_rule_priority_explanation else R.string.rule_priority_explanation
+        ), style = MaterialTheme.typography.bodySmall)
         SettingsGroup(
             rows = listOf(
+            SettingsRowItem("stranger-calls-enabled") { modifier ->
+                SettingsSwitchRow(
+                    modifier = modifier,
+                    title = stringResource(R.string.setting_stranger_calls),
+                    summary = stringResource(
+                        if (contactsPermissionGranted) R.string.setting_stranger_calls_summary
+                        else R.string.setting_stranger_permission_required
+                    ),
+                    checked = strangerMode,
+                    icon = Icons.Default.Block,
+                    onCheckedChange = { enabled ->
+                        if (enabled && !contactsPermissionGranted) onRequestContactsPermission()
+                        else viewModel.updateStrangerCallsEnabled(enabled)
+                    },
+                )
+            },
             SettingsRowItem("call-handling-strategy") { modifier ->
                 SettingsChoiceRow(
                     modifier = modifier,
-                    value = viewModel.callHandlingStrategy,
+                    value = firstStrategy,
                     options = CallHandlingStrategy.entries,
-                    onValueChange = viewModel::updateCallHandlingStrategy,
-                    title = stringResource(R.string.setting_call_handling_strategy),
+                    onValueChange = { strategy ->
+                        if (strangerMode) viewModel.updateStrangerFirstCallStrategy(strategy)
+                        else viewModel.updateCallHandlingStrategy(strategy)
+                    },
+                    title = stringResource(
+                        if (strangerMode) R.string.setting_stranger_first_call else R.string.setting_call_handling_strategy
+                    ),
                     summary = stringResource(
-                        R.string.setting_call_handling_summary,
-                        stringResource(viewModel.callHandlingStrategy.labelRes()),
+                        if (strangerMode) R.string.setting_stranger_first_summary else R.string.setting_call_handling_summary,
+                        stringResource(firstStrategy.labelRes()),
                     ),
                     icon = Icons.Default.NotificationsNone,
                     optionContent = { strategy ->
@@ -76,10 +105,10 @@ fun InterceptBehaviorPreferences(
                 SettingsSwitchRow(
                     modifier = modifier,
                     title = stringResource(R.string.community_block_setting),
-                    summary = communitySummary,
+                    summary = if (strangerMode) stringResource(R.string.stranger_community_inactive) else communitySummary,
                     checked = blockCommunity,
                     icon = Icons.Default.Block,
-                    enabled = communityBlockEnabled,
+                    enabled = communityBlockEnabled && !strangerMode,
                     onCheckedChange = viewModel::updateBlockCommunityReports,
                 )
             },
@@ -91,7 +120,18 @@ fun InterceptBehaviorPreferences(
         SettingsGroup(
             rows = listOf(
             SettingsRowItem("repeat-strategy") { modifier ->
-                SettingsChoiceRow(
+                if (strangerMode) {
+                    SettingsChoiceRow(
+                        modifier = modifier,
+                        value = viewModel.strangerCallPolicy.repeatCall,
+                        options = CallHandlingStrategy.entries,
+                        onValueChange = viewModel::updateStrangerRepeatCallStrategy,
+                        title = stringResource(R.string.setting_stranger_repeat_call),
+                        summary = stringResource(viewModel.strangerCallPolicy.repeatCall.labelRes()),
+                        icon = Icons.Default.Repeat,
+                        optionContent = { Text(stringResource(it.labelRes())) },
+                    )
+                } else SettingsChoiceRow(
                     modifier = modifier,
                     value = viewModel.repeatCallStrategy,
                     options = RepeatCallStrategy.entries,
@@ -110,10 +150,10 @@ fun InterceptBehaviorPreferences(
                     title = stringResource(R.string.setting_repeat_call_window),
                     summary = stringResource(
                         R.string.setting_repeat_call_window_summary,
-                        viewModel.repeatCallWindowMinutes,
+                        windowMinutes,
                     ),
                     icon = Icons.Default.Schedule,
-                    onClick = { showRepeatWindowDialog = true },
+                    onClick = { repeatWindowMode = strangerMode },
                 )
             },
             ),
@@ -146,12 +186,14 @@ fun InterceptBehaviorPreferences(
         )
     }
 
-    if (showRepeatWindowDialog) {
-        var sliderValue by remember {
-            mutableFloatStateOf(viewModel.repeatCallWindowMinutes.toFloat())
+    repeatWindowMode?.let { forStrangers ->
+        var sliderValue by remember(forStrangers) {
+            mutableFloatStateOf(
+                (if (forStrangers) viewModel.strangerCallPolicy.windowMinutes else viewModel.repeatCallWindowMinutes).toFloat()
+            )
         }
         AlertDialog(
-            onDismissRequest = { showRepeatWindowDialog = false },
+            onDismissRequest = { repeatWindowMode = null },
             title = { Text(stringResource(R.string.setting_repeat_call_window)) },
             text = {
                 Column {
@@ -172,15 +214,16 @@ fun InterceptBehaviorPreferences(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.updateRepeatCallWindowMinutes(sliderValue.toInt())
-                        showRepeatWindowDialog = false
+                        if (forStrangers) viewModel.updateStrangerRepeatWindow(sliderValue.toInt())
+                        else viewModel.updateRepeatCallWindowMinutes(sliderValue.toInt())
+                        repeatWindowMode = null
                     }
                 ) {
                     Text(stringResource(R.string.action_confirm))
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showRepeatWindowDialog = false }) {
+                OutlinedButton(onClick = { repeatWindowMode = null }) {
                     Text(stringResource(R.string.action_cancel))
                 }
             },

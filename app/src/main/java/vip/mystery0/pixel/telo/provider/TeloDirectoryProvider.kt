@@ -151,7 +151,7 @@ class TeloDirectoryProvider : ContentProvider(), KoinComponent {
                 } else {
                     null
                 }
-                val checked = spamNumberRepository.checkSpam(filter)
+                val checked = spamNumberRepository.checkSpam(filter, applyStrangerPolicy = false)
                 val localLabel = awaitLocalLabelOrNull(localLabelDeferred)
                 val result = spamNumberRepository.currentCommunityResult(checked)
                 val communityLabel = if (result.communityStatus == vip.mystery0.pixel.telo.data.model.CommunityStatus.ACTIVE)

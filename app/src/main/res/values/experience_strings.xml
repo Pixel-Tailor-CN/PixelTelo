@@ -5,7 +5,7 @@
     <string name="permission_open_settings">App settings</string>
     <string name="operation_failed_retry">The operation failed. Changes are not confirmed. Please retry.</string>
     <string name="operation_processing">Processing…</string>
-    <string name="test_rule_explanation">This is a number lookup decision, not an actual call outcome. Incoming calls also depend on default call handling, forced rules, repeat calls, and the screening deadline.</string>
+    <string name="test_rule_explanation">This is a rule decision for the current mode, not an actual call outcome. It does not count as a repeat call. Incoming calls also depend on this mode’s first-call and repeat-call policies, forced rules, and the screening deadline.</string>
     <string name="test_rule_block">Rule decision: recommend blocking</string>
     <string name="test_rule_allow">Rule decision: allow</string>
     <string name="test_record_remark">Manual lookup (no actual blocking): %1$s</string>

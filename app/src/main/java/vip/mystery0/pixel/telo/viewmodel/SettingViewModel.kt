@@ -206,6 +206,36 @@ class SettingViewModel : ViewModel(), KoinComponent {
         callHandlingPreferences.setStrategy(strategy)
     }
 
+    var strangerCallsEnabled by mutableStateOf(callHandlingPreferences.strangerEnabled())
+        private set
+    var strangerCallPolicy by mutableStateOf(callHandlingPreferences.readStrangerPolicy())
+        private set
+
+    fun updateStrangerCallsEnabled(enabled: Boolean) {
+        // 权限可能在设置页停留期间被撤销，保存前仍检查实时状态。
+        if (enabled && ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return
+        callHandlingPreferences.setStrangerEnabled(enabled)
+        strangerCallsEnabled = enabled
+        strangerCallPolicy = callHandlingPreferences.readStrangerPolicy()
+    }
+
+    fun updateStrangerFirstCallStrategy(strategy: CallHandlingStrategy) {
+        callHandlingPreferences.setStrangerPolicy(strangerCallPolicy.copy(firstCall = strategy))
+        strangerCallPolicy = callHandlingPreferences.readStrangerPolicy()
+    }
+
+    fun updateStrangerRepeatCallStrategy(strategy: CallHandlingStrategy) {
+        callHandlingPreferences.setStrangerPolicy(strangerCallPolicy.copy(repeatCall = strategy))
+        strangerCallPolicy = callHandlingPreferences.readStrangerPolicy()
+    }
+
+    fun updateStrangerRepeatWindow(minutes: Int) {
+        callHandlingPreferences.setStrangerPolicy(strangerCallPolicy.copy(windowMinutes = minutes))
+        strangerCallPolicy = callHandlingPreferences.readStrangerPolicy()
+    }
+
     var noNetworkQuery by mutableStateOf(prefs.getBoolean(KEY_NO_NETWORK_QUERY, false))
 
     fun updateNoNetworkQuery(enabled: Boolean) {

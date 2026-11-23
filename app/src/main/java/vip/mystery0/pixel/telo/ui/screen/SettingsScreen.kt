@@ -128,6 +128,7 @@ fun SettingsScreen(
     val callStateVibrationPermissionDeniedMessage = stringResource(
         R.string.msg_call_state_vibration_requires_phone_state_permission
     )
+    val strangerPermissionDeniedMessage = stringResource(R.string.setting_stranger_permission_required)
     val feedbackPermissions = remember {
         buildList {
             add(Manifest.permission.READ_PHONE_STATE)
@@ -177,6 +178,10 @@ fun SettingsScreen(
             "vibration" -> {
                 viewModel.updateCallStateVibrationEnabled(granted)
                 callStateVibrationPermissionDeniedMessage
+            }
+            "stranger-calls" -> {
+                viewModel.updateStrangerCallsEnabled(granted)
+                strangerPermissionDeniedMessage
             }
             else -> null
         }
@@ -963,7 +968,8 @@ fun SettingsScreen(
                     Triple(
                         SettingsCategory.CALL_RECOGNITION,
                         stringResource(
-                            when (viewModel.callHandlingStrategy) {
+                            if (viewModel.strangerCallsEnabled) R.string.setting_category_stranger_summary
+                            else when (viewModel.callHandlingStrategy) {
                                 CallHandlingStrategy.NOTIFY -> R.string.setting_category_call_notify_summary
                                 CallHandlingStrategy.SILENCE -> R.string.setting_category_call_silence_summary
                                 CallHandlingStrategy.BLOCK -> R.string.setting_category_call_block_summary
@@ -1046,6 +1052,11 @@ fun SettingsScreen(
                         InterceptBehaviorPreferences(
                             viewModel = viewModel,
                             backendState = queryBackendState,
+                            contactsPermissionGranted = permissionsState[Manifest.permission.READ_CONTACTS] == true,
+                            onRequestContactsPermission = {
+                                pendingPermissionAction = "stranger-calls"
+                                permissionRequester.launch(arrayOf(Manifest.permission.READ_CONTACTS))
+                            },
                         )
 
                     SettingsCategory.ONLINE_QUERY ->

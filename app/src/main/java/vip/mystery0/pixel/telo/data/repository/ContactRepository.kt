@@ -43,6 +43,9 @@ private sealed interface ContactQueryResult {
     data object Failed : ContactQueryResult
 }
 
+/** 通讯录明确查询结论；UNKNOWN 不可用于认定陌生来电。 */
+enum class ContactPresence { CONTACT, NOT_CONTACT, UNKNOWN }
+
 /**
  * 查询系统联系人是否存在，并为页面动态解析联系人姓名。
  *
@@ -67,17 +70,18 @@ class ContactRepository(private val context: Context) {
      * 实时识别只查询本地通讯录的号码存在性，不读取姓名，也不使用页面姓名缓存。
      *
      * 独立调度同步 Binder 查询，使超时方无需等待 Provider 返回；取消同时通知 Provider。
-     * 未授权、异常、排队或查询超过预算均按未确认联系人处理，继续原识别流程。
+     * 未授权、异常、排队或查询超过预算均为 UNKNOWN。
+     * 只有成功查询且明确无匹配才是 NOT_CONTACT，失败不能作为陌生来电依据。
      */
-    suspend fun isContact(phoneNumber: String): Boolean {
+    suspend fun contactPresence(phoneNumber: String): ContactPresence {
         if (phoneNumber.isBlank() || ContextCompat.checkSelfPermission(
                 context, Manifest.permission.READ_CONTACTS,
             ) != PackageManager.PERMISSION_GRANTED
-        ) return false
+        ) return ContactPresence.UNKNOWN
 
         val startedAt = SystemClock.elapsedRealtime()
         val found = withTimeoutOrNull(SCREENING_LOOKUP_TIMEOUT_MS) {
-            suspendCancellableCoroutine { continuation ->
+            suspendCancellableCoroutine<Boolean?> { continuation ->
                 val signal = CancellationSignal()
                 continuation.invokeOnCancellation {
                     // Provider 的取消也可能触发 Binder，不能占用来电超时返回线程。
@@ -96,15 +100,16 @@ class ContactRepository(private val context: Context) {
                                 ContactsContract.DIRECTORY_PARAM_KEY,
                                 ContactsContract.Directory.DEFAULT.toString(),
                             ).build()
-                            resolver.query(
+                            val cursor = resolver.query(
                                 uri,
                                 arrayOf(ContactsContract.PhoneLookup._ID),
                                 null, null, null, signal,
-                            )?.use { it.moveToFirst() } == true
+                            ) ?: throw IllegalStateException("Contact provider returned no cursor")
+                            cursor.use { it.moveToFirst() }
                         }
                     } catch (_: Exception) {
                         if (!signal.isCanceled) Log.w(TAG, "Contact screening lookup failed")
-                        false
+                        null
                     }
                     continuation.resume(exists)
                 }
@@ -112,11 +117,15 @@ class ContactRepository(private val context: Context) {
         }
         val cost = SystemClock.elapsedRealtime() - startedAt
         if (found == null) {
-            Log.w(TAG, "Contact screening lookup timed out: cost=${cost}ms")
+            Log.w(TAG, "Contact screening lookup unavailable: cost=${cost}ms")
         } else if (cost > 100L) {
             Log.w(TAG, "Contact screening lookup too slow: cost=${cost}ms")
         }
-        return found == true
+        return when (found) {
+            true -> ContactPresence.CONTACT
+            false -> ContactPresence.NOT_CONTACT
+            null -> ContactPresence.UNKNOWN
+        }
     }
 
     /**

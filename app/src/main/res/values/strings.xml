@@ -574,4 +574,16 @@
     <string name="label_tag_contains">Tag · Contains</string>
     <string name="summary_tag_contains">Example: “Insurance” matches “Insurance sales”; case-sensitive. Recognized tags only, not local labels.</string>
     <string name="msg_database_delete_failed">Unable to delete the offline database. Try again.</string>
+    <string name="setting_stranger_calls">Screen calls from non-contacts</string>
+    <string name="setting_stranger_calls_summary">Use separate policies for callers outside contacts and the number whitelist. Turning this off restores your regular settings; both sets are saved independently.</string>
+    <string name="setting_stranger_permission_required">Contacts permission is required. Turn on to request access. The non-contact rule does not apply when contact status cannot be confirmed.</string>
+    <string name="setting_stranger_first_call">First call from a non-contact</string>
+    <string name="setting_stranger_first_summary">%1$s. Saved separately from regular call handling. Forced number blacklist rules still reject calls.</string>
+    <string name="setting_stranger_repeat_call">Repeat call from a non-contact</string>
+    <string name="setting_category_stranger_summary">Non-contact mode · Separate first-call and repeat-call policies</string>
+    <string name="stranger_rule_priority_explanation">Contacts and number whitelist matches are allowed first; forced number blacklist matches are rejected. Other non-contacts use the policies below. International-number exemptions still apply. This mode skips spam database and network queries, including tag, location, and community blocking rules.</string>
+    <string name="stranger_community_inactive">Non-contact mode uses separate policies. Turn it off to resume your community blocking settings.</string>
+    <string name="call_stranger_rule">Non-contact call rule</string>
+    <string name="call_contact_unknown">Contact status unavailable; call allowed</string>
+    <string name="call_remark_repeat_block">%1$s (repeat call, rejected)</string>
 </resources>

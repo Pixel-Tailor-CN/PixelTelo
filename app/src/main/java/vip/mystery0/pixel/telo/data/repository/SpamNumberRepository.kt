@@ -1,5 +1,6 @@
 package vip.mystery0.pixel.telo.data.repository
 
+import android.content.Context
 import android.content.SharedPreferences
 import android.os.SystemClock
 import android.util.Log
@@ -20,11 +21,14 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import vip.mystery0.pixel.telo.R
 import vip.mystery0.pixel.telo.data.PhoneNumberNormalizer
 import vip.mystery0.pixel.telo.data.PhoneNumberRuleMatcher
 import vip.mystery0.pixel.telo.data.entity.ResultType
 import vip.mystery0.pixel.telo.data.model.CommunityStatus
+import vip.mystery0.pixel.telo.data.preferences.CallHandlingPreferences
 import vip.mystery0.pixel.telo.data.preferences.CommunityReportPreferences
+import vip.mystery0.pixel.telo.data.preferences.StrangerCallPolicy
 import vip.mystery0.pixel.telo.data.query.CommunityQueryEpoch
 import vip.mystery0.pixel.telo.data.query.OFFICIAL_BACKEND_ID
 import vip.mystery0.pixel.telo.data.query.decodeCommunityQueryMetadata
@@ -57,6 +61,8 @@ data class CheckResult(
     val feedbackTokenExpiresAt: Long? = null,
     val communityEpoch: Long = -1,
     val communityReceivedAtElapsedMs: Long = -1,
+    /** 仅来电筛查与模拟检查携带，Directory 和去电识别不使用陌生来电策略。 */
+    val strangerPolicy: StrangerCallPolicy? = null,
 )
 
 class SpamNumberRepository : KoinComponent {
@@ -76,6 +82,8 @@ class SpamNumberRepository : KoinComponent {
     private val communityEpoch: CommunityQueryEpoch by inject()
     private val userListRepository: UserListRepository by inject()
     private val contactRepository: ContactRepository by inject()
+    private val context: Context by inject()
+    private val callHandlingPreferences: CallHandlingPreferences by inject()
     // 独立等待可让调用方按时返回；最多四个本地任务，避免非协作 Binder/SQLite 占满线程。
     private val localLookupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(4))
     private val queryReuseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -105,12 +113,19 @@ class SpamNumberRepository : KoinComponent {
         }
     }
 
-    suspend fun checkSpam(phoneNumber: String, forceNetworkQuery: Boolean = false): CheckResult {
+    suspend fun checkSpam(
+        phoneNumber: String,
+        forceNetworkQuery: Boolean = false,
+        applyStrangerPolicy: Boolean = true,
+    ): CheckResult {
         val startedAt = SystemClock.elapsedRealtime()
+        val strangerPolicy = if (applyStrangerPolicy && callHandlingPreferences.strangerEnabled()) {
+            callHandlingPreferences.readStrangerPolicy()
+        } else null
         val phone = PhoneNumberNormalizer.normalizeForLookup(phoneNumber)
         val localAttempt = try {
             runLocalStage(LOCAL_LOOKUP_TIMEOUT_MS - (SystemClock.elapsedRealtime() - startedAt)) {
-                checkLocalSpam(phoneNumber, phone)
+                checkLocalSpam(phoneNumber, phone, strangerPolicy)
             }
         } finally {
             val cost = SystemClock.elapsedRealtime() - startedAt
@@ -197,9 +212,14 @@ class SpamNumberRepository : KoinComponent {
     }
 
     /** 本地阶段只返回已确定的结果；null 表示门禁均通过，调用方才可考虑联网。 */
-    private suspend fun checkLocalSpam(phoneNumber: String, phone: String): CheckResult? {
+    private suspend fun checkLocalSpam(
+        phoneNumber: String,
+        phone: String,
+        strangerPolicy: StrangerCallPolicy?,
+    ): CheckResult? {
         // 通讯录、号码白名单、号码黑名单和国际门禁沿用既有顺序。
-        if (contactRepository.isContact(phoneNumber)) {
+        val contactPresence = contactRepository.contactPresence(phoneNumber)
+        if (contactPresence == ContactPresence.CONTACT) {
             Log.i(TAG, "Contact found, allowing call")
             return CheckResult(false, "", ResultType.PASS, 0, 0)
         }
@@ -210,16 +230,27 @@ class SpamNumberRepository : KoinComponent {
             return CheckResult(false, whiteMatch.remark.orEmpty(), ResultType.WHITE_LIST, 0, 0)
         }
         currentCoroutineContext().ensureActive()
+        // 陌生模式必须有可靠的通讯录结论；未知状态只保留明确的强制号码黑名单。
+        val contactUnknown = strangerPolicy != null && contactPresence == ContactPresence.UNKNOWN
         val blackMatch = userListRepository.findBlackListMatch(phoneNumber)
-        if (blackMatch != null) {
+        if (blackMatch != null && (!contactUnknown || blackMatch.forceBlock)) {
             Log.i(TAG, "Black list hit")
             return CheckResult(true, blackMatch.remark.orEmpty(), ResultType.BLACK_LIST, 0, 0,
-                forceBlock = blackMatch.forceBlock)
+                forceBlock = blackMatch.forceBlock, strangerPolicy = strangerPolicy)
         }
         currentCoroutineContext().ensureActive()
         if (PhoneNumberRuleMatcher.isExplicitInternational(phoneNumber)) {
             Log.i(TAG, "Explicit international number skipped")
             return CheckResult(false, "", ResultType.PASS_BUT_NOTIFY, 0, 0)
+        }
+        if (strangerPolicy != null) {
+            if (contactUnknown) {
+                Log.w(TAG, "Contact presence unknown, allowing stranger-mode call")
+                return CheckResult(false, context.getString(R.string.call_contact_unknown), ResultType.PASS, 0, 0)
+            }
+            // 此模式只依赖本地联系人与号码名单，不以骚扰标记或联网成功作为生效条件。
+            return CheckResult(true, context.getString(R.string.call_stranger_rule), ResultType.INTERCEPT, 0, 0,
+                strangerPolicy = strangerPolicy)
         }
         val spamNumber = try {
             syncRepository.lookupSpamNumber(phone)
